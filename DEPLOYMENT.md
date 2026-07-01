@@ -2,46 +2,75 @@
 
 ## Current Project State
 
-- The website is committed locally on the `main` branch.
+- The website is committed locally on the `main` branch and pushed to GitHub.
 - The custom-domain file `CNAME` is set to `coverup.tech`.
-- The domain currently uses OrderBox nameservers and has no active `A` record for `coverup.tech` or `CNAME` for `www.coverup.tech`.
+- The site is deployed on Vercel production.
+- The domain currently uses OrderBox nameservers and has no active Vercel DNS records yet.
+
+## Live URLs
+
+```text
+GitHub: https://github.com/momtaz-group/coverup-website22
+Vercel: https://premium-website-design-for-cover-up.vercel.app
+```
 
 ## GitHub
 
-Create a repository named:
+Repository:
 
 ```text
-coverup-website
+https://github.com/momtaz-group/coverup-website22
 ```
 
-Then push this local repository:
+Push updates:
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/coverup-website.git
-git push -u origin main
+git push
 ```
 
 ## Recommended Hosting: Vercel
 
-1. Import the GitHub repository into Vercel.
-2. Framework preset: `Other`.
-3. Build command: leave empty.
-4. Output directory: leave empty.
-5. Add both domains in Vercel Project Settings -> Domains:
+Project:
+
+```text
+memo132/premium-website-design-for-cover-up
+```
+
+The current production alias is:
+
+```text
+https://premium-website-design-for-cover-up.vercel.app
+```
+
+The domains have been added in Vercel Project Settings -> Domains:
+
    - `coverup.tech`
    - `www.coverup.tech`
 
 ## DNS Records for Vercel
 
-Add these records in your domain DNS panel:
+Add these records in your domain DNS panel at the current DNS provider:
 
 ```text
-Type  Name  Value
-A     @     76.76.21.21
-CNAME www   Use the exact CNAME value Vercel shows for your project
+Type   Name   Value
+A      @      216.198.79.1
+A      @      64.29.17.1
+CNAME  www    bbf182c0fbefd0db.vercel-dns-017.com.
 ```
 
-Vercel may show a project-specific CNAME target in the Domains screen. Use that exact value for `www`.
+Alternative: change the domain nameservers to:
+
+```text
+ns1.vercel-dns.com
+ns2.vercel-dns.com
+```
+
+After DNS changes propagate, verify with:
+
+```bash
+vercel domains verify coverup.tech
+vercel domains verify www.coverup.tech
+```
 
 ## Alternative Hosting: GitHub Pages
 
