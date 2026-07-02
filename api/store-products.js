@@ -1,4 +1,4 @@
-const { STORE_KEYS, getJson, kvConfigured, requireAdmin, sendJson, setJson } = require("./_store");
+const { getProducts, requireAdmin, sendJson, setProducts, supabaseConfigured } = require("./_store");
 const { randomUUID } = require("node:crypto");
 
 function cleanProduct(product) {
@@ -14,30 +14,35 @@ function cleanProduct(product) {
 }
 
 module.exports = async function handler(request, response) {
-  if (request.method === "GET") {
-    const result = await getJson(STORE_KEYS.products, []);
-    return sendJson(response, 200, {
-      configured: result.configured,
-      products: result.data,
-    });
-  }
+  try {
+    if (request.method === "GET") {
+      if (!supabaseConfigured(false)) {
+        return sendJson(response, 200, { configured: false, products: [] });
+      }
 
-  if (request.method === "POST") {
-    if (!requireAdmin(request, response)) {
-      return;
+      const products = await getProducts();
+      return sendJson(response, 200, { configured: true, products });
     }
 
-    if (!kvConfigured()) {
-      return sendJson(response, 501, { message: "KV storage is not configured." });
+    if (request.method === "POST") {
+      if (!requireAdmin(request, response)) {
+        return;
+      }
+
+      if (!supabaseConfigured(true)) {
+        return sendJson(response, 501, { message: "Supabase service role is not configured." });
+      }
+
+      const products = Array.isArray(request.body?.products)
+        ? request.body.products.map(cleanProduct).filter((product) => product.name && product.price > 0)
+        : [];
+
+      const savedProducts = await setProducts(products);
+      return sendJson(response, 200, { products: savedProducts });
     }
 
-    const products = Array.isArray(request.body?.products)
-      ? request.body.products.map(cleanProduct).filter((product) => product.name && product.price > 0)
-      : [];
-
-    await setJson(STORE_KEYS.products, products);
-    return sendJson(response, 200, { products });
+    return sendJson(response, 405, { message: "Method not allowed" });
+  } catch (error) {
+    return sendJson(response, 500, { message: error.message || "Storage error" });
   }
-
-  return sendJson(response, 405, { message: "Method not allowed" });
 };

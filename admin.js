@@ -142,8 +142,8 @@ async function loadAdmin() {
   products = productData.products?.length ? productData.products : defaultProducts;
   events = eventData;
   setupMessage.textContent = productData.configured && eventData.configured
-    ? "التخزين متفعل والداشبورد متصل."
-    : "التخزين غير متفعل بالكامل. أضف KV_REST_API_URL و KV_REST_API_TOKEN و ADMIN_PASSWORD على Vercel.";
+    ? "Supabase متفعل والداشبورد متصل."
+    : "Supabase غير متفعل بالكامل. راجع SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY وبيانات دخول الإدارة على Vercel.";
   renderProducts();
   renderEvents();
 }

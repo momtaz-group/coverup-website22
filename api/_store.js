@@ -1,68 +1,147 @@
-const STORE_KEYS = {
-  products: "coverup:products",
-  orders: "coverup:orders",
-  reviews: "coverup:reviews",
-  complaints: "coverup:complaints",
-  chats: "coverup:chats",
+const TABLES = {
+  products: "products",
+  orders: "orders",
+  reviews: "reviews",
+  complaints: "complaints",
+  chats: "chats",
 };
-
-const { randomUUID } = require("node:crypto");
 
 function sendJson(response, statusCode, payload) {
   response.status(statusCode).json(payload);
 }
 
-function kvConfigured() {
-  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function supabaseUrl() {
+  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 }
 
-async function kv(command) {
-  const result = await fetch(process.env.KV_REST_API_URL, {
-    method: "POST",
+function supabaseServiceKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+}
+
+function supabaseAnonKey() {
+  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+}
+
+function supabaseConfigured(requireService = false) {
+  return Boolean(supabaseUrl() && (requireService ? supabaseServiceKey() : supabaseAnonKey()));
+}
+
+async function supabaseRequest(table, options = {}) {
+  const useService = options.service === true;
+  const key = useService ? supabaseServiceKey() : supabaseAnonKey();
+
+  if (!supabaseUrl() || !key) {
+    throw new Error("Supabase is not configured");
+  }
+
+  const query = options.query || "";
+  const result = await fetch(`${supabaseUrl()}/rest/v1/${table}${query}`, {
+    method: options.method || "GET",
     headers: {
-      Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
+      Prefer: options.prefer || "return=representation",
     },
-    body: JSON.stringify(command),
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!result.ok) {
-    throw new Error("KV request failed");
+    const message = await result.text().catch(() => "");
+    throw new Error(message || `Supabase request failed: ${result.status}`);
+  }
+
+  if (result.status === 204) {
+    return [];
   }
 
   return result.json();
 }
 
-async function getJson(key, fallback) {
-  if (!kvConfigured()) {
-    return { configured: false, data: fallback };
-  }
-
-  const response = await kv(["GET", key]);
-  if (!response.result) {
-    return { configured: true, data: fallback };
-  }
-
-  try {
-    return { configured: true, data: JSON.parse(response.result) };
-  } catch {
-    return { configured: true, data: fallback };
-  }
+function productFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    price: Number(row.price),
+    image: row.image,
+    badge: row.badge,
+    description: row.description,
+  };
 }
 
-async function setJson(key, data) {
-  if (!kvConfigured()) {
-    throw new Error("KV is not configured");
-  }
-
-  await kv(["SET", key, JSON.stringify(data)]);
+function productToDb(product) {
+  return {
+    id: String(product.id || "").trim(),
+    name: String(product.name || "").trim(),
+    category: String(product.category || "منتجات").trim(),
+    price: Number(product.price) || 0,
+    image: String(product.image || "").trim(),
+    badge: String(product.badge || "متوفر").trim(),
+    description: String(product.description || "").trim(),
+    is_active: true,
+  };
 }
 
-async function appendJson(key, item) {
-  const current = await getJson(key, []);
-  const next = [{ ...item, id: item.id || randomUUID(), createdAt: new Date().toISOString() }, ...current.data].slice(0, 500);
-  await setJson(key, next);
-  return next[0];
+async function getProducts() {
+  const rows = await supabaseRequest(TABLES.products, {
+    query: "?select=id,name,category,price,image,badge,description&is_active=eq.true&order=created_at.asc",
+  });
+
+  return rows.map(productFromDb);
+}
+
+async function setProducts(products) {
+  const rows = products.map(productToDb).filter((product) => product.id && product.name && product.price > 0);
+
+  await supabaseRequest(TABLES.products, {
+    service: true,
+    method: "PATCH",
+    query: "?is_active=eq.true",
+    body: { is_active: false },
+    prefer: "return=minimal",
+  });
+
+  if (!rows.length) {
+    return [];
+  }
+
+  await supabaseRequest(TABLES.products, {
+    service: true,
+    method: "POST",
+    query: "?on_conflict=id",
+    body: rows,
+    prefer: "resolution=merge-duplicates,return=representation",
+  });
+
+  return getProducts();
+}
+
+async function appendEvent(type, item) {
+  const table = TABLES[type];
+
+  if (!table) {
+    throw new Error("Invalid event type");
+  }
+
+  const saved = await supabaseRequest(table, {
+    service: true,
+    method: "POST",
+    body: item,
+  });
+
+  return saved[0];
+}
+
+async function getEvents() {
+  const [orders, reviews, complaints, chats] = await Promise.all([
+    supabaseRequest(TABLES.orders, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
+    supabaseRequest(TABLES.reviews, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
+    supabaseRequest(TABLES.complaints, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
+    supabaseRequest(TABLES.chats, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
+  ]);
+
+  return { orders, reviews, complaints, chats };
 }
 
 function requireAdmin(request, response) {
@@ -85,11 +164,11 @@ function requireAdmin(request, response) {
 }
 
 module.exports = {
-  STORE_KEYS,
-  appendJson,
-  getJson,
-  kvConfigured,
+  appendEvent,
+  getEvents,
+  getProducts,
   requireAdmin,
   sendJson,
-  setJson,
+  setProducts,
+  supabaseConfigured,
 };
