@@ -66,18 +66,12 @@ img {
 }
 
 .brand-logo {
-  width: 40px;
-  height: 40px;
+  width: 58px;
+  height: 46px;
   border: 1px solid rgba(206, 178, 71, 0.22);
   border-radius: 8px;
   background: #000;
   object-fit: contain;
-}
-
-.brand-name {
-  direction: ltr;
-  display: inline-flex;
-  gap: 2px;
 }
 
 .brand strong {
@@ -1224,10 +1218,6 @@ h1 span {
 [dir="rtl"] .product-card p,
 [dir="rtl"] .trust-strip span {
   letter-spacing: 0;
-}
-
-[dir="rtl"] .brand-name {
-  letter-spacing: 0.18em;
 }
 
 [dir="rtl"] .hero-visual img {
