@@ -20,6 +20,7 @@ const defaultProducts = [
 ];
 
 let adminPassword = sessionStorage.getItem("coverup-admin-password") || "";
+let adminUsername = sessionStorage.getItem("coverup-admin-username") || "";
 let products = [];
 let events = {};
 
@@ -34,6 +35,7 @@ const productList = document.querySelector("[data-admin-products]");
 function headers() {
   return {
     "Content-Type": "application/json",
+    "x-admin-username": adminUsername,
     "x-admin-password": adminPassword,
   };
 }
@@ -134,7 +136,7 @@ function renderEvents() {
 async function loadAdmin() {
   const [productData, eventData] = await Promise.all([
     api("/api/store-products"),
-    api("/api/store-events", { headers: { "x-admin-password": adminPassword } }),
+    api("/api/store-events", { headers: headers() }),
   ]);
 
   products = productData.products?.length ? productData.products : defaultProducts;
@@ -148,7 +150,10 @@ async function loadAdmin() {
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  adminPassword = new FormData(loginForm).get("password");
+  const loginData = new FormData(loginForm);
+  adminUsername = loginData.get("username");
+  adminPassword = loginData.get("password");
+  sessionStorage.setItem("coverup-admin-username", adminUsername);
   sessionStorage.setItem("coverup-admin-password", adminPassword);
 
   try {
@@ -209,6 +214,7 @@ if (adminPassword) {
       dashboard.hidden = false;
     })
     .catch(() => {
+      sessionStorage.removeItem("coverup-admin-username");
       sessionStorage.removeItem("coverup-admin-password");
     });
 }

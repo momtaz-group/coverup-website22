@@ -66,15 +66,17 @@ async function appendJson(key, item) {
 }
 
 function requireAdmin(request, response) {
+  const expectedUser = process.env.ADMIN_USERNAME;
   const expected = process.env.ADMIN_PASSWORD;
+  const providedUser = request.headers["x-admin-username"];
   const provided = request.headers["x-admin-password"];
 
-  if (!expected) {
-    sendJson(response, 501, { message: "ADMIN_PASSWORD is not configured on Vercel." });
+  if (!expectedUser || !expected) {
+    sendJson(response, 501, { message: "ADMIN_USERNAME and ADMIN_PASSWORD are not configured on Vercel." });
     return false;
   }
 
-  if (provided !== expected) {
+  if (providedUser !== expectedUser || provided !== expected) {
     sendJson(response, 401, { message: "Unauthorized" });
     return false;
   }

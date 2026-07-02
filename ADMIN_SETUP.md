@@ -8,6 +8,7 @@ It is protected at the API level. The page can load publicly, but product change
 
 ## Required Vercel Environment Variables
 
+- `ADMIN_USERNAME`: private dashboard username.
 - `ADMIN_PASSWORD`: strong private password for the dashboard.
 - `KV_REST_API_URL`: Vercel KV / Upstash Redis REST URL.
 - `KV_REST_API_TOKEN`: Vercel KV / Upstash Redis REST token.
@@ -16,7 +17,7 @@ Optional payment variables are documented in `PAYMENT_SETUP.md`.
 
 ## Why These Are Required
 
-Static website files cannot safely store private orders, customer phone numbers, complaints, or uploaded product data. Vercel KV keeps this data server-side, and the API checks `ADMIN_PASSWORD` before returning sensitive dashboard data.
+Static website files cannot safely store private orders, customer phone numbers, complaints, or uploaded product data. Upstash Redis keeps this data server-side, and the API checks `ADMIN_USERNAME` and `ADMIN_PASSWORD` before returning sensitive dashboard data.
 
 ## Current Safety Behavior
 

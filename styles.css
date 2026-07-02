@@ -74,6 +74,15 @@ img {
   object-fit: contain;
 }
 
+.brand-wordmark {
+  direction: ltr;
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  color: var(--text);
+  letter-spacing: 0.12em;
+}
+
 .brand strong {
   color: var(--gold);
   font-weight: 800;
