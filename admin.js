@@ -48,6 +48,10 @@ function safeText(value) {
   return String(value || "").replace(/[<>]/g, "");
 }
 
+function recordDate(record) {
+  return record?.created_at || record?.createdAt;
+}
+
 async function imageToDataUrl(file) {
   if (!file) {
     return "";
@@ -102,7 +106,7 @@ function renderEvents() {
   renderList("[data-admin-orders]", events.orders, (order) => `
     <article class="admin-record">
       <strong>${safeText(order.customer?.name || "عميل")}</strong>
-      <span>${safeText(order.channel)} - ${formatDate(order.createdAt)}</span>
+      <span>${safeText(order.channel)} - ${formatDate(recordDate(order))}</span>
       <p>${safeText(order.customer?.phone)} | ${safeText(order.customer?.address)}</p>
       <p>${Number(order.total || 0).toLocaleString("ar-EG")} EGP</p>
     </article>
@@ -111,7 +115,7 @@ function renderEvents() {
   renderList("[data-admin-reviews]", events.reviews, (review) => `
     <article class="admin-record">
       <strong>${safeText(review.name)} - ${safeText(review.rating)}/5</strong>
-      <span>${formatDate(review.createdAt)}</span>
+      <span>${formatDate(recordDate(review))}</span>
       <p>${safeText(review.message)}</p>
     </article>
   `);
@@ -119,14 +123,14 @@ function renderEvents() {
   renderList("[data-admin-complaints]", events.complaints, (complaint) => `
     <article class="admin-record">
       <strong>${safeText(complaint.name)}</strong>
-      <span>${safeText(complaint.phone)} - ${formatDate(complaint.createdAt)}</span>
+      <span>${safeText(complaint.phone)} - ${formatDate(recordDate(complaint))}</span>
       <p>${safeText(complaint.message)}</p>
     </article>
   `);
 
   renderList("[data-admin-chats]", events.chats, (chat) => `
     <article class="admin-record">
-      <strong>${formatDate(chat.createdAt)}</strong>
+      <strong>${formatDate(recordDate(chat))}</strong>
       <p><b>العميل:</b> ${safeText(chat.message)}</p>
       <p><b>Cover Up:</b> ${safeText(chat.reply)}</p>
     </article>
