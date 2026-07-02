@@ -233,4 +233,4 @@ langToggle.addEventListener("click", () => {
   setLanguage(html.lang === "ar" ? "en" : "ar");
 });
 
-setLanguage(localStorage.getItem("coverup-language") || "en");
+setLanguage(localStorage.getItem("coverup-language") || "ar");
