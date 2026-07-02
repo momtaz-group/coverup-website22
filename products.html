@@ -32,15 +32,19 @@
       </button>
 
       <nav class="site-nav" aria-label="التنقل الرئيسي">
-        <a href="index.html#services">الخدمات</a>
-        <a href="products.html">المنتجات</a>
+        <a href="products.html">المتجر</a>
         <a href="#family-visit">مندوب العيلة</a>
-        <a href="index.html#repairs">الصيانة</a>
+        <a href="index.html#repairs">الصيانه</a>
         <a href="index.html#corporate">الشركات</a>
+        <a href="#support">شكاوى واقتراحات</a>
         <a href="index.html#contact">تواصل</a>
       </nav>
 
       <div class="header-actions">
+        <button class="account-button" type="button" data-account-open>
+          حسابي
+          <span data-account-label>دخول</span>
+        </button>
         <button class="cart-button" type="button" data-cart-open>
           السلة
           <span data-cart-count>0</span>
@@ -231,6 +235,88 @@
       </section>
     </main>
 
+    <aside class="account-drawer" aria-hidden="true" data-account-drawer>
+      <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
+        <div class="cart-header">
+          <div>
+            <p class="eyebrow">حساب العميل</p>
+            <h2 id="account-title">دخول أو تسجيل جديد</h2>
+          </div>
+          <button class="icon-button" type="button" aria-label="اقفل الحساب" data-account-close>×</button>
+        </div>
+
+        <div class="account-summary" hidden data-account-summary></div>
+
+        <div class="account-tabs" role="tablist" aria-label="اختيارات الحساب">
+          <button class="is-active" type="button" data-account-tab="login">دخول</button>
+          <button type="button" data-account-tab="register">تسجيل</button>
+          <button type="button" data-account-tab="forgot">نسيت كلمة السر</button>
+        </div>
+
+        <form class="account-form is-active" data-login-account-form>
+          <label>
+            اسم المستخدم أو الإيميل أو رقم الموبايل
+            <input name="identity" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            كلمة السر
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="button button-primary" type="submit">دخول</button>
+        </form>
+
+        <form class="account-form" data-register-account-form>
+          <div class="form-grid">
+            <label>
+              الاسم بالكامل
+              <input name="name" type="text" autocomplete="name" required />
+            </label>
+            <label>
+              رقم الموبايل
+              <input name="phone" type="tel" autocomplete="tel" required />
+            </label>
+            <label>
+              الإيميل
+              <input name="email" type="email" autocomplete="email" required />
+            </label>
+            <label>
+              اسم المستخدم
+              <input name="username" type="text" autocomplete="username" required />
+            </label>
+            <label>
+              كلمة السر
+              <input name="password" type="password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <label>
+              المدينة / المنطقة
+              <input name="city" type="text" autocomplete="address-level2" />
+            </label>
+            <label class="full-field">
+              العنوان التفصيلي
+              <input name="address" type="text" autocomplete="street-address" required />
+            </label>
+            <label class="full-field">
+              ملاحظات مهمة
+              <textarea name="notes" rows="3" placeholder="مثال: أقرب علامة، أوقات مناسبة للتواصل، نوع الأجهزة المتكرر"></textarea>
+            </label>
+          </div>
+          <button class="button button-primary" type="submit">اعمل حساب</button>
+        </form>
+
+        <form class="account-form" data-forgot-account-form>
+          <p class="muted-text">اكتب اسم المستخدم أو الإيميل أو رقم الموبايل. لو الإيميل الرسمي متفعل، هيوصلك إيميل استرجاع. غير كده هيظهر طلبك في الداشبورد للمتابعة.</p>
+          <label>
+            بيانات الحساب
+            <input name="identity" type="text" required />
+          </label>
+          <button class="button button-secondary" type="submit">استرجاع كلمة السر</button>
+        </form>
+
+        <p class="payment-message" data-account-status></p>
+        <button class="text-button" type="button" hidden data-account-logout>تسجيل خروج</button>
+      </div>
+    </aside>
+
     <aside class="cart-drawer" aria-hidden="true" data-cart-drawer>
       <div class="cart-panel" role="dialog" aria-modal="true" aria-labelledby="cart-title">
         <div class="cart-header">
@@ -241,6 +327,7 @@
           <button class="icon-button" type="button" aria-label="اقفل السلة" data-cart-close>×</button>
         </div>
 
+        <div class="cart-account-line" data-cart-account-line></div>
         <div class="cart-items" data-cart-items></div>
 
         <form class="checkout-fields" data-checkout-form>
@@ -261,6 +348,10 @@
         <div class="cart-total">
           <span>الإجمالي</span>
           <strong data-cart-total>0 EGP</strong>
+        </div>
+        <div class="cart-actions">
+          <button class="button button-secondary" type="button" data-continue-shopping>اكمل تسوق</button>
+          <button class="button button-secondary" type="button" data-go-account>اذهب للحساب</button>
         </div>
         <a class="button button-primary" href="https://wa.me/201050310516" target="_blank" rel="noreferrer" data-checkout-link>اطلب على واتساب</a>
         <button class="button button-secondary" type="button" data-pay-online>ادفع إلكترونيًا</button>

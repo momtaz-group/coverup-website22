@@ -96,6 +96,7 @@ const state = {
   search: "",
   category: "الكل",
   cart: JSON.parse(localStorage.getItem("coverup-cart") || "{}"),
+  customer: JSON.parse(localStorage.getItem("coverup-customer") || "null"),
 };
 
 const grid = document.querySelector("[data-products-grid]");
@@ -107,6 +108,15 @@ const cartDrawer = document.querySelector("[data-cart-drawer]");
 const cartItems = document.querySelector("[data-cart-items]");
 const cartTotal = document.querySelector("[data-cart-total]");
 const cartCount = document.querySelector("[data-cart-count]");
+const accountDrawer = document.querySelector("[data-account-drawer]");
+const accountLabel = document.querySelector("[data-account-label]");
+const accountSummary = document.querySelector("[data-account-summary]");
+const accountStatus = document.querySelector("[data-account-status]");
+const accountLogout = document.querySelector("[data-account-logout]");
+const loginAccountForm = document.querySelector("[data-login-account-form]");
+const registerAccountForm = document.querySelector("[data-register-account-form]");
+const forgotAccountForm = document.querySelector("[data-forgot-account-form]");
+const cartAccountLine = document.querySelector("[data-cart-account-line]");
 const checkoutLink = document.querySelector("[data-checkout-link]");
 const checkoutForm = document.querySelector("[data-checkout-form]");
 const paymentButton = document.querySelector("[data-pay-online]");
@@ -146,6 +156,24 @@ async function loadDashboardProducts() {
 
 function saveCart() {
   localStorage.setItem("coverup-cart", JSON.stringify(state.cart));
+}
+
+function saveCustomer(customer) {
+  state.customer = customer;
+  if (customer) {
+    localStorage.setItem("coverup-customer", JSON.stringify(customer));
+  } else {
+    localStorage.removeItem("coverup-customer");
+  }
+}
+
+function escapeText(value) {
+  return String(value || "").replace(/[<>&"]/g, (char) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+  }[char]));
 }
 
 function productImage(product) {
@@ -227,9 +255,11 @@ function renderProducts() {
 function checkoutData() {
   const data = new FormData(checkoutForm);
   return {
-    name: data.get("name")?.trim() || "",
-    phone: data.get("phone")?.trim() || "",
-    address: data.get("address")?.trim() || "",
+    name: data.get("name")?.trim() || state.customer?.name || "",
+    phone: data.get("phone")?.trim() || state.customer?.phone || "",
+    email: state.customer?.email || "",
+    username: state.customer?.username || "",
+    address: data.get("address")?.trim() || state.customer?.address || "",
   };
 }
 
@@ -249,9 +279,17 @@ function renderCart() {
 
   cartCount.textContent = totalQuantity;
   cartTotal.textContent = formatter.format(total);
+  cartAccountLine.innerHTML = state.customer
+    ? `الطلب باسم <strong>${escapeText(state.customer.name)}</strong> - ${escapeText(state.customer.phone)}`
+    : `سجل دخولك عشان بياناتك تتسجل تلقائيًا وتظهر طلباتك في حسابك.`;
 
   if (entries.length === 0) {
-    cartItems.innerHTML = `<p class="empty-cart">السلة فاضية. ضيف منتجات الأول.</p>`;
+    cartItems.innerHTML = `
+      <div class="empty-cart">
+        <strong>السلة فاضية حاليًا.</strong>
+        <span>ابدأ من المتجر أو سجل دخولك عشان نجهز طلبك أسرع.</span>
+      </div>
+    `;
     checkoutLink.href = `https://wa.me/${whatsappNumber}`;
     paymentButton.disabled = true;
     return;
@@ -263,15 +301,20 @@ function renderCart() {
     .map(
       ({ product, quantity }) => `
         <article class="cart-item">
+          <div class="cart-item-media">
+            ${product.image ? `<img src="${product.image}" alt="" />` : `<span>CU</span>`}
+          </div>
           <div>
-            <strong>${product.name}</strong>
+            <strong>${escapeText(product.name)}</strong>
             <span>${formatter.format(product.price)} × ${quantity}</span>
+            <small>${formatter.format(product.price * quantity)}</small>
           </div>
           <div class="quantity-control">
             <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
             <span>${quantity}</span>
             <button type="button" data-increase="${product.id}" aria-label="زود ${product.name}">+</button>
           </div>
+          <button class="remove-cart-item" type="button" data-remove="${product.id}">إلغاء</button>
         </article>
       `,
     )
@@ -303,6 +346,7 @@ function currentOrderPayload(channel) {
   return {
     type: "order",
     channel,
+    customerId: state.customer?.id || "",
     customer: checkoutData(),
     total,
     items: entries.map(({ product, quantity }) => ({
@@ -315,6 +359,7 @@ function currentOrderPayload(channel) {
 }
 
 function openCart() {
+  prefillCheckoutFromCustomer();
   cartDrawer.classList.add("is-open");
   cartDrawer.setAttribute("aria-hidden", "false");
 }
@@ -322,6 +367,78 @@ function openCart() {
 function closeCart() {
   cartDrawer.classList.remove("is-open");
   cartDrawer.setAttribute("aria-hidden", "true");
+}
+
+function openAccount() {
+  renderAccount();
+  accountDrawer.classList.add("is-open");
+  accountDrawer.setAttribute("aria-hidden", "false");
+}
+
+function closeAccount() {
+  accountDrawer.classList.remove("is-open");
+  accountDrawer.setAttribute("aria-hidden", "true");
+}
+
+function setAccountTab(tab) {
+  document.querySelectorAll("[data-account-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.accountTab === tab);
+  });
+
+  loginAccountForm.classList.toggle("is-active", tab === "login");
+  registerAccountForm.classList.toggle("is-active", tab === "register");
+  forgotAccountForm.classList.toggle("is-active", tab === "forgot");
+  accountStatus.textContent = "";
+}
+
+function renderAccount() {
+  accountLabel.textContent = state.customer ? state.customer.name.split(" ")[0] : "دخول";
+  accountLogout.hidden = !state.customer;
+  accountSummary.hidden = !state.customer;
+  accountSummary.innerHTML = state.customer
+    ? `
+        <strong>${escapeText(state.customer.name)}</strong>
+        <span>${escapeText(state.customer.phone)} - ${escapeText(state.customer.email)}</span>
+        <small>${escapeText(state.customer.address || "العنوان غير مكتمل")}</small>
+      `
+    : "";
+  prefillCheckoutFromCustomer();
+  renderCart();
+}
+
+function prefillCheckoutFromCustomer() {
+  if (!state.customer) {
+    return;
+  }
+
+  const nameInput = checkoutForm.elements.name;
+  const phoneInput = checkoutForm.elements.phone;
+  const addressInput = checkoutForm.elements.address;
+  if (nameInput && !nameInput.value) nameInput.value = state.customer.name || "";
+  if (phoneInput && !phoneInput.value) phoneInput.value = state.customer.phone || "";
+  if (addressInput && !addressInput.value) addressInput.value = state.customer.address || "";
+
+  const familyName = familyForm.elements.customerName;
+  const familyPhone = familyForm.elements.customerPhone;
+  const familyAddress = familyForm.elements.address;
+  if (familyName && !familyName.value) familyName.value = state.customer.name || "";
+  if (familyPhone && !familyPhone.value) familyPhone.value = state.customer.phone || "";
+  if (familyAddress && !familyAddress.value) familyAddress.value = state.customer.address || "";
+}
+
+async function accountRequest(payload) {
+  const response = await fetch("/api/customer-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "حصل خطأ في الحساب.");
+  }
+
+  return data;
 }
 
 function renderTimeSlots() {
@@ -482,6 +599,7 @@ document.addEventListener("click", (event) => {
   const addId = event.target.closest("[data-add-product]")?.dataset.addProduct;
   const increaseId = event.target.closest("[data-increase]")?.dataset.increase;
   const decreaseId = event.target.closest("[data-decrease]")?.dataset.decrease;
+  const removeId = event.target.closest("[data-remove]")?.dataset.remove;
   const category = event.target.closest("[data-category]")?.dataset.category;
 
   if (addId) {
@@ -506,6 +624,12 @@ document.addEventListener("click", (event) => {
     renderCart();
   }
 
+  if (removeId) {
+    delete state.cart[removeId];
+    saveCart();
+    renderCart();
+  }
+
   if (category) {
     state.category = category;
     renderFilters();
@@ -517,11 +641,75 @@ document.querySelectorAll("[data-cart-open]").forEach((button) => {
   button.addEventListener("click", openCart);
 });
 document.querySelector("[data-cart-close]").addEventListener("click", closeCart);
+document.querySelectorAll("[data-account-open]").forEach((button) => {
+  button.addEventListener("click", openAccount);
+});
+document.querySelector("[data-account-close]").addEventListener("click", closeAccount);
+document.querySelector("[data-continue-shopping]").addEventListener("click", closeCart);
+document.querySelector("[data-go-account]").addEventListener("click", () => {
+  closeCart();
+  openAccount();
+});
 paymentButton.addEventListener("click", payOnline);
 checkoutForm.addEventListener("input", renderCart);
 phoneCountInput.addEventListener("input", renderDeviceRows);
 checkoutLink.addEventListener("click", () => {
   postEvent(currentOrderPayload("whatsapp"));
+});
+
+document.querySelectorAll("[data-account-tab]").forEach((button) => {
+  button.addEventListener("click", () => setAccountTab(button.dataset.accountTab));
+});
+
+loginAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  accountStatus.textContent = "بنتحقق من بياناتك...";
+  try {
+    const data = Object.fromEntries(new FormData(loginAccountForm));
+    const result = await accountRequest({ action: "login", ...data });
+    saveCustomer(result.customer);
+    accountStatus.textContent = "تم تسجيل الدخول.";
+    renderAccount();
+    closeAccount();
+  } catch (error) {
+    accountStatus.textContent = error.message;
+  }
+});
+
+registerAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  accountStatus.textContent = "بنجهز حسابك...";
+  try {
+    const data = Object.fromEntries(new FormData(registerAccountForm));
+    const result = await accountRequest({ action: "register", ...data });
+    saveCustomer(result.customer);
+    registerAccountForm.reset();
+    accountStatus.textContent = "حسابك اتعمل واتسجل دخولك.";
+    renderAccount();
+    closeAccount();
+  } catch (error) {
+    accountStatus.textContent = error.message;
+  }
+});
+
+forgotAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  accountStatus.textContent = "بنراجع الحساب...";
+  try {
+    const data = Object.fromEntries(new FormData(forgotAccountForm));
+    const result = await accountRequest({ action: "forgotPassword", ...data });
+    forgotAccountForm.reset();
+    accountStatus.textContent = result.message;
+  } catch (error) {
+    accountStatus.textContent = error.message;
+  }
+});
+
+accountLogout.addEventListener("click", () => {
+  saveCustomer(null);
+  accountStatus.textContent = "تم تسجيل الخروج.";
+  setAccountTab("login");
+  renderAccount();
 });
 
 familyForm.addEventListener("submit", (event) => {
@@ -530,9 +718,12 @@ familyForm.addEventListener("submit", (event) => {
   postEvent({
     type: "order",
     channel: "family-visit",
+    customerId: state.customer?.id || "",
     customer: {
       name: new FormData(familyForm).get("customerName"),
       phone: new FormData(familyForm).get("customerPhone"),
+      email: state.customer?.email || "",
+      username: state.customer?.username || "",
       address: new FormData(familyForm).get("address"),
     },
     total: 0,
@@ -590,6 +781,12 @@ cartDrawer.addEventListener("click", (event) => {
   }
 });
 
+accountDrawer.addEventListener("click", (event) => {
+  if (event.target === accountDrawer) {
+    closeAccount();
+  }
+});
+
 searchInput.addEventListener("input", (event) => {
   state.search = event.target.value;
   renderProducts();
@@ -607,6 +804,7 @@ async function init() {
   renderDeviceRows();
   renderProducts();
   renderCart();
+  renderAccount();
 }
 
 init();

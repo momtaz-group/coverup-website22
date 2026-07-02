@@ -1,10 +1,10 @@
 const translations = {
   en: {
-    navServices: "Services",
     navShop: "Shop",
+    navFamily: "Family Rep",
     navRepairs: "Repairs",
     navCorporate: "Corporate",
-    navAbout: "About",
+    navSupport: "Complaints and Suggestions",
     navContact: "Contact",
     bookRepair: "Book a Repair",
     heroEyebrow: "Premium Device Care",
@@ -98,11 +98,11 @@ const translations = {
     hours: "Sun - Thu, 10am - 10pm",
   },
   ar: {
-    navServices: "الخدمات",
     navShop: "المتجر",
-    navRepairs: "الصيانة",
+    navFamily: "مندوب العيلة",
+    navRepairs: "الصيانه",
     navCorporate: "الشركات",
-    navAbout: "عن Cover Up",
+    navSupport: "شكاوى واقتراحات",
     navContact: "تواصل",
     bookRepair: "احجز صيانة",
     heroEyebrow: "عناية Premium للموبايل",

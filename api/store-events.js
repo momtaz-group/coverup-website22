@@ -7,10 +7,13 @@ function cleanText(value, limit = 800) {
 function cleanPublicItem(type, body) {
   if (type === "order") {
     return {
+      customer_id: cleanText(body.customerId, 80) || null,
       customer: {
         name: cleanText(body.customer?.name, 120),
         phone: cleanText(body.customer?.phone, 60),
         address: cleanText(body.customer?.address, 300),
+        email: cleanText(body.customer?.email, 160),
+        username: cleanText(body.customer?.username, 80),
       },
       items: Array.isArray(body.items) ? body.items.slice(0, 30) : [],
       total: Number(body.total) || 0,

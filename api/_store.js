@@ -4,6 +4,8 @@ const TABLES = {
   reviews: "reviews",
   complaints: "complaints",
   chats: "chats",
+  customers: "customers",
+  passwordResets: "password_resets",
 };
 
 function sendJson(response, statusCode, payload) {
@@ -133,15 +135,111 @@ async function appendEvent(type, item) {
   return saved[0];
 }
 
+function customerFromDb(row, includePrivate = false) {
+  const customer = {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    email: row.email,
+    username: row.username,
+    address: row.address,
+    city: row.city,
+    notes: row.notes,
+    last_login_at: row.last_login_at,
+    created_at: row.created_at,
+  };
+
+  if (includePrivate) {
+    customer.password_hash = row.password_hash;
+    customer.password_salt = row.password_salt;
+  }
+
+  return customer;
+}
+
+async function findCustomerBy(field, value, includePrivate = false) {
+  const cleanValue = String(value || "").trim();
+
+  if (!cleanValue) {
+    return null;
+  }
+
+  const rows = await supabaseRequest(TABLES.customers, {
+    service: true,
+    query: `?select=*&${field}=eq.${encodeURIComponent(cleanValue)}&limit=1`,
+  });
+
+  return rows[0] ? customerFromDb(rows[0], includePrivate) : null;
+}
+
+async function findCustomer(identity, includePrivate = false) {
+  const cleanIdentity = String(identity || "").trim().toLowerCase();
+
+  if (!cleanIdentity) {
+    return null;
+  }
+
+  const usernameCustomer = await findCustomerBy("username", cleanIdentity, includePrivate);
+  if (usernameCustomer) {
+    return usernameCustomer;
+  }
+
+  const emailCustomer = await findCustomerBy("email", cleanIdentity, includePrivate);
+  if (emailCustomer) {
+    return emailCustomer;
+  }
+
+  return findCustomerBy("phone", cleanIdentity, includePrivate);
+}
+
+async function createCustomer(customer) {
+  const rows = await supabaseRequest(TABLES.customers, {
+    service: true,
+    method: "POST",
+    body: customer,
+  });
+
+  return customerFromDb(rows[0]);
+}
+
+async function updateCustomer(id, updates) {
+  const rows = await supabaseRequest(TABLES.customers, {
+    service: true,
+    method: "PATCH",
+    query: `?id=eq.${encodeURIComponent(id)}`,
+    body: updates,
+  });
+
+  return rows[0] ? customerFromDb(rows[0]) : null;
+}
+
+async function createPasswordReset(reset) {
+  const rows = await supabaseRequest(TABLES.passwordResets, {
+    service: true,
+    method: "POST",
+    body: reset,
+  });
+
+  return rows[0];
+}
+
 async function getEvents() {
-  const [orders, reviews, complaints, chats] = await Promise.all([
+  const [orders, reviews, complaints, chats, customers, passwordResets] = await Promise.all([
     supabaseRequest(TABLES.orders, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.reviews, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.complaints, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.chats, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
+    supabaseRequest(TABLES.customers, {
+      service: true,
+      query: "?select=id,name,phone,email,username,address,city,notes,last_login_at,created_at&order=created_at.desc&limit=500",
+    }),
+    supabaseRequest(TABLES.passwordResets, {
+      service: true,
+      query: "?select=*&order=created_at.desc&limit=200",
+    }),
   ]);
 
-  return { orders, reviews, complaints, chats };
+  return { orders, reviews, complaints, chats, customers, passwordResets };
 }
 
 function requireAdmin(request, response) {
@@ -165,10 +263,14 @@ function requireAdmin(request, response) {
 
 module.exports = {
   appendEvent,
+  createCustomer,
+  createPasswordReset,
+  findCustomer,
   getEvents,
   getProducts,
   requireAdmin,
   sendJson,
   setProducts,
   supabaseConfigured,
+  updateCustomer,
 };

@@ -103,11 +103,32 @@ function renderList(selector, items, renderItem) {
 }
 
 function renderEvents() {
+  renderList("[data-admin-customers]", events.customers, (customer) => `
+    <article class="admin-record">
+      <strong>${safeText(customer.name)} (@${safeText(customer.username)})</strong>
+      <span>${safeText(customer.phone)} - ${safeText(customer.email)}</span>
+      <p>${safeText(customer.city)} ${customer.city && customer.address ? " - " : ""}${safeText(customer.address)}</p>
+      <p>اتسجل: ${formatDate(recordDate(customer))}${customer.last_login_at ? ` | آخر دخول: ${formatDate(customer.last_login_at)}` : ""}</p>
+      ${customer.notes ? `<p>${safeText(customer.notes)}</p>` : ""}
+    </article>
+  `);
+
+  renderList("[data-admin-password-resets]", events.passwordResets, (reset) => `
+    <article class="admin-record">
+      <strong>${safeText(reset.status)}</strong>
+      <span>${safeText(reset.email)} ${reset.phone ? `- ${safeText(reset.phone)}` : ""}</span>
+      <p>${formatDate(recordDate(reset))}</p>
+    </article>
+  `);
+
   renderList("[data-admin-orders]", events.orders, (order) => `
     <article class="admin-record">
       <strong>${safeText(order.customer?.name || "عميل")}</strong>
       <span>${safeText(order.channel)} - ${formatDate(recordDate(order))}</span>
-      <p>${safeText(order.customer?.phone)} | ${safeText(order.customer?.address)}</p>
+      <p>${safeText(order.customer?.phone)}${order.customer?.email ? ` | ${safeText(order.customer.email)}` : ""}</p>
+      <p>${safeText(order.customer?.address)}</p>
+      ${order.customer_id ? `<p>Customer ID: ${safeText(order.customer_id)}</p>` : ""}
+      ${Array.isArray(order.items) ? `<p>${order.items.map((item) => `${safeText(item.name)} x ${safeText(item.quantity || 1)}`).join(" | ")}</p>` : ""}
       <p>${Number(order.total || 0).toLocaleString("ar-EG")} EGP</p>
     </article>
   `);
