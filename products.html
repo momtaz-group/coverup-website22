@@ -33,6 +33,7 @@
       <nav class="site-nav" aria-label="التنقل الرئيسي">
         <a href="index.html#services">الخدمات</a>
         <a href="products.html">المنتجات</a>
+        <a href="#family-visit">مندوب العيلة</a>
         <a href="index.html#repairs">الصيانة</a>
         <a href="index.html#corporate">الشركات</a>
         <a href="index.html#contact">تواصل</a>
@@ -51,16 +52,39 @@
       <section class="shop-hero" aria-labelledby="shop-title">
         <div>
           <p class="eyebrow">متجر Cover Up</p>
-          <h1 id="shop-title"><bdi>Cover Up</bdi> Products</h1>
+          <h1 id="shop-title">منتجات <bdi>Cover Up</bdi></h1>
           <p>
-            اختار المنتج اللي يناسب جهازك، دور بسرعة، ضيف للسلة، وابعت الطلب على واتساب. الدفع الإلكتروني هيتفعل بعد ربط بوابة دفع بحساب تاجر.
+            اختار الكفر أو الاسكرينة المناسبة لجهازك، ضيف للسلة، واطلب توصيل أو مندوب يركب الاسكرينات عندك في البيت.
           </p>
+          <div class="shop-actions">
+            <a class="button button-primary" href="#family-visit">اطلب مندوب للعيلة</a>
+            <button class="button button-secondary" type="button" data-cart-open>افتح السلة</button>
+          </div>
         </div>
         <div class="shop-summary">
           <span>منتجات مختارة</span>
           <strong data-products-count>0</strong>
-          <small>جاهزة للتحديث بالصور والأسعار الحقيقية</small>
+          <small>كفرات، MagSafe، وحماية شاشة</small>
         </div>
+      </section>
+
+      <section class="store-highlights" aria-label="مميزات المتجر">
+        <article>
+          <strong>اختيار بالموديل</strong>
+          <span>اكتب نوع كل تليفون واحنا نراجع التوافق قبل التأكيد.</span>
+        </article>
+        <article>
+          <strong>تركيب على الباب</strong>
+          <span>مندوب يوصلك المنتجات ويركب الاسكرينات في المكان.</span>
+        </article>
+        <article>
+          <strong>طلب واتساب سريع</strong>
+          <span>السلة بتتحول لرسالة جاهزة بكل المنتجات والإجمالي.</span>
+        </article>
+        <article>
+          <strong>دفع إلكتروني</strong>
+          <span>جاهز للربط مع Paymob بعد إضافة بيانات حساب التاجر.</span>
+        </article>
       </section>
 
       <section class="shop-tools" aria-label="بحث وفلاتر المنتجات">
@@ -74,6 +98,64 @@
       <section class="catalog-section" aria-live="polite">
         <div class="catalog-grid" data-products-grid></div>
         <p class="empty-state" hidden data-empty-state>مفيش منتجات مطابقة للبحث ده.</p>
+      </section>
+
+      <section class="family-visit" id="family-visit">
+        <div class="family-copy">
+          <p class="eyebrow">ميزة Cover Up</p>
+          <h2>مندوب واحد يجهز موبايلات العيلة كلها.</h2>
+          <p>
+            اختار عدد التليفونات، نوع كل جهاز، الكفر أو الاسكرينة المطلوبة، وحدد عنوانك ووقت الزيارة من 10 صباحًا لـ 10 مساءً. المندوب يوصلك الاختيارات ويركب الاسكرينات في المكان.
+          </p>
+          <div class="visit-steps">
+            <span>1. بيانات الأجهزة</span>
+            <span>2. العنوان واللوكيشن</span>
+            <span>3. وقت الزيارة</span>
+            <span>4. تأكيد واتساب</span>
+          </div>
+        </div>
+
+        <form class="visit-form" data-family-form>
+          <div class="form-grid">
+            <label>
+              اسم العميل
+              <input name="customerName" type="text" placeholder="مثال: أحمد محمد" required />
+            </label>
+            <label>
+              رقم الموبايل
+              <input name="customerPhone" type="tel" placeholder="010..." required />
+            </label>
+            <label>
+              عدد التليفونات
+              <input name="phoneCount" type="number" min="1" max="8" value="2" data-phone-count required />
+            </label>
+            <label>
+              يوم الزيارة
+              <input name="visitDate" type="date" required />
+            </label>
+            <label>
+              وقت الزيارة
+              <select name="visitTime" required data-time-slots></select>
+            </label>
+            <label>
+              المنطقة / العنوان
+              <input name="address" type="text" placeholder="المنطقة، الشارع، رقم العمارة" required />
+            </label>
+            <label class="full-field">
+              لينك اللوكيشن
+              <input name="locationLink" type="url" placeholder="Google Maps link" />
+            </label>
+          </div>
+
+          <div class="device-list" data-device-list></div>
+
+          <label>
+            ملاحظات إضافية
+            <textarea name="notes" rows="4" placeholder="مثال: عايزين اختيارات كفرات أسود وشفاف، والتركيب يكون قبل المغرب."></textarea>
+          </label>
+
+          <button class="button button-primary" type="submit">ابعت طلب المندوب على واتساب</button>
+        </form>
       </section>
     </main>
 
@@ -89,12 +171,28 @@
 
         <div class="cart-items" data-cart-items></div>
 
+        <form class="checkout-fields" data-checkout-form>
+          <label>
+            الاسم
+            <input name="name" type="text" placeholder="اسم العميل" />
+          </label>
+          <label>
+            رقم الموبايل
+            <input name="phone" type="tel" placeholder="010..." />
+          </label>
+          <label>
+            العنوان
+            <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل"></textarea>
+          </label>
+        </form>
+
         <div class="cart-total">
           <span>الإجمالي</span>
           <strong data-cart-total>0 EGP</strong>
         </div>
         <a class="button button-primary" href="https://wa.me/201050310516" target="_blank" rel="noreferrer" data-checkout-link>اطلب على واتساب</a>
-        <button class="button button-secondary payment-soon" type="button" disabled>الدفع الإلكتروني قريبًا</button>
+        <button class="button button-secondary" type="button" data-pay-online>ادفع إلكترونيًا</button>
+        <p class="payment-message" data-payment-message></p>
       </div>
     </aside>
 

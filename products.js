@@ -3,7 +3,7 @@ const whatsappNumber = "201050310516";
 const products = [
   {
     id: "carbon-slide-camera-case",
-    name: "كفر Carbon Slide Camera مؤقت",
+    name: "كفر Carbon Slide Camera",
     category: "كفرات",
     price: 449,
     image: "assets/products/carbon-slide-camera-case.jpeg",
@@ -12,7 +12,7 @@ const products = [
   },
   {
     id: "orange-leopard-camera-case",
-    name: "كفر Leopard Orange مؤقت",
+    name: "كفر Leopard Orange",
     category: "كفرات",
     price: 399,
     image: "assets/products/orange-leopard-camera-case.jpeg",
@@ -21,7 +21,7 @@ const products = [
   },
   {
     id: "samsung-clear-shockproof-case",
-    name: "كفر Samsung Clear Shockproof مؤقت",
+    name: "كفر Samsung Clear Shockproof",
     category: "كفرات",
     price: 299,
     image: "assets/products/samsung-clear-shockproof-case.jpeg",
@@ -30,7 +30,7 @@ const products = [
   },
   {
     id: "black-magsafe-fabric-case",
-    name: "كفر MagSafe Fabric أسود مؤقت",
+    name: "كفر MagSafe Fabric أسود",
     category: "كفرات MagSafe",
     price: 549,
     image: "assets/products/black-magsafe-fabric-case.jpeg",
@@ -39,7 +39,7 @@ const products = [
   },
   {
     id: "tempered-glass-screen-protector",
-    name: "اسكرينة Tempered Glass مؤقت",
+    name: "اسكرينة Tempered Glass",
     category: "حماية الشاشة",
     price: 199,
     image: "assets/products/tempered-glass-screen-protector.jpeg",
@@ -48,7 +48,7 @@ const products = [
   },
   {
     id: "navy-apple-fabric-case",
-    name: "كفر iPhone Fabric Navy مؤقت",
+    name: "كفر iPhone Fabric Navy",
     category: "كفرات",
     price: 499,
     image: "assets/products/navy-apple-fabric-case.jpeg",
@@ -57,7 +57,7 @@ const products = [
   },
   {
     id: "black-full-glue-screen-protector",
-    name: "اسكرينة Full Glue Black مؤقت",
+    name: "اسكرينة Full Glue Black",
     category: "حماية الشاشة",
     price: 249,
     image: "assets/products/black-full-glue-screen-protector.jpeg",
@@ -66,7 +66,7 @@ const products = [
   },
   {
     id: "privacy-screen-protector",
-    name: "اسكرينة Privacy مؤقت",
+    name: "اسكرينة Privacy",
     category: "حماية الشاشة",
     price: 299,
     image: "assets/products/privacy-screen-protector.jpeg",
@@ -75,7 +75,7 @@ const products = [
   },
   {
     id: "brown-magsafe-fabric-case",
-    name: "كفر MagSafe Fabric بني مؤقت",
+    name: "كفر MagSafe Fabric بني",
     category: "كفرات MagSafe",
     price: 549,
     image: "assets/products/brown-magsafe-fabric-case.jpeg",
@@ -106,12 +106,22 @@ const cartItems = document.querySelector("[data-cart-items]");
 const cartTotal = document.querySelector("[data-cart-total]");
 const cartCount = document.querySelector("[data-cart-count]");
 const checkoutLink = document.querySelector("[data-checkout-link]");
+const checkoutForm = document.querySelector("[data-checkout-form]");
+const paymentButton = document.querySelector("[data-pay-online]");
+const paymentMessage = document.querySelector("[data-payment-message]");
+const familyForm = document.querySelector("[data-family-form]");
+const phoneCountInput = document.querySelector("[data-phone-count]");
+const timeSlots = document.querySelector("[data-time-slots]");
+const deviceList = document.querySelector("[data-device-list]");
 const menuToggle = document.querySelector(".menu-toggle");
 const header = document.querySelector(".site-header");
 const year = document.querySelector("[data-year]");
 
 year.textContent = new Date().getFullYear();
 countNode.textContent = products.length;
+
+const visitDateInput = familyForm.querySelector('input[name="visitDate"]');
+visitDateInput.min = new Date().toISOString().slice(0, 10);
 
 function saveCart() {
   localStorage.setItem("coverup-cart", JSON.stringify(state.cart));
@@ -177,6 +187,15 @@ function renderProducts() {
   emptyState.hidden = visibleProducts.length > 0;
 }
 
+function checkoutData() {
+  const data = new FormData(checkoutForm);
+  return {
+    name: data.get("name")?.trim() || "",
+    phone: data.get("phone")?.trim() || "",
+    address: data.get("address")?.trim() || "",
+  };
+}
+
 function cartEntries() {
   return Object.entries(state.cart)
     .map(([id, quantity]) => {
@@ -197,8 +216,11 @@ function renderCart() {
   if (entries.length === 0) {
     cartItems.innerHTML = `<p class="empty-cart">السلة فاضية. ضيف منتجات الأول.</p>`;
     checkoutLink.href = `https://wa.me/${whatsappNumber}`;
+    paymentButton.disabled = true;
     return;
   }
+
+  paymentButton.disabled = false;
 
   cartItems.innerHTML = entries
     .map(
@@ -222,7 +244,18 @@ function renderCart() {
     ({ product, quantity }) =>
       `- ${product.name} × ${quantity} = ${formatter.format(product.price * quantity)}`,
   );
-  const message = ["طلب جديد من موقع Cover Up:", ...lines, `الإجمالي: ${formatter.format(total)}`].join("\n");
+  const customer = checkoutData();
+  const customerLines = [
+    customer.name ? `الاسم: ${customer.name}` : "",
+    customer.phone ? `الموبايل: ${customer.phone}` : "",
+    customer.address ? `العنوان: ${customer.address}` : "",
+  ].filter(Boolean);
+  const message = [
+    "طلب جديد من موقع Cover Up:",
+    ...customerLines,
+    ...lines,
+    `الإجمالي: ${formatter.format(total)}`,
+  ].join("\n");
   checkoutLink.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 }
 
@@ -234,6 +267,125 @@ function openCart() {
 function closeCart() {
   cartDrawer.classList.remove("is-open");
   cartDrawer.setAttribute("aria-hidden", "true");
+}
+
+function renderTimeSlots() {
+  const slots = [];
+  for (let hour = 10; hour <= 22; hour += 1) {
+    const labelHour = hour > 12 ? hour - 12 : hour;
+    const period = hour < 12 ? "صباحًا" : "مساءً";
+    slots.push(`${labelHour}:00 ${period}`);
+    if (hour < 22) {
+      slots.push(`${labelHour}:30 ${period}`);
+    }
+  }
+
+  timeSlots.innerHTML = slots
+    .map((slot) => `<option value="${slot}">${slot}</option>`)
+    .join("");
+}
+
+function renderDeviceRows() {
+  const count = Math.max(1, Math.min(8, Number(phoneCountInput.value) || 1));
+  const productOptions = products
+    .map((product) => `<option value="${product.name}">${product.name} - ${formatter.format(product.price)}</option>`)
+    .join("");
+
+  deviceList.innerHTML = Array.from({ length: count }, (_, index) => {
+    const number = index + 1;
+    return `
+      <fieldset class="device-card">
+        <legend>تليفون ${number}</legend>
+        <label>
+          نوع الجهاز
+          <input name="deviceModel${number}" type="text" placeholder="مثال: iPhone 15 Pro Max / Samsung S24 Ultra" required />
+        </label>
+        <label>
+          المطلوب
+          <select name="deviceNeed${number}" required>
+            <option value="كفر فقط">كفر فقط</option>
+            <option value="اسكرينة فقط">اسكرينة فقط</option>
+            <option value="كفر + اسكرينة">كفر + اسكرينة</option>
+            <option value="اختيارات متعددة">اختيارات متعددة</option>
+          </select>
+        </label>
+        <label>
+          اختيار من المنتجات
+          <select name="deviceProduct${number}">
+            <option value="يرشحلي المندوب الأنسب">يرشحلي المندوب الأنسب</option>
+            ${productOptions}
+          </select>
+        </label>
+      </fieldset>
+    `;
+  }).join("");
+}
+
+function familyVisitMessage(form) {
+  const data = new FormData(form);
+  const count = Math.max(1, Math.min(8, Number(data.get("phoneCount")) || 1));
+  const devices = [];
+
+  for (let index = 1; index <= count; index += 1) {
+    devices.push(
+      `${index}. ${data.get(`deviceModel${index}`)} - ${data.get(`deviceNeed${index}`)} - ${data.get(`deviceProduct${index}`)}`,
+    );
+  }
+
+  return [
+    "طلب مندوب Cover Up للعيلة:",
+    `الاسم: ${data.get("customerName")}`,
+    `الموبايل: ${data.get("customerPhone")}`,
+    `عدد التليفونات: ${count}`,
+    `يوم الزيارة: ${data.get("visitDate")}`,
+    `وقت الزيارة: ${data.get("visitTime")}`,
+    `العنوان: ${data.get("address")}`,
+    data.get("locationLink") ? `لينك اللوكيشن: ${data.get("locationLink")}` : "",
+    "تفاصيل الأجهزة:",
+    ...devices,
+    data.get("notes") ? `ملاحظات: ${data.get("notes")}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+async function payOnline() {
+  const entries = cartEntries();
+  const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
+  const customer = checkoutData();
+
+  if (!entries.length) {
+    paymentMessage.textContent = "ضيف منتجات للسلة الأول.";
+    return;
+  }
+
+  paymentButton.disabled = true;
+  paymentMessage.textContent = "بنجهز صفحة الدفع الآمنة...";
+
+  try {
+    const response = await fetch("/api/create-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer,
+        amount: total,
+        items: entries.map(({ product, quantity }) => ({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity,
+        })),
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "الدفع الإلكتروني غير متاح حاليًا.");
+    }
+
+    window.location.href = data.checkoutUrl;
+  } catch (error) {
+    paymentMessage.textContent = `${error.message} تقدر تكمل الطلب على واتساب حاليًا.`;
+    paymentButton.disabled = false;
+  }
 }
 
 document.addEventListener("click", (event) => {
@@ -271,8 +423,19 @@ document.addEventListener("click", (event) => {
   }
 });
 
-document.querySelector("[data-cart-open]").addEventListener("click", openCart);
+document.querySelectorAll("[data-cart-open]").forEach((button) => {
+  button.addEventListener("click", openCart);
+});
 document.querySelector("[data-cart-close]").addEventListener("click", closeCart);
+paymentButton.addEventListener("click", payOnline);
+checkoutForm.addEventListener("input", renderCart);
+phoneCountInput.addEventListener("input", renderDeviceRows);
+
+familyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const message = familyVisitMessage(familyForm);
+  window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+});
 
 cartDrawer.addEventListener("click", (event) => {
   if (event.target === cartDrawer) {
@@ -291,5 +454,7 @@ menuToggle.addEventListener("click", () => {
 });
 
 renderFilters();
+renderTimeSlots();
+renderDeviceRows();
 renderProducts();
 renderCart();
