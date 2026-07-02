@@ -1,6 +1,6 @@
 const whatsappNumber = "201050310516";
 
-const products = [
+const defaultProducts = [
   {
     id: "carbon-slide-camera-case",
     name: "كفر Carbon Slide Camera",
@@ -84,6 +84,8 @@ const products = [
   },
 ];
 
+let products = [...defaultProducts];
+
 const formatter = new Intl.NumberFormat("ar-EG", {
   style: "currency",
   currency: "EGP",
@@ -113,15 +115,34 @@ const familyForm = document.querySelector("[data-family-form]");
 const phoneCountInput = document.querySelector("[data-phone-count]");
 const timeSlots = document.querySelector("[data-time-slots]");
 const deviceList = document.querySelector("[data-device-list]");
+const reviewForm = document.querySelector("[data-review-form]");
+const complaintForm = document.querySelector("[data-complaint-form]");
+const chatForm = document.querySelector("[data-chat-form]");
+const chatLog = document.querySelector("[data-chat-log]");
 const menuToggle = document.querySelector(".menu-toggle");
 const header = document.querySelector(".site-header");
 const year = document.querySelector("[data-year]");
 
 year.textContent = new Date().getFullYear();
-countNode.textContent = products.length;
 
 const visitDateInput = familyForm.querySelector('input[name="visitDate"]');
 visitDateInput.min = new Date().toISOString().slice(0, 10);
+
+async function loadDashboardProducts() {
+  try {
+    const response = await fetch("/api/store-products");
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data.products) && data.products.length) {
+      products = data.products;
+    }
+  } catch {
+    products = [...defaultProducts];
+  }
+}
 
 function saveCart() {
   localStorage.setItem("coverup-cart", JSON.stringify(state.cart));
@@ -148,6 +169,7 @@ function productMatches(product) {
 }
 
 function renderFilters() {
+  countNode.textContent = products.length;
   const categories = ["الكل", ...new Set(products.map((product) => product.category))];
   filters.innerHTML = categories
     .map(
@@ -158,6 +180,21 @@ function renderFilters() {
       `,
     )
     .join("");
+}
+
+async function postEvent(payload) {
+  try {
+    const response = await fetch("/api/store-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    return response.ok;
+  } catch {
+    // Keep the customer flow working even if storage is not configured yet.
+    return false;
+  }
 }
 
 function renderProducts() {
@@ -257,6 +294,24 @@ function renderCart() {
     `الإجمالي: ${formatter.format(total)}`,
   ].join("\n");
   checkoutLink.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+}
+
+function currentOrderPayload(channel) {
+  const entries = cartEntries();
+  const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
+
+  return {
+    type: "order",
+    channel,
+    customer: checkoutData(),
+    total,
+    items: entries.map(({ product, quantity }) => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity,
+    })),
+  };
 }
 
 function openCart() {
@@ -361,6 +416,8 @@ async function payOnline() {
   paymentMessage.textContent = "بنجهز صفحة الدفع الآمنة...";
 
   try {
+    await postEvent(currentOrderPayload("online-payment-attempt"));
+
     const response = await fetch("/api/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -386,6 +443,39 @@ async function payOnline() {
     paymentMessage.textContent = `${error.message} تقدر تكمل الطلب على واتساب حاليًا.`;
     paymentButton.disabled = false;
   }
+}
+
+function scriptedReply(message) {
+  const text = message.toLowerCase();
+
+  if (text.includes("مندوب") || text.includes("العيلة") || text.includes("بيت")) {
+    return "ينفع تطلب مندوب للعيلة من نفس الصفحة. اختار عدد التليفونات، نوع كل جهاز، المنتجات المطلوبة، العنوان، لينك اللوكيشن، والوقت من 10 صباحًا لـ 10 مساءً.";
+  }
+
+  if (text.includes("اسكرين") || text.includes("حماية") || text.includes("screen")) {
+    return "عندنا اسكرينات Privacy وFull Glue وTempered Glass. اختار نوع جهازك ولو مش متأكد سيب للمندوب يرشح الأنسب.";
+  }
+
+  if (text.includes("كفر") || text.includes("case") || text.includes("magsafe")) {
+    return "المتاح حاليًا كفرات Shockproof وMagSafe وFabric وCamera Slide. تقدر تستخدم البحث أو الفلاتر في المتجر.";
+  }
+
+  if (text.includes("دفع") || text.includes("فيزا") || text.includes("payment")) {
+    return "الدفع الإلكتروني جاهز للربط عبر Paymob، ولحد التفعيل النهائي تقدر تكمل الطلب واتساب أو تدفع عند الاستلام حسب التأكيد.";
+  }
+
+  if (text.includes("معاد") || text.includes("وقت") || text.includes("مواعيد")) {
+    return "مواعيد الزيارات من 10 صباحًا لـ 10 مساءً كل يوم. اختار الوقت المناسب من فورمة مندوب العيلة.";
+  }
+
+  return "تمام، ابعت لنا نوع جهازك والمنتج اللي محتاجه، أو استخدم فورمة مندوب العيلة لو عندك أكتر من تليفون. فريق Cover Up هيتابع معاك على واتساب.";
+}
+
+function appendChatLine(name, message) {
+  const line = document.createElement("p");
+  line.innerHTML = `<strong>${name}:</strong> ${message.replace(/[<>]/g, "")}`;
+  chatLog.append(line);
+  chatLog.scrollTop = chatLog.scrollHeight;
 }
 
 document.addEventListener("click", (event) => {
@@ -430,11 +520,68 @@ document.querySelector("[data-cart-close]").addEventListener("click", closeCart)
 paymentButton.addEventListener("click", payOnline);
 checkoutForm.addEventListener("input", renderCart);
 phoneCountInput.addEventListener("input", renderDeviceRows);
+checkoutLink.addEventListener("click", () => {
+  postEvent(currentOrderPayload("whatsapp"));
+});
 
 familyForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const message = familyVisitMessage(familyForm);
+  postEvent({
+    type: "order",
+    channel: "family-visit",
+    customer: {
+      name: new FormData(familyForm).get("customerName"),
+      phone: new FormData(familyForm).get("customerPhone"),
+      address: new FormData(familyForm).get("address"),
+    },
+    total: 0,
+    items: [{ name: "طلب مندوب العيلة", quantity: 1, price: 0, details: message }],
+  });
   window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+});
+
+reviewForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(reviewForm));
+  const saved = await postEvent({ type: "review", ...data });
+  reviewForm.reset();
+  document.querySelector("[data-review-status]").textContent = saved
+    ? "تم استلام التقييم، شكرًا لوقتك."
+    : "التقييم اتكتب، لكن حفظه في الداشبورد محتاج تفعيل التخزين.";
+});
+
+complaintForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(complaintForm));
+  const saved = await postEvent({ type: "complaint", ...data });
+  complaintForm.reset();
+  document.querySelector("[data-complaint-status]").textContent = saved
+    ? "تم تسجيل الشكوى، هنراجعها ونتواصل معاك."
+    : "الشكوى اتكتبت، لكن حفظها في الداشبورد محتاج تفعيل التخزين.";
+});
+
+chatForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(chatForm);
+  const message = String(form.get("message") || "").trim();
+  if (!message) {
+    return;
+  }
+
+  const reply = scriptedReply(message);
+  appendChatLine("أنت", message);
+  appendChatLine("Cover Up", reply);
+  const saved = await postEvent({
+    type: "chat",
+    message,
+    reply,
+    transcript: Array.from(chatLog.querySelectorAll("p")).map((line) => line.textContent.trim()),
+  });
+  chatForm.reset();
+  document.querySelector("[data-chat-status]").textContent = saved
+    ? "تم حفظ المحادثة للمتابعة."
+    : "الشات شغال، لكن حفظه في الداشبورد محتاج تفعيل التخزين.";
 });
 
 cartDrawer.addEventListener("click", (event) => {
@@ -453,8 +600,13 @@ menuToggle.addEventListener("click", () => {
   menuToggle.setAttribute("aria-expanded", String(isOpen));
 });
 
-renderFilters();
-renderTimeSlots();
-renderDeviceRows();
-renderProducts();
-renderCart();
+async function init() {
+  await loadDashboardProducts();
+  renderFilters();
+  renderTimeSlots();
+  renderDeviceRows();
+  renderProducts();
+  renderCart();
+}
+
+init();

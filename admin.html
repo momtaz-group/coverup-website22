@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Cover Up | Dashboard</title>
+    <link rel="icon" href="assets/brand/cover-up-symbol.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin-body">
+    <main class="admin-shell">
+      <section class="admin-login" data-login-panel>
+        <img class="brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
+        <h1>Cover Up Dashboard</h1>
+        <p>ادخل كلمة سر الإدارة. البيانات الحساسة لا تظهر إلا بعد التحقق من السيرفر.</p>
+        <form data-login-form>
+          <label>
+            كلمة سر الإدارة
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="button button-primary" type="submit">دخول</button>
+        </form>
+        <p class="payment-message" data-login-status></p>
+      </section>
+
+      <section class="admin-dashboard" data-dashboard hidden>
+        <div class="admin-header">
+          <div>
+            <p class="eyebrow">لوحة الإدارة</p>
+            <h1>المنتجات، الأوردرات، الشكاوى، والشاتات</h1>
+          </div>
+          <button class="button button-secondary" type="button" data-refresh-admin>تحديث البيانات</button>
+        </div>
+
+        <p class="admin-alert" data-admin-setup></p>
+
+        <div class="admin-grid">
+          <section class="admin-card">
+            <h2>إضافة / تعديل منتج</h2>
+            <form data-product-form>
+              <input name="id" type="hidden" />
+              <label>اسم المنتج <input name="name" type="text" required /></label>
+              <label>القسم <input name="category" type="text" placeholder="كفرات / حماية الشاشة" required /></label>
+              <label>السعر <input name="price" type="number" min="1" required /></label>
+              <label>Badge <input name="badge" type="text" placeholder="Premium" /></label>
+              <label>الوصف <textarea name="description" rows="3" required></textarea></label>
+              <label>صورة المنتج <input name="imageFile" type="file" accept="image/*" /></label>
+              <input name="image" type="hidden" />
+              <button class="button button-primary" type="submit">حفظ المنتج</button>
+            </form>
+          </section>
+
+          <section class="admin-card">
+            <h2>المنتجات</h2>
+            <div class="admin-list" data-admin-products></div>
+          </section>
+        </div>
+
+        <div class="admin-grid admin-grid-wide">
+          <section class="admin-card">
+            <h2>الأوردرات</h2>
+            <div class="admin-list" data-admin-orders></div>
+          </section>
+          <section class="admin-card">
+            <h2>التقييمات</h2>
+            <div class="admin-list" data-admin-reviews></div>
+          </section>
+          <section class="admin-card">
+            <h2>الشكاوى</h2>
+            <div class="admin-list" data-admin-complaints></div>
+          </section>
+          <section class="admin-card">
+            <h2>شات خدمة العملاء</h2>
+            <div class="admin-list" data-admin-chats></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

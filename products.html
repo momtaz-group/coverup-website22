@@ -27,6 +27,7 @@
       <button class="menu-toggle" type="button" aria-label="افتح القائمة" aria-expanded="false">
         <span></span>
         <span></span>
+        <span></span>
       </button>
 
       <nav class="site-nav" aria-label="التنقل الرئيسي">
@@ -155,6 +156,77 @@
 
           <button class="button button-primary" type="submit">ابعت طلب المندوب على واتساب</button>
         </form>
+      </section>
+
+      <section class="support-center" id="support">
+        <div class="section-heading">
+          <p class="eyebrow">خدمة العملاء</p>
+          <h2>تقييم، شكوى، أو مساعدة فورية.</h2>
+          <p>سيب تقييمك الحقيقي، ابعت شكوى برقم الطلب، أو اسأل المساعد الذكي عن المنتجات والتوصيل ومواعيد المندوب.</p>
+        </div>
+
+        <div class="support-grid">
+          <form class="support-card" data-review-form>
+            <h3>تقييم حقيقي</h3>
+            <label>
+              الاسم
+              <input name="name" type="text" placeholder="اسمك" required />
+            </label>
+            <label>
+              التقييم
+              <select name="rating" required>
+                <option value="5">5 - ممتاز</option>
+                <option value="4">4 - جيد جدًا</option>
+                <option value="3">3 - جيد</option>
+                <option value="2">2 - محتاج تحسين</option>
+                <option value="1">1 - تجربة سيئة</option>
+              </select>
+            </label>
+            <label>
+              رأيك
+              <textarea name="message" rows="4" placeholder="اكتب تجربتك مع Cover Up" required></textarea>
+            </label>
+            <button class="button button-primary" type="submit">ابعت التقييم</button>
+            <p data-review-status></p>
+          </form>
+
+          <form class="support-card" data-complaint-form>
+            <h3>شكوى أو متابعة طلب</h3>
+            <label>
+              الاسم
+              <input name="name" type="text" placeholder="اسمك" required />
+            </label>
+            <label>
+              رقم الموبايل
+              <input name="phone" type="tel" placeholder="010..." required />
+            </label>
+            <label>
+              رقم الطلب إن وجد
+              <input name="orderRef" type="text" placeholder="مثال: واتساب / رقم أوردر" />
+            </label>
+            <label>
+              تفاصيل الشكوى
+              <textarea name="message" rows="4" placeholder="احكي لنا المشكلة بوضوح" required></textarea>
+            </label>
+            <button class="button button-primary" type="submit">ابعت الشكوى</button>
+            <p data-complaint-status></p>
+          </form>
+
+          <div class="support-card ai-chat">
+            <h3>مساعد Cover Up</h3>
+            <div class="chat-log" data-chat-log>
+              <p><strong>Cover Up:</strong> أهلاً بيك، اسألني عن الكفرات، الاسكرينات، التوصيل، أو مندوب العيلة.</p>
+            </div>
+            <form data-chat-form>
+              <label>
+                سؤالك
+                <input name="message" type="text" placeholder="مثال: عايز مندوب يركب اسكرينات للعيلة" required />
+              </label>
+              <button class="button button-secondary" type="submit">اسأل</button>
+            </form>
+            <p data-chat-status></p>
+          </div>
+        </div>
       </section>
     </main>
 
