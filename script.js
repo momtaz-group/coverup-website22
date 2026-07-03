@@ -198,8 +198,26 @@ const header = document.querySelector(".site-header");
 const menuToggle = document.querySelector(".menu-toggle");
 const langToggle = document.querySelector("[data-lang-toggle]");
 const year = document.querySelector("[data-year]");
+const accountLabel = document.querySelector("[data-account-label]");
 
 year.textContent = new Date().getFullYear();
+
+function readCustomer() {
+  try {
+    return JSON.parse(localStorage.getItem("coverup-customer") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function renderAccountLabel() {
+  if (!accountLabel) {
+    return;
+  }
+
+  const customer = readCustomer();
+  accountLabel.textContent = customer?.name ? customer.name.split(" ")[0] : "دخول";
+}
 
 function setLanguage(lang) {
   const dictionary = translations[lang];
@@ -234,3 +252,4 @@ langToggle.addEventListener("click", () => {
 });
 
 setLanguage(localStorage.getItem("coverup-language") || "ar");
+renderAccountLabel();

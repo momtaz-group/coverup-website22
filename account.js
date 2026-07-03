@@ -1,61 +1,28 @@
-const formatter = new Intl.NumberFormat("ar-EG", {
-  style: "currency",
-  currency: "EGP",
-  maximumFractionDigits: 0,
-});
-
 const customerStorageKey = "coverup-customer";
-const cartStorageKey = "coverup-cart-v2";
-const legacyCartStorageKey = "coverup-cart";
+const avatarStoragePrefix = "coverup-profile-avatar:";
 
 const state = {
   customer: JSON.parse(localStorage.getItem(customerStorageKey) || "null"),
-  cart: readCart(),
-  products: [],
   activeIdentity: "",
   screen: "login-identity",
 };
 
-const heroName = document.querySelector("[data-account-hero-name]");
-const heroEmail = document.querySelector("[data-account-hero-email]");
-const heroStatus = document.querySelector("[data-account-hero-status]");
-const customerCard = document.querySelector("[data-customer-card]");
+const authCard = document.querySelector("[data-auth-card]");
+const profilePanel = document.querySelector("[data-profile-panel]");
 const authStatus = document.querySelector("[data-auth-status]");
-const logoutButton = document.querySelector("[data-logout-account]");
-const cartList = document.querySelector("[data-account-cart-list]");
-const cartTotal = document.querySelector("[data-account-cart-total]");
+const profileMessage = document.querySelector("[data-profile-message]");
 const activeIdentityNode = document.querySelector("[data-active-identity]");
-
-function escapeText(value) {
-  return String(value || "").replace(/[<>&"]/g, (char) => ({
-    "<": "&lt;",
-    ">": "&gt;",
-    "&": "&amp;",
-    '"': "&quot;",
-  }[char]));
-}
-
-function readCart() {
-  const raw = JSON.parse(localStorage.getItem(cartStorageKey) || localStorage.getItem(legacyCartStorageKey) || "{}");
-  return Object.entries(raw).reduce((accumulator, [id, value]) => {
-    if (typeof value === "number" && value > 0) {
-      accumulator[id] = { quantity: value, snapshot: null };
-      return accumulator;
-    }
-
-    if (value && typeof value === "object" && Number(value.quantity) > 0) {
-      accumulator[id] = {
-        quantity: Number(value.quantity),
-        snapshot: value.snapshot && typeof value.snapshot === "object" ? value.snapshot : null,
-      };
-    }
-
-    return accumulator;
-  }, {});
-}
+const logoutButton = document.querySelector("[data-logout-account]");
+const profileForm = document.querySelector("[data-profile-form]");
+const profileName = document.querySelector("[data-profile-name]");
+const profileEmail = document.querySelector("[data-profile-email]");
+const profileStatus = document.querySelector("[data-profile-status]");
+const avatarInput = document.querySelector("[data-profile-avatar-input]");
+const avatarPreview = document.querySelector("[data-profile-avatar-preview]");
 
 function saveCustomer(customer) {
   state.customer = customer;
+
   if (customer) {
     localStorage.setItem(customerStorageKey, JSON.stringify(customer));
     return;
@@ -64,121 +31,23 @@ function saveCustomer(customer) {
   localStorage.removeItem(customerStorageKey);
 }
 
-function saveCart() {
-  localStorage.setItem(cartStorageKey, JSON.stringify(state.cart));
-  localStorage.setItem(
-    legacyCartStorageKey,
-    JSON.stringify(
-      Object.fromEntries(
-        Object.entries(state.cart).map(([id, item]) => [id, item.quantity]),
-      ),
-    ),
-  );
-}
-
-function productSnapshot(product) {
-  return {
-    id: product.id,
-    name: product.name,
-    price: Number(product.price) || 0,
-  };
-}
-
-async function loadProducts() {
-  try {
-    const response = await fetch("/api/store-products");
-    if (!response.ok) {
-      return;
-    }
-
-    const data = await response.json();
-    if (!Array.isArray(data.products)) {
-      return;
-    }
-
-    state.products = data.products;
-    Object.entries(state.cart).forEach(([id, item]) => {
-      const product = state.products.find((entry) => entry.id === id);
-      if (product) {
-        item.snapshot = productSnapshot(product);
-      }
-    });
-    saveCart();
-  } catch {
-    state.products = [];
-  }
-}
-
-function cartEntries() {
-  return Object.entries(state.cart)
-    .map(([id, item]) => {
-      const snapshot = item.snapshot || {};
-      return {
-        id,
-        quantity: item.quantity,
-        name: snapshot.name || "منتج محفوظ في السلة",
-        price: Number(snapshot.price) || 0,
-      };
-    })
-    .filter((item) => item.quantity > 0);
-}
-
 function setStatus(message, type = "") {
   authStatus.textContent = message || "";
   authStatus.dataset.state = type;
 }
 
-function renderCartSummary() {
-  const entries = cartEntries();
-  const total = entries.reduce((sum, entry) => sum + entry.price * entry.quantity, 0);
-
-  cartTotal.textContent = formatter.format(total);
-  cartList.innerHTML = entries.length
-    ? entries
-        .map(
-          (entry) => `
-            <article class="account-cart-item">
-              <strong>${escapeText(entry.name)}</strong>
-              <span>${entry.quantity} × ${formatter.format(entry.price)}</span>
-              <small>${formatter.format(entry.price * entry.quantity)}</small>
-            </article>
-          `,
-        )
-        .join("")
-    : '<p class="empty-cart">السلة فاضية حاليًا. اختار منتجات من المتجر وسيظهر ملخصها هنا.</p>';
+function setProfileMessage(message, type = "") {
+  profileMessage.textContent = message || "";
+  profileMessage.dataset.state = type;
 }
 
-function renderCustomer() {
-  logoutButton.hidden = !state.customer;
+function avatarKey() {
+  return `${avatarStoragePrefix}${state.customer?.id || "guest"}`;
+}
 
-  if (!state.customer) {
-    heroName.textContent = "ضيف";
-    heroEmail.textContent = "سجل دخولك أو أنشئ حساب جديد.";
-    heroStatus.textContent = "بعد التسجيل، هتلاقي هنا حالة الإيميل وبيانات الحساب.";
-    customerCard.innerHTML = `
-      <h2>حسابك</h2>
-      <p>اعمل تسجيل دخول أو أنشئ حساب بخطوات سريعة، وبعدها هتقدر تراجع بياناتك وتتابع حالة تأكيد الإيميل من نفس المكان.</p>
-    `;
-    return;
-  }
-
-  const verified = Boolean(state.customer.email_verified_at);
-  heroName.textContent = state.customer.name || "عميل Cover Up";
-  heroEmail.textContent = state.customer.email || state.customer.username || "";
-  heroStatus.textContent = verified ? "الإيميل متأكد وجاهز." : "الإيميل لسه محتاج كود تأكيد.";
-  customerCard.innerHTML = `
-    <h2>حسابك</h2>
-    <div class="account-customer-grid">
-      <span><strong>الاسم:</strong> ${escapeText(state.customer.name)}</span>
-      <span><strong>اسم المستخدم:</strong> ${escapeText(state.customer.username)}</span>
-      <span><strong>الموبايل:</strong> ${escapeText(state.customer.phone)}</span>
-      <span><strong>الإيميل:</strong> ${escapeText(state.customer.email)}</span>
-      <span><strong>المدينة:</strong> ${escapeText(state.customer.city || "غير محدد")}</span>
-      <span><strong>الحالة:</strong> ${verified ? "تم تأكيد الإيميل" : "في انتظار التأكيد"}</span>
-      <span class="full-width"><strong>العنوان:</strong> ${escapeText(state.customer.address || "غير محدد")}</span>
-      ${state.customer.notes ? `<span class="full-width"><strong>ملاحظات:</strong> ${escapeText(state.customer.notes)}</span>` : ""}
-    </div>
-  `;
+function loadAvatar() {
+  const savedAvatar = state.customer ? localStorage.getItem(avatarKey()) : "";
+  avatarPreview.src = savedAvatar || "assets/brand/cover-up-symbol.png";
 }
 
 function syncVerifyIdentity() {
@@ -188,33 +57,21 @@ function syncVerifyIdentity() {
   }
 
   const identityField = verifyForm.elements.identity;
-  const fallbackIdentity = state.activeIdentity || state.customer?.email || state.customer?.username || "";
-  identityField.value = fallbackIdentity;
+  identityField.value = state.activeIdentity || state.customer?.email || state.customer?.username || "";
 }
 
 function openScreen(screen) {
   state.screen = screen;
+  authCard.hidden = false;
+  profilePanel.hidden = true;
+
   document.querySelectorAll("[data-auth-screen]").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.authScreen === screen);
   });
+
   activeIdentityNode.textContent = state.activeIdentity || "لا توجد بيانات محددة بعد";
   syncVerifyIdentity();
   setStatus("");
-}
-
-async function accountRequest(payload) {
-  const response = await fetch("/api/customer-auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.message || "حصل خطأ في الحساب.");
-  }
-
-  return data;
 }
 
 function prefillIdentity(identity) {
@@ -234,6 +91,53 @@ function prefillIdentity(identity) {
   if (verifyForm?.elements.identity && state.activeIdentity) {
     verifyForm.elements.identity.value = state.activeIdentity;
   }
+}
+
+async function accountRequest(payload) {
+  const response = await fetch("/api/customer-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "حصل خطأ في الحساب.");
+  }
+
+  return data;
+}
+
+function redirectToStore() {
+  window.setTimeout(() => {
+    window.location.href = "index.html";
+  }, 750);
+}
+
+function showProfile(message = "") {
+  if (!state.customer) {
+    openScreen("login-identity");
+    return;
+  }
+
+  authCard.hidden = true;
+  profilePanel.hidden = false;
+
+  const verified = Boolean(state.customer.email_verified_at);
+  profileName.textContent = state.customer.name || "عميل Cover Up";
+  profileEmail.textContent = state.customer.email || state.customer.username || "";
+  profileStatus.textContent = verified ? "الإيميل متأكد وجاهز." : "الإيميل لسه محتاج تأكيد.";
+
+  profileForm.elements.name.value = state.customer.name || "";
+  profileForm.elements.phone.value = state.customer.phone || "";
+  profileForm.elements.email.value = state.customer.email || "";
+  profileForm.elements.username.value = state.customer.username || "";
+  profileForm.elements.city.value = state.customer.city || "";
+  profileForm.elements.address.value = state.customer.address || "";
+  profileForm.elements.notes.value = state.customer.notes || "";
+
+  loadAvatar();
+  setProfileMessage(message, message ? "success" : "");
 }
 
 document.querySelectorAll("[data-open-screen]").forEach((button) => {
@@ -280,18 +184,15 @@ document.querySelector('[data-auth-form="login-password"]').addEventListener("su
 
     saveCustomer(result.customer);
     prefillIdentity(result.customer.email || result.customer.username);
-    renderCustomer();
-    setStatus(
-      result.requiresEmailVerification
-        ? "تم تسجيل الدخول. باقي تأكيد الإيميل بكود التفعيل."
-        : "تم تسجيل الدخول بنجاح.",
-      "success",
-    );
 
     if (result.requiresEmailVerification) {
       openScreen("verify");
       setStatus("تم تسجيل الدخول. باقي تأكيد الإيميل بكود التفعيل.", "success");
+      return;
     }
+
+    setStatus("تم تسجيل الدخول بنجاح. هنفتح الموقع دلوقتي.", "success");
+    redirectToStore();
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -308,7 +209,6 @@ document.querySelector('[data-auth-form="register"]').addEventListener("submit",
     const result = await accountRequest(payload);
     saveCustomer(result.customer);
     prefillIdentity(result.customer.email || result.customer.username);
-    renderCustomer();
     event.currentTarget.reset();
     openScreen("verify");
     setStatus(
@@ -346,8 +246,8 @@ document.querySelector('[data-auth-form="verify"]').addEventListener("submit", a
     const result = await accountRequest(payload);
     saveCustomer(result.customer);
     prefillIdentity(result.customer.email || result.customer.username);
-    renderCustomer();
-    setStatus("تم تأكيد الإيميل بنجاح.", "success");
+    setStatus("تم تأكيد الإيميل بنجاح. هنفتح الموقع دلوقتي.", "success");
+    redirectToStore();
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -373,24 +273,62 @@ document.querySelector("[data-resend-code]").addEventListener("click", async () 
   }
 });
 
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!state.customer?.id) {
+    openScreen("login-identity");
+    return;
+  }
+
+  setProfileMessage("بنحفظ التعديلات...", "loading");
+
+  try {
+    const payload = Object.fromEntries(new FormData(event.currentTarget));
+    payload.action = "updateProfile";
+    payload.id = state.customer.id;
+
+    const result = await accountRequest(payload);
+    saveCustomer(result.customer);
+    showProfile("تم حفظ بيانات الحساب بنجاح.");
+  } catch (error) {
+    setProfileMessage(error.message, "error");
+  }
+});
+
+avatarInput.addEventListener("change", () => {
+  const file = avatarInput.files?.[0];
+
+  if (!file || !state.customer) {
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setProfileMessage("اختار صورة أقل من 2 ميجا.", "error");
+    avatarInput.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    localStorage.setItem(avatarKey(), reader.result);
+    avatarPreview.src = reader.result;
+    setProfileMessage("تم تحديث صورة الحساب على الجهاز ده.", "success");
+  });
+  reader.readAsDataURL(file);
+});
+
 logoutButton.addEventListener("click", () => {
   saveCustomer(null);
   prefillIdentity("");
-  renderCustomer();
   openScreen("login-identity");
   setStatus("تم تسجيل الخروج.", "success");
 });
 
-loadProducts().finally(() => {
-  renderCartSummary();
-  renderCustomer();
-  prefillIdentity(state.customer?.email || state.customer?.username || "");
+prefillIdentity(state.customer?.email || state.customer?.username || "");
 
-  if (state.customer && !state.customer.email_verified_at) {
-    openScreen("verify");
-    setStatus("الحساب مسجل، باقي تأكيد الإيميل.", "warning");
-    return;
-  }
-
+if (state.customer) {
+  showProfile();
+} else {
   openScreen("login-identity");
-});
+}

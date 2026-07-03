@@ -302,6 +302,37 @@ async function resendVerification(body) {
   };
 }
 
+async function updateProfile(body) {
+  const id = cleanText(body.id, 120);
+  const name = cleanText(body.name, 120);
+  const phone = cleanText(body.phone, 60);
+  const address = cleanText(body.address, 300);
+  const city = cleanText(body.city, 120);
+  const notes = cleanText(body.notes, 500);
+
+  if (!id) {
+    return { status: 401, payload: { message: "سجل دخولك الأول عشان تعدل بيانات الحساب." } };
+  }
+
+  if (!name || !phone || !address) {
+    return { status: 400, payload: { message: "الاسم ورقم الموبايل والعنوان مطلوبين." } };
+  }
+
+  const updated = await updateCustomer(id, {
+    name,
+    phone,
+    address,
+    city,
+    notes,
+  });
+
+  if (!updated) {
+    return { status: 404, payload: { message: "الحساب غير موجود." } };
+  }
+
+  return { status: 200, payload: { customer: publicCustomer(updated) } };
+}
+
 module.exports = async function handler(request, response) {
   try {
     if (request.method !== "POST") {
@@ -313,7 +344,7 @@ module.exports = async function handler(request, response) {
     }
 
     const action = cleanText(request.body?.action, 40);
-    const handlers = { register, login, forgotPassword, verifyEmail, resendVerification };
+    const handlers = { register, login, forgotPassword, verifyEmail, resendVerification, updateProfile };
     const run = handlers[action];
 
     if (!run) {

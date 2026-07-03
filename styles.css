@@ -822,7 +822,7 @@ h1 span {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 560px) minmax(300px, 420px);
+  grid-template-columns: minmax(0, 760px);
   gap: 28px;
   min-height: 100vh;
   align-items: center;
@@ -831,7 +831,8 @@ h1 span {
 }
 
 .auth-card,
-.auth-side-card {
+.auth-side-card,
+.profile-card {
   border: 1px solid rgba(13, 16, 24, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
@@ -841,6 +842,15 @@ h1 span {
 
 .auth-card {
   padding: 28px;
+}
+
+.profile-card {
+  padding: 28px;
+}
+
+.profile-card[hidden],
+.auth-card[hidden] {
+  display: none;
 }
 
 .auth-brand {
@@ -1028,6 +1038,93 @@ h1 span {
 
 .auth-status[data-state="warning"] {
   color: #a15c07;
+}
+
+.auth-status[data-state="loading"] {
+  color: #80630b;
+}
+
+.profile-head,
+.profile-summary,
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.profile-head {
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.profile-summary {
+  align-items: center;
+  padding: 20px;
+  border: 1px solid rgba(17, 16, 12, 0.1);
+  border-radius: 8px;
+  background: rgba(247, 248, 250, 0.82);
+  margin-bottom: 22px;
+}
+
+.profile-summary h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1;
+  color: #11100c;
+}
+
+.profile-summary p:not(.eyebrow),
+.profile-summary small {
+  display: block;
+  color: #5d5546;
+  font-weight: 700;
+}
+
+.profile-avatar {
+  position: relative;
+  display: grid;
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(206, 178, 71, 0.36);
+  border-radius: 8px;
+  background: #050505;
+  cursor: pointer;
+}
+
+.profile-avatar input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar span {
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 8px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #15120c;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.profile-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 .auth-side-panel {
@@ -2530,8 +2627,22 @@ h1 span {
   }
 
   .auth-card,
-  .auth-side-card {
+  .auth-side-card,
+  .profile-card {
     padding: 18px;
+  }
+
+  .profile-head,
+  .profile-summary,
+  .profile-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+    flex-basis: 96px;
   }
 
   .hero-visual {

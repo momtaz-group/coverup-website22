@@ -14,7 +14,7 @@
   </head>
   <body class="account-auth-body">
     <main class="auth-shell">
-      <section class="auth-card" aria-labelledby="auth-title">
+      <section class="auth-card" aria-labelledby="auth-title" data-auth-card>
         <div class="auth-brand">
           <img class="auth-brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
           <div>
@@ -146,30 +146,69 @@
         <p class="auth-status" data-auth-status></p>
       </section>
 
-      <section class="auth-side-panel">
-        <article class="auth-side-card" data-customer-card>
-          <h2>حسابك</h2>
-          <p>بعد تسجيل الدخول، ستظهر هنا بياناتك وحالة تأكيد الإيميل.</p>
-        </article>
-
-        <article class="auth-side-card">
-          <div class="auth-side-head">
-            <h2>ملخص السلة</h2>
-            <a href="products.html">ارجع للمتجر</a>
+      <section class="profile-card" hidden data-profile-panel>
+        <div class="profile-head">
+          <div class="auth-brand">
+            <img class="auth-brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
+            <div>
+              <strong>Cover Up</strong>
+              <span>حساب العميل</span>
+            </div>
           </div>
-          <div class="account-cart-list" data-account-cart-list></div>
-          <div class="account-cart-total">
-            <span>إجمالي السلة</span>
-            <strong data-account-cart-total>0 EGP</strong>
-          </div>
-        </article>
+          <a class="auth-button auth-button-muted" href="index.html">افتح الموقع</a>
+        </div>
 
-        <article class="auth-side-card auth-side-meta">
-          <strong data-account-hero-name>ضيف</strong>
-          <span data-account-hero-email>سجل دخولك أو اعمل حساب جديد.</span>
-          <small data-account-hero-status>حالة الإيميل هتظهر هنا بعد التسجيل.</small>
-          <button class="text-button" type="button" hidden data-logout-account>تسجيل خروج</button>
-        </article>
+        <div class="profile-summary">
+          <label class="profile-avatar">
+            <input type="file" accept="image/*" data-profile-avatar-input />
+            <img src="assets/brand/cover-up-symbol.png" alt="" data-profile-avatar-preview />
+            <span>غيّر الصورة</span>
+          </label>
+          <div>
+            <p class="eyebrow">تم تسجيل الدخول</p>
+            <h1 data-profile-name>عميل Cover Up</h1>
+            <p data-profile-email>الإيميل</p>
+            <small data-profile-status>حالة الإيميل</small>
+          </div>
+        </div>
+
+        <form class="profile-form" data-profile-form>
+          <div class="auth-form-grid">
+            <label class="auth-label">
+              <span>الاسم بالكامل</span>
+              <input name="name" type="text" autocomplete="name" required />
+            </label>
+            <label class="auth-label">
+              <span>رقم الموبايل</span>
+              <input name="phone" type="tel" autocomplete="tel" required />
+            </label>
+            <label class="auth-label">
+              <span>الإيميل</span>
+              <input name="email" type="email" autocomplete="email" disabled />
+            </label>
+            <label class="auth-label">
+              <span>اسم المستخدم</span>
+              <input name="username" type="text" autocomplete="username" disabled />
+            </label>
+            <label class="auth-label">
+              <span>المدينة / المنطقة</span>
+              <input name="city" type="text" autocomplete="address-level2" />
+            </label>
+            <label class="auth-label auth-span-full">
+              <span>العنوان التفصيلي</span>
+              <input name="address" type="text" autocomplete="street-address" required />
+            </label>
+            <label class="auth-label auth-span-full">
+              <span>ملاحظات للحساب</span>
+              <textarea name="notes" rows="3" placeholder="مثال: أقرب علامة أو أوقات مناسبة للتواصل"></textarea>
+            </label>
+          </div>
+          <div class="profile-actions">
+            <button class="auth-button auth-button-primary" type="submit">حفظ التعديلات</button>
+            <button class="auth-button auth-button-muted" type="button" data-logout-account>تسجيل خروج</button>
+          </div>
+          <p class="auth-status" data-profile-message></p>
+        </form>
       </section>
     </main>
 
