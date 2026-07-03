@@ -4,16 +4,18 @@ const formatter = new Intl.NumberFormat("ar-EG", {
   maximumFractionDigits: 0,
 });
 
+const customerStorageKey = "coverup-customer";
+const cartStorageKey = "coverup-cart-v2";
+const legacyCartStorageKey = "coverup-cart";
+
 const state = {
-  customer: JSON.parse(localStorage.getItem("coverup-customer") || "null"),
+  customer: JSON.parse(localStorage.getItem(customerStorageKey) || "null"),
   cart: readCart(),
   products: [],
+  activeIdentity: "",
+  screen: "login-identity",
 };
 
-const header = document.querySelector(".site-header");
-const menuToggle = document.querySelector(".menu-toggle");
-const accountBadge = document.querySelector("[data-account-badge]");
-const cartBadge = document.querySelector("[data-cart-badge]");
 const heroName = document.querySelector("[data-account-hero-name]");
 const heroEmail = document.querySelector("[data-account-hero-email]");
 const heroStatus = document.querySelector("[data-account-hero-status]");
@@ -22,6 +24,7 @@ const authStatus = document.querySelector("[data-auth-status]");
 const logoutButton = document.querySelector("[data-logout-account]");
 const cartList = document.querySelector("[data-account-cart-list]");
 const cartTotal = document.querySelector("[data-account-cart-total]");
+const activeIdentityNode = document.querySelector("[data-active-identity]");
 
 function escapeText(value) {
   return String(value || "").replace(/[<>&"]/g, (char) => ({
@@ -33,7 +36,7 @@ function escapeText(value) {
 }
 
 function readCart() {
-  const raw = JSON.parse(localStorage.getItem("coverup-cart-v2") || localStorage.getItem("coverup-cart") || "{}");
+  const raw = JSON.parse(localStorage.getItem(cartStorageKey) || localStorage.getItem(legacyCartStorageKey) || "{}");
   return Object.entries(raw).reduce((accumulator, [id, value]) => {
     if (typeof value === "number" && value > 0) {
       accumulator[id] = { quantity: value, snapshot: null };
@@ -54,16 +57,17 @@ function readCart() {
 function saveCustomer(customer) {
   state.customer = customer;
   if (customer) {
-    localStorage.setItem("coverup-customer", JSON.stringify(customer));
-  } else {
-    localStorage.removeItem("coverup-customer");
+    localStorage.setItem(customerStorageKey, JSON.stringify(customer));
+    return;
   }
+
+  localStorage.removeItem(customerStorageKey);
 }
 
 function saveCart() {
-  localStorage.setItem("coverup-cart-v2", JSON.stringify(state.cart));
+  localStorage.setItem(cartStorageKey, JSON.stringify(state.cart));
   localStorage.setItem(
-    "coverup-cart",
+    legacyCartStorageKey,
     JSON.stringify(
       Object.fromEntries(
         Object.entries(state.cart).map(([id, item]) => [id, item.quantity]),
@@ -88,16 +92,18 @@ async function loadProducts() {
     }
 
     const data = await response.json();
-    if (Array.isArray(data.products)) {
-      state.products = data.products;
-      Object.entries(state.cart).forEach(([id, item]) => {
-        const product = state.products.find((entry) => entry.id === id);
-        if (product) {
-          item.snapshot = productSnapshot(product);
-        }
-      });
-      saveCart();
+    if (!Array.isArray(data.products)) {
+      return;
     }
+
+    state.products = data.products;
+    Object.entries(state.cart).forEach(([id, item]) => {
+      const product = state.products.find((entry) => entry.id === id);
+      if (product) {
+        item.snapshot = productSnapshot(product);
+      }
+    });
+    saveCart();
   } catch {
     state.products = [];
   }
@@ -117,12 +123,15 @@ function cartEntries() {
     .filter((item) => item.quantity > 0);
 }
 
+function setStatus(message, type = "") {
+  authStatus.textContent = message || "";
+  authStatus.dataset.state = type;
+}
+
 function renderCartSummary() {
   const entries = cartEntries();
-  const totalQuantity = entries.reduce((sum, entry) => sum + entry.quantity, 0);
   const total = entries.reduce((sum, entry) => sum + entry.price * entry.quantity, 0);
 
-  cartBadge.textContent = totalQuantity;
   cartTotal.textContent = formatter.format(total);
   cartList.innerHTML = entries.length
     ? entries
@@ -136,30 +145,29 @@ function renderCartSummary() {
           `,
         )
         .join("")
-    : `<p class="empty-cart">السلة فاضية حاليًا. اختار منتجات من المتجر.</p>`;
+    : '<p class="empty-cart">السلة فاضية حاليًا. اختار منتجات من المتجر وسيظهر ملخصها هنا.</p>';
 }
 
 function renderCustomer() {
-  accountBadge.textContent = state.customer ? state.customer.name.split(" ")[0] : "الدخول";
   logoutButton.hidden = !state.customer;
 
   if (!state.customer) {
     heroName.textContent = "ضيف";
-    heroEmail.textContent = "سجل دخولك أو اعمل حساب جديد.";
-    heroStatus.textContent = "بعد التفعيل، حالة الإيميل وبيانات الحساب هيظهروا هنا.";
+    heroEmail.textContent = "سجل دخولك أو أنشئ حساب جديد.";
+    heroStatus.textContent = "بعد التسجيل، هتلاقي هنا حالة الإيميل وبيانات الحساب.";
     customerCard.innerHTML = `
-      <h2>بيانات الحساب</h2>
-      <p class="muted-text">مفيش حساب مسجل حاليًا. اعمل حساب أو ادخل ببياناتك، وبعدها هتظهر هنا تفاصيل العميل وربطها بالسلة والطلبات.</p>
+      <h2>حسابك</h2>
+      <p>اعمل تسجيل دخول أو أنشئ حساب بخطوات سريعة، وبعدها هتقدر تراجع بياناتك وتتابع حالة تأكيد الإيميل من نفس المكان.</p>
     `;
     return;
   }
 
   const verified = Boolean(state.customer.email_verified_at);
-  heroName.textContent = state.customer.name;
-  heroEmail.textContent = state.customer.email;
-  heroStatus.textContent = verified ? "الإيميل مؤكد." : "الإيميل غير مؤكد، أدخل كود التفعيل من تبويب تأكيد الإيميل.";
+  heroName.textContent = state.customer.name || "عميل Cover Up";
+  heroEmail.textContent = state.customer.email || state.customer.username || "";
+  heroStatus.textContent = verified ? "الإيميل متأكد وجاهز." : "الإيميل لسه محتاج كود تأكيد.";
   customerCard.innerHTML = `
-    <h2>بيانات الحساب</h2>
+    <h2>حسابك</h2>
     <div class="account-customer-grid">
       <span><strong>الاسم:</strong> ${escapeText(state.customer.name)}</span>
       <span><strong>اسم المستخدم:</strong> ${escapeText(state.customer.username)}</span>
@@ -173,14 +181,25 @@ function renderCustomer() {
   `;
 }
 
-function setTab(tab) {
-  document.querySelectorAll("[data-auth-tab]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.authTab === tab);
-  });
+function syncVerifyIdentity() {
+  const verifyForm = document.querySelector('[data-auth-form="verify"]');
+  if (!verifyForm) {
+    return;
+  }
 
-  document.querySelectorAll("[data-auth-form]").forEach((form) => {
-    form.classList.toggle("is-active", form.dataset.authForm === tab);
+  const identityField = verifyForm.elements.identity;
+  const fallbackIdentity = state.activeIdentity || state.customer?.email || state.customer?.username || "";
+  identityField.value = fallbackIdentity;
+}
+
+function openScreen(screen) {
+  state.screen = screen;
+  document.querySelectorAll("[data-auth-screen]").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.authScreen === screen);
   });
+  activeIdentityNode.textContent = state.activeIdentity || "لا توجد بيانات محددة بعد";
+  syncVerifyIdentity();
+  setStatus("");
 }
 
 async function accountRequest(payload) {
@@ -198,111 +217,180 @@ async function accountRequest(payload) {
   return data;
 }
 
-document.querySelectorAll("[data-auth-tab]").forEach((button) => {
+function prefillIdentity(identity) {
+  state.activeIdentity = String(identity || "").trim();
+  const loginIdentityForm = document.querySelector('[data-auth-form="login-identity"]');
+  const forgotForm = document.querySelector('[data-auth-form="forgot"]');
+  const verifyForm = document.querySelector('[data-auth-form="verify"]');
+
+  if (loginIdentityForm?.elements.identity && state.activeIdentity) {
+    loginIdentityForm.elements.identity.value = state.activeIdentity;
+  }
+
+  if (forgotForm?.elements.identity && state.activeIdentity) {
+    forgotForm.elements.identity.value = state.activeIdentity;
+  }
+
+  if (verifyForm?.elements.identity && state.activeIdentity) {
+    verifyForm.elements.identity.value = state.activeIdentity;
+  }
+}
+
+document.querySelectorAll("[data-open-screen]").forEach((button) => {
   button.addEventListener("click", () => {
-    authStatus.textContent = "";
-    setTab(button.dataset.authTab);
+    const target = button.dataset.openScreen;
+
+    if (target === "forgot") {
+      prefillIdentity(state.activeIdentity || state.customer?.email || state.customer?.username || "");
+    }
+
+    if (target === "verify") {
+      syncVerifyIdentity();
+    }
+
+    openScreen(target);
   });
 });
 
-document.querySelector('[data-auth-form="login"]').addEventListener("submit", async (event) => {
+document.querySelector('[data-auth-form="login-identity"]').addEventListener("submit", (event) => {
   event.preventDefault();
-  authStatus.textContent = "بنراجع بيانات الدخول...";
+  const form = new FormData(event.currentTarget);
+  const identity = String(form.get("identity") || "").trim();
+
+  if (!identity) {
+    setStatus("اكتب الإيميل أو رقم الموبايل أو اسم المستخدم أولًا.", "error");
+    return;
+  }
+
+  prefillIdentity(identity);
+  openScreen("login-password");
+});
+
+document.querySelector('[data-auth-form="login-password"]').addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setStatus("بنراجع بيانات الدخول...", "loading");
+
   try {
-    const payload = Object.fromEntries(new FormData(event.currentTarget));
-    payload.action = "login";
-    const result = await accountRequest(payload);
+    const password = String(new FormData(event.currentTarget).get("password") || "");
+    const result = await accountRequest({
+      action: "login",
+      identity: state.activeIdentity,
+      password,
+    });
+
     saveCustomer(result.customer);
+    prefillIdentity(result.customer.email || result.customer.username);
     renderCustomer();
-    authStatus.textContent = result.requiresEmailVerification
-      ? "تم تسجيل الدخول. باقي تأكيد الإيميل."
-      : "تم تسجيل الدخول بنجاح.";
+    setStatus(
+      result.requiresEmailVerification
+        ? "تم تسجيل الدخول. باقي تأكيد الإيميل بكود التفعيل."
+        : "تم تسجيل الدخول بنجاح.",
+      "success",
+    );
+
+    if (result.requiresEmailVerification) {
+      openScreen("verify");
+      setStatus("تم تسجيل الدخول. باقي تأكيد الإيميل بكود التفعيل.", "success");
+    }
   } catch (error) {
-    authStatus.textContent = error.message;
+    setStatus(error.message, "error");
   }
 });
 
 document.querySelector('[data-auth-form="register"]').addEventListener("submit", async (event) => {
   event.preventDefault();
-  authStatus.textContent = "بننشئ الحساب...";
+  setStatus("بننشئ الحساب...", "loading");
+
   try {
     const payload = Object.fromEntries(new FormData(event.currentTarget));
     payload.action = "register";
+
     const result = await accountRequest(payload);
     saveCustomer(result.customer);
+    prefillIdentity(result.customer.email || result.customer.username);
     renderCustomer();
-    setTab("verify");
-    authStatus.textContent = result.emailDeliveryReady
-      ? "الحساب اتعمل وكود التأكيد اتبعت على الإيميل."
-      : "الحساب اتعمل، لكن خدمة الإيميل الرسمي محتاجة تفعيل عشان الكود يوصل.";
     event.currentTarget.reset();
+    openScreen("verify");
+    setStatus(
+      result.emailDeliveryReady
+        ? "الحساب اتعمل وكود التأكيد اتبعت على الإيميل."
+        : "الحساب اتعمل، لكن تفعيل الإيميل الرسمي لسه مطلوب عشان الكود يوصل.",
+      result.emailDeliveryReady ? "success" : "warning",
+    );
   } catch (error) {
-    authStatus.textContent = error.message;
+    setStatus(error.message, "error");
   }
 });
 
 document.querySelector('[data-auth-form="forgot"]').addEventListener("submit", async (event) => {
   event.preventDefault();
-  authStatus.textContent = "بنراجع طلب الاسترجاع...";
+  setStatus("بنراجع طلب الاسترجاع...", "loading");
+
   try {
     const payload = Object.fromEntries(new FormData(event.currentTarget));
     payload.action = "forgotPassword";
     const result = await accountRequest(payload);
-    authStatus.textContent = result.message;
-    event.currentTarget.reset();
+    setStatus(result.message, "success");
   } catch (error) {
-    authStatus.textContent = error.message;
+    setStatus(error.message, "error");
   }
 });
 
 document.querySelector('[data-auth-form="verify"]').addEventListener("submit", async (event) => {
   event.preventDefault();
-  authStatus.textContent = "بنتأكد من الكود...";
+  setStatus("بنتأكد من الكود...", "loading");
+
   try {
     const payload = Object.fromEntries(new FormData(event.currentTarget));
     payload.action = "verifyEmail";
     const result = await accountRequest(payload);
     saveCustomer(result.customer);
+    prefillIdentity(result.customer.email || result.customer.username);
     renderCustomer();
-    authStatus.textContent = "تم تأكيد الإيميل بنجاح.";
+    setStatus("تم تأكيد الإيميل بنجاح.", "success");
   } catch (error) {
-    authStatus.textContent = error.message;
+    setStatus(error.message, "error");
   }
 });
 
 document.querySelector("[data-resend-code]").addEventListener("click", async () => {
-  const activeCustomerIdentity = state.customer?.email || state.customer?.username;
   const verifyForm = document.querySelector('[data-auth-form="verify"]');
-  const identityInput = verifyForm.elements.identity;
-  const identity = identityInput.value.trim() || activeCustomerIdentity;
+  const identity = verifyForm.elements.identity.value.trim() || state.activeIdentity || state.customer?.email || state.customer?.username;
 
   if (!identity) {
-    authStatus.textContent = "اكتب الإيميل أو اسم المستخدم الأول.";
+    setStatus("اكتب الإيميل أو اسم المستخدم الأول.", "error");
     return;
   }
 
-  authStatus.textContent = "بنرسل كود جديد...";
+  setStatus("بنرسل كود جديد...", "loading");
+
   try {
     const result = await accountRequest({ action: "resendVerification", identity });
-    authStatus.textContent = result.message;
+    prefillIdentity(identity);
+    setStatus(result.message, "success");
   } catch (error) {
-    authStatus.textContent = error.message;
+    setStatus(error.message, "error");
   }
 });
 
 logoutButton.addEventListener("click", () => {
   saveCustomer(null);
+  prefillIdentity("");
   renderCustomer();
-  authStatus.textContent = "تم تسجيل الخروج.";
-  setTab("login");
-});
-
-menuToggle.addEventListener("click", () => {
-  const isOpen = header.classList.toggle("menu-open");
-  menuToggle.setAttribute("aria-expanded", String(isOpen));
+  openScreen("login-identity");
+  setStatus("تم تسجيل الخروج.", "success");
 });
 
 loadProducts().finally(() => {
   renderCartSummary();
   renderCustomer();
+  prefillIdentity(state.customer?.email || state.customer?.username || "");
+
+  if (state.customer && !state.customer.email_verified_at) {
+    openScreen("verify");
+    setStatus("الحساب مسجل، باقي تأكيد الإيميل.", "warning");
+    return;
+  }
+
+  openScreen("login-identity");
 });

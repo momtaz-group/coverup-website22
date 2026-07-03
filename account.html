@@ -7,168 +7,169 @@
       name="description"
       content="حساب Cover Up: تسجيل دخول، إنشاء حساب، تأكيد الإيميل، ومتابعة بيانات العميل."
     />
-    <meta name="theme-color" content="#080806" />
+    <meta name="theme-color" content="#eef2fb" />
     <title>Cover Up | حسابي</title>
     <link rel="icon" href="assets/brand/cover-up-symbol.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header class="site-header" id="top">
-      <a class="brand" href="index.html" aria-label="Cover Up home">
-        <img class="brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
-        <bdi class="brand-wordmark"><span>Cover </span><strong>Up</strong></bdi>
-      </a>
-
-      <button class="menu-toggle" type="button" aria-label="افتح القائمة" aria-expanded="false">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-
-      <nav class="site-nav" aria-label="التنقل الرئيسي">
-        <a href="products.html">المتجر</a>
-        <a href="products.html#family-visit">مندوب العيلة</a>
-        <a href="index.html#repairs">الصيانه</a>
-        <a href="index.html#corporate">الشركات</a>
-        <a href="products.html#support">شكاوى واقتراحات</a>
-        <a href="index.html#contact">تواصل</a>
-      </nav>
-
-      <div class="header-actions">
-        <a class="account-button" href="account.html" aria-current="page">
-          حسابي
-          <span data-account-badge>الدخول</span>
-        </a>
-        <a class="cart-button" href="products.html">
-          السلة
-          <span data-cart-badge>0</span>
-        </a>
-        <a class="button button-primary button-small" href="products.html">المتجر</a>
-      </div>
-    </header>
-
-    <main class="account-page">
-      <section class="account-hero">
-        <div>
-          <p class="eyebrow">حساب Cover Up</p>
-          <h1>دخول، تسجيل، وتأكيد رسمي للإيميل.</h1>
-          <p>
-            كل عميل له حساب مستقل ببياناته، عنوانه، وطلباته. وبعد تفعيل الإيميل، التجربة تبقى جاهزة أكثر للدفع والمتابعة وخدمة ما بعد البيع.
-          </p>
-        </div>
-        <div class="account-hero-note">
-          <strong data-account-hero-name>ضيف</strong>
-          <span data-account-hero-email>سجل دخولك أو اعمل حساب جديد.</span>
-          <small data-account-hero-status>حالة الإيميل هتظهر هنا بعد التسجيل.</small>
-        </div>
-      </section>
-
-      <section class="account-shell">
-        <div class="account-auth-card">
-          <div class="account-tabs" role="tablist" aria-label="اختيارات الحساب">
-            <button class="is-active" type="button" data-auth-tab="login">دخول</button>
-            <button type="button" data-auth-tab="register">تسجيل</button>
-            <button type="button" data-auth-tab="forgot">نسيت كلمة السر</button>
-            <button type="button" data-auth-tab="verify">تأكيد الإيميل</button>
+  <body class="account-auth-body">
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="auth-title">
+        <div class="auth-brand">
+          <img class="auth-brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
+          <div>
+            <strong>Cover Up</strong>
+            <span>Fast. Trust. Exclusive.</span>
           </div>
+        </div>
 
-          <form class="account-form is-active" data-auth-form="login">
-            <label>
-              اسم المستخدم أو الإيميل أو رقم الموبايل
+        <div class="auth-panel is-active" data-auth-screen="login-identity">
+          <h1 id="auth-title">تسجيل الدخول</h1>
+          <p class="auth-copy">اكتب الإيميل أو رقم الموبايل أو اسم المستخدم للدخول لحسابك.</p>
+          <form data-auth-form="login-identity">
+            <label class="auth-label">
+              <span>الإيميل أو الموبايل أو اسم المستخدم</span>
               <input name="identity" type="text" autocomplete="username" required />
             </label>
-            <label>
-              كلمة السر
+            <div class="auth-links">
+              <button type="button" data-open-screen="register">إنشاء حساب جديد</button>
+              <button type="button" data-open-screen="forgot">نسيت كلمة السر؟</button>
+            </div>
+            <div class="auth-actions">
+              <a class="auth-button auth-button-muted" href="products.html">رجوع للمتجر</a>
+              <button class="auth-button auth-button-primary" type="submit">التالي</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="auth-panel" data-auth-screen="login-password">
+          <h1>أدخل كلمة السر</h1>
+          <p class="auth-copy">سنستخدم البيانات التالية للدخول:</p>
+          <p class="auth-identity-chip" data-active-identity></p>
+          <form data-auth-form="login-password">
+            <label class="auth-label">
+              <span>كلمة السر</span>
               <input name="password" type="password" autocomplete="current-password" required />
             </label>
-            <button class="button button-primary" type="submit">دخول للحساب</button>
+            <div class="auth-links">
+              <button type="button" data-open-screen="forgot">لا أستطيع الدخول</button>
+            </div>
+            <div class="auth-actions">
+              <button class="auth-button auth-button-muted" type="button" data-open-screen="login-identity">رجوع</button>
+              <button class="auth-button auth-button-primary" type="submit">دخول</button>
+            </div>
           </form>
+        </div>
 
-          <form class="account-form" data-auth-form="register">
-            <div class="form-grid">
-              <label>
-                الاسم بالكامل
+        <div class="auth-panel" data-auth-screen="register">
+          <h1>إنشاء حساب جديد</h1>
+          <p class="auth-copy">املأ بياناتك الأساسية مرة واحدة، وبعدها نرسل كود تأكيد على الإيميل الرسمي.</p>
+          <form data-auth-form="register">
+            <div class="auth-form-grid">
+              <label class="auth-label">
+                <span>الاسم بالكامل</span>
                 <input name="name" type="text" autocomplete="name" required />
               </label>
-              <label>
-                رقم الموبايل
+              <label class="auth-label">
+                <span>رقم الموبايل</span>
                 <input name="phone" type="tel" autocomplete="tel" required />
               </label>
-              <label>
-                الإيميل
+              <label class="auth-label">
+                <span>الإيميل</span>
                 <input name="email" type="email" autocomplete="email" required />
               </label>
-              <label>
-                اسم المستخدم
+              <label class="auth-label">
+                <span>اسم المستخدم</span>
                 <input name="username" type="text" autocomplete="username" required />
               </label>
-              <label>
-                كلمة السر
+              <label class="auth-label">
+                <span>كلمة السر</span>
                 <input name="password" type="password" autocomplete="new-password" minlength="8" required />
               </label>
-              <label>
-                المدينة / المنطقة
+              <label class="auth-label">
+                <span>المدينة / المنطقة</span>
                 <input name="city" type="text" autocomplete="address-level2" />
               </label>
-              <label class="full-field">
-                العنوان التفصيلي
+              <label class="auth-label auth-span-full">
+                <span>العنوان التفصيلي</span>
                 <input name="address" type="text" autocomplete="street-address" required />
               </label>
-              <label class="full-field">
-                ملاحظات مهمة
+              <label class="auth-label auth-span-full">
+                <span>ملاحظات مهمة</span>
                 <textarea name="notes" rows="3" placeholder="مثال: أقرب علامة أو أوقات مناسبة للتواصل"></textarea>
               </label>
             </div>
-            <button class="button button-primary" type="submit">إنشاء الحساب</button>
-          </form>
-
-          <form class="account-form" data-auth-form="forgot">
-            <p class="muted-text">اكتب اسم المستخدم أو الإيميل أو رقم الموبايل. لو خدمة الإيميل الرسمية متفعلة، هيوصلك إيميل فوري.</p>
-            <label>
-              بيانات الحساب
-              <input name="identity" type="text" required />
-            </label>
-            <button class="button button-secondary" type="submit">إرسال استرجاع كلمة السر</button>
-          </form>
-
-          <form class="account-form" data-auth-form="verify">
-            <p class="muted-text">بعد إنشاء الحساب، هيوصلك كود على الإيميل الرسمي. اكتب اسم المستخدم أو الإيميل ثم الكود.</p>
-            <label>
-              اسم المستخدم أو الإيميل
-              <input name="identity" type="text" required />
-            </label>
-            <label>
-              كود التأكيد
-              <input name="code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" required />
-            </label>
-            <div class="account-actions-inline">
-              <button class="button button-primary" type="submit">تأكيد الإيميل</button>
-              <button class="button button-secondary" type="button" data-resend-code>إعادة إرسال الكود</button>
+            <div class="auth-actions">
+              <button class="auth-button auth-button-muted" type="button" data-open-screen="login-identity">رجوع</button>
+              <button class="auth-button auth-button-primary" type="submit">إنشاء الحساب</button>
             </div>
           </form>
-
-          <p class="payment-message" data-auth-status></p>
-          <button class="text-button" type="button" hidden data-logout-account>تسجيل خروج</button>
         </div>
 
-        <aside class="account-summary-card">
-          <section class="account-customer-card" data-customer-card>
-            <h2>بيانات الحساب</h2>
-            <p class="muted-text">بعد تسجيل الدخول هتظهر هنا بيانات العميل وربطها مع الطلبات.</p>
-          </section>
+        <div class="auth-panel" data-auth-screen="forgot">
+          <h1>استرجاع كلمة السر</h1>
+          <p class="auth-copy">اكتب اسم المستخدم أو الإيميل أو رقم الموبايل، وسنرسل لك رسالة رسمية فور تفعيل خدمة الإيميل.</p>
+          <form data-auth-form="forgot">
+            <label class="auth-label">
+              <span>بيانات الحساب</span>
+              <input name="identity" type="text" required />
+            </label>
+            <div class="auth-actions">
+              <button class="auth-button auth-button-muted" type="button" data-open-screen="login-identity">رجوع</button>
+              <button class="auth-button auth-button-primary" type="submit">إرسال الطلب</button>
+            </div>
+          </form>
+        </div>
 
-          <section class="account-cart-card">
-            <div class="account-summary-head">
-              <h2>ملخص السلة</h2>
-              <a href="products.html">ارجع للمتجر</a>
+        <div class="auth-panel" data-auth-screen="verify">
+          <h1>تأكيد الإيميل</h1>
+          <p class="auth-copy">أدخل الكود المرسل إلى الإيميل الرسمي الخاص بحسابك.</p>
+          <form data-auth-form="verify">
+            <label class="auth-label">
+              <span>اسم المستخدم أو الإيميل</span>
+              <input name="identity" type="text" required />
+            </label>
+            <label class="auth-label">
+              <span>كود التأكيد</span>
+              <input name="code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" required />
+            </label>
+            <div class="auth-links">
+              <button type="button" data-resend-code>إعادة إرسال الكود</button>
             </div>
-            <div class="account-cart-list" data-account-cart-list></div>
-            <div class="account-cart-total">
-              <span>إجمالي السلة</span>
-              <strong data-account-cart-total>0 EGP</strong>
+            <div class="auth-actions">
+              <button class="auth-button auth-button-muted" type="button" data-open-screen="login-identity">رجوع</button>
+              <button class="auth-button auth-button-primary" type="submit">تأكيد</button>
             </div>
-          </section>
-        </aside>
+          </form>
+        </div>
+
+        <p class="auth-status" data-auth-status></p>
+      </section>
+
+      <section class="auth-side-panel">
+        <article class="auth-side-card" data-customer-card>
+          <h2>حسابك</h2>
+          <p>بعد تسجيل الدخول، ستظهر هنا بياناتك وحالة تأكيد الإيميل.</p>
+        </article>
+
+        <article class="auth-side-card">
+          <div class="auth-side-head">
+            <h2>ملخص السلة</h2>
+            <a href="products.html">ارجع للمتجر</a>
+          </div>
+          <div class="account-cart-list" data-account-cart-list></div>
+          <div class="account-cart-total">
+            <span>إجمالي السلة</span>
+            <strong data-account-cart-total>0 EGP</strong>
+          </div>
+        </article>
+
+        <article class="auth-side-card auth-side-meta">
+          <strong data-account-hero-name>ضيف</strong>
+          <span data-account-hero-email>سجل دخولك أو اعمل حساب جديد.</span>
+          <small data-account-hero-status>حالة الإيميل هتظهر هنا بعد التسجيل.</small>
+          <button class="text-button" type="button" hidden data-logout-account>تسجيل خروج</button>
+        </article>
       </section>
     </main>
 
