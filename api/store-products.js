@@ -10,6 +10,23 @@ function cleanProduct(product) {
     image: String(product.image || "").trim(),
     badge: String(product.badge || "متوفر").trim(),
     description: String(product.description || "").trim(),
+    sku: String(product.sku || "").trim(),
+    stock_quantity: Math.max(0, Number(product.stock_quantity ?? product.stockQuantity ?? 0)),
+    is_in_stock: product.is_in_stock ?? product.isInStock,
+    compatible_models: Array.isArray(product.compatible_models)
+      ? product.compatible_models
+      : String(product.compatible_models || product.compatibleModels || "")
+          .split(/[,\n]/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+    colors: Array.isArray(product.colors)
+      ? product.colors
+      : String(product.colors || "")
+          .split(/[,\n]/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+    material: String(product.material || "").trim(),
+    featured: Boolean(product.featured),
   };
 }
 

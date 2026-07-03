@@ -156,6 +156,18 @@ async function loadDashboardProducts() {
   }
 }
 
+async function loadSessionCustomer() {
+  try {
+    const response = await fetch("/api/customer-session");
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      saveCustomer(data.customer || null);
+    }
+  } catch {
+    // Keep local fallback for rendering until the next successful auth sync.
+  }
+}
+
 function saveCart() {
   localStorage.setItem("coverup-cart-v2", JSON.stringify(state.cart));
   localStorage.setItem(
@@ -242,7 +254,8 @@ function productMatches(product) {
     !query ||
     product.name.toLowerCase().includes(query) ||
     product.category.toLowerCase().includes(query) ||
-    product.description.toLowerCase().includes(query);
+    product.description.toLowerCase().includes(query) ||
+    (Array.isArray(product.compatible_models) && product.compatible_models.join(" ").toLowerCase().includes(query));
 
   return categoryMatch && searchMatch;
 }
@@ -290,10 +303,13 @@ function renderProducts() {
             <span>${product.badge}</span>
             <h2>${product.name}</h2>
             <p>${product.description}</p>
+            <small>${product.is_in_stock === false ? "نفد من المخزون" : `${Number(product.stock_quantity || 0)} قطعة متاحة`}</small>
           </div>
           <div class="catalog-bottom">
             <strong>${formatter.format(product.price)}</strong>
-            <button type="button" data-add-product="${product.id}">ضيف للسلة</button>
+            <button type="button" data-add-product="${product.id}" ${product.is_in_stock === false ? "disabled" : ""}>
+              ${product.is_in_stock === false ? "غير متاح" : "ضيف للسلة"}
+            </button>
           </div>
         </article>
       `,
@@ -424,7 +440,17 @@ function renderCart() {
 
 function addCartItem(productId) {
   const product = products.find((entry) => entry.id === productId);
+  if (!product || product.is_in_stock === false) {
+    paymentMessage.textContent = "المنتج ده غير متاح حاليًا.";
+    return;
+  }
+
   const current = state.cart[productId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
+  if (current.quantity >= Number(product.stock_quantity || 0)) {
+    paymentMessage.textContent = "وصلت لأقصى كمية متاحة من المنتج ده.";
+    return;
+  }
+
   current.quantity += 1;
   if (product) current.snapshot = productSnapshot(product);
   state.cart[productId] = current;
@@ -632,46 +658,7 @@ function familyVisitMessage(form) {
 }
 
 async function payOnline() {
-  const entries = cartEntries();
-  const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
-  const customer = checkoutData();
-
-  if (!entries.length) {
-    paymentMessage.textContent = "ضيف منتجات للسلة الأول.";
-    return;
-  }
-
-  paymentButton.disabled = true;
-  paymentMessage.textContent = "بنجهز صفحة الدفع الآمنة...";
-
-  try {
-    await postEvent(currentOrderPayload("online-payment-attempt"));
-
-    const response = await fetch("/api/create-payment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer,
-        amount: total,
-        items: entries.map(({ product, quantity }) => ({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity,
-        })),
-      }),
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "الدفع الإلكتروني غير متاح حاليًا.");
-    }
-
-    window.location.href = data.checkoutUrl;
-  } catch (error) {
-    paymentMessage.textContent = `${error.message} تقدر تكمل الطلب على واتساب حاليًا.`;
-    paymentButton.disabled = false;
-  }
+  window.location.href = "cart.html";
 }
 
 function scriptedReply(message) {
@@ -778,8 +765,14 @@ loginAccountForm.addEventListener("submit", async (event) => {
     const data = Object.fromEntries(new FormData(loginAccountForm));
     const result = await accountRequest({ action: "login", ...data });
     saveCustomer(result.customer);
-    accountStatus.textContent = "تم تسجيل الدخول.";
+    accountStatus.textContent = result.requiresEmailVerification
+      ? "تم تسجيل الدخول. كمل تأكيد الإيميل من صفحة حسابك."
+      : "تم تسجيل الدخول.";
     renderAccount();
+    if (result.requiresEmailVerification) {
+      window.location.href = "account.html";
+      return;
+    }
     closeAccount();
   } catch (error) {
     accountStatus.textContent = error.message;
@@ -794,9 +787,9 @@ registerAccountForm.addEventListener("submit", async (event) => {
     const result = await accountRequest({ action: "register", ...data });
     saveCustomer(result.customer);
     registerAccountForm.reset();
-    accountStatus.textContent = "حسابك اتعمل واتسجل دخولك.";
+    accountStatus.textContent = "حسابك اتعمل. كمل تأكيد الإيميل من صفحة حسابك.";
     renderAccount();
-    closeAccount();
+    window.location.href = "account.html";
   } catch (error) {
     accountStatus.textContent = error.message;
   }
@@ -816,29 +809,69 @@ forgotAccountForm.addEventListener("submit", async (event) => {
 });
 
 accountLogout.addEventListener("click", () => {
-  saveCustomer(null);
-  accountStatus.textContent = "تم تسجيل الخروج.";
-  setAccountTab("login");
-  renderAccount();
+  fetch("/api/customer-session", { method: "DELETE" })
+    .catch(() => null)
+    .finally(() => {
+      saveCustomer(null);
+      accountStatus.textContent = "تم تسجيل الخروج.";
+      setAccountTab("login");
+      renderAccount();
+    });
 });
 
-familyForm.addEventListener("submit", (event) => {
+familyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = familyVisitMessage(familyForm);
-  postEvent({
-    type: "order",
-    channel: "family-visit",
-    customerId: state.customer?.id || "",
-    customer: {
-      name: new FormData(familyForm).get("customerName"),
-      phone: new FormData(familyForm).get("customerPhone"),
-      email: state.customer?.email || "",
-      username: state.customer?.username || "",
-      address: new FormData(familyForm).get("address"),
-    },
-    total: 0,
-    items: [{ name: "طلب مندوب العيلة", quantity: 1, price: 0, details: message }],
-  });
+  const formData = new FormData(familyForm);
+  const selectedProducts = Array.from(deviceList.querySelectorAll("select[name^='deviceProduct']"))
+    .map((select) => products.find((product) => product.name === select.value))
+    .filter(Boolean)
+    .map((product) => ({ id: product.id, quantity: 1 }));
+
+  try {
+    if (selectedProducts.length) {
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: "family-visit",
+          deliveryMethod: "family_representative",
+          paymentMethod: "cash",
+          notes: message,
+          customer: {
+            name: formData.get("customerName"),
+            phone: formData.get("customerPhone"),
+            email: state.customer?.email || "",
+            city: state.customer?.city || "",
+            address: formData.get("address"),
+            locationLink: formData.get("locationLink"),
+          },
+          items: selectedProducts,
+        }),
+      });
+    } else {
+      await postEvent({
+        type: "order",
+        channel: "family-visit",
+        customerId: state.customer?.id || "",
+        customer: {
+          name: formData.get("customerName"),
+          phone: formData.get("customerPhone"),
+          email: state.customer?.email || "",
+          username: state.customer?.username || "",
+          address: formData.get("address"),
+          city: state.customer?.city || "",
+          locationLink: formData.get("locationLink"),
+        },
+        total: 0,
+        status: "new",
+        notes: message,
+        items: [{ name: "طلب مندوب العيلة", quantity: 1, price: 0, details: message }],
+      });
+    }
+  } catch {
+    // Keep WhatsApp flow available even if storage/order creation is temporarily unavailable.
+  }
   window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
 });
 
@@ -908,6 +941,7 @@ menuToggle.addEventListener("click", () => {
 });
 
 async function init() {
+  await loadSessionCustomer();
   await loadDashboardProducts();
   syncCartSnapshots();
   renderFilters();

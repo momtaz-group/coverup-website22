@@ -6,19 +6,40 @@ function cleanText(value, limit = 800) {
 
 function cleanPublicItem(type, body) {
   if (type === "order") {
+    const total = Number(body.total) || 0;
     return {
       customer_id: cleanText(body.customerId, 80) || null,
       customer: {
         name: cleanText(body.customer?.name, 120),
         phone: cleanText(body.customer?.phone, 60),
         address: cleanText(body.customer?.address, 300),
+        city: cleanText(body.customer?.city, 120),
+        location_link: cleanText(body.customer?.locationLink, 500),
         email: cleanText(body.customer?.email, 160),
         username: cleanText(body.customer?.username, 80),
       },
       items: Array.isArray(body.items) ? body.items.slice(0, 30) : [],
-      total: Number(body.total) || 0,
-      channel: cleanText(body.channel, 80),
-      status: "new",
+      subtotal: total,
+      total,
+      grand_total: total + (Number(body.deliveryFee) || 0),
+      channel: cleanText(body.channel, 80) || "website",
+      status: cleanText(body.status, 40) || "new",
+      status_history: [
+        {
+          status: cleanText(body.status, 40) || "new",
+          at: new Date().toISOString(),
+          note: cleanText(body.statusNote, 200),
+          actor: "public",
+        },
+      ],
+      payment_method: cleanText(body.paymentMethod, 40) || "cash",
+      payment_status: cleanText(body.paymentStatus, 40) || "pending",
+      delivery_method: cleanText(body.deliveryMethod, 60) || "delivery",
+      delivery_fee: Number(body.deliveryFee) || 0,
+      discount_code: cleanText(body.discountCode, 60),
+      discount_amount: Number(body.discountAmount) || 0,
+      location_link: cleanText(body.customer?.locationLink || body.locationLink, 500),
+      notes: cleanText(body.notes, 500),
     };
   }
 

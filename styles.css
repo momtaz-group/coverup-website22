@@ -1463,6 +1463,16 @@ h1 span {
   gap: 12px;
 }
 
+.cart-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cart-span-full {
+  grid-column: 1 / -1;
+}
+
 .cart-checkout-form label {
   display: grid;
   gap: 8px;
@@ -1471,7 +1481,8 @@ h1 span {
 }
 
 .cart-checkout-form input,
-.cart-checkout-form textarea {
+.cart-checkout-form textarea,
+.cart-checkout-form select {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -1480,6 +1491,38 @@ h1 span {
   background: #f7f7f5;
   color: #11100c;
   font: inherit;
+}
+
+.cart-pricing-box {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(17, 16, 12, 0.12);
+  border-radius: 8px;
+  background: rgba(247, 247, 245, 0.8);
+}
+
+.cart-pricing-box div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #40392e;
+  font-weight: 800;
+}
+
+.cart-pricing-box b {
+  color: #11100c;
+}
+
+.cart-pricing-box .is-total {
+  padding-top: 10px;
+  border-top: 1px solid rgba(17, 16, 12, 0.12);
+}
+
+.cart-pricing-box .is-total b {
+  color: #a88716;
+  font-size: 1.15rem;
 }
 
 .cart-page-empty {
@@ -2218,6 +2261,7 @@ h1 span {
 .support-card select,
 .support-card textarea,
 .admin-card input,
+.admin-card select,
 .admin-card textarea,
 .admin-login input {
   width: 100%;
@@ -2248,6 +2292,23 @@ h1 span {
 .chat-log p {
   margin: 0;
   color: var(--muted);
+}
+
+.admin-order-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-order-controls button {
+  min-height: 42px;
+  border: 1px solid rgba(206, 178, 71, 0.35);
+  border-radius: 8px;
+  background: rgba(206, 178, 71, 0.12);
+  color: var(--gold-soft);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .admin-body {
@@ -2664,6 +2725,10 @@ h1 span {
 
   .cart-page {
     padding-inline: 12px;
+  }
+
+  .cart-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .cart-page-item {

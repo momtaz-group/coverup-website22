@@ -59,43 +59,92 @@
       <section class="cart-layout" aria-live="polite">
         <div class="cart-main-card">
           <div class="cart-main-title">
-            <h2>Shopping Cart</h2>
-            <span>السعر</span>
+            <h2>سلة المشتريات</h2>
+            <span>السعر النهائي</span>
           </div>
           <div class="cart-page-list" data-cart-list></div>
           <div class="cart-page-subtotal">
-            <span>Subtotal (<b data-cart-items-count>0</b> items):</span>
+            <span>إجمالي المنتجات (<b data-cart-items-count>0</b> قطعة):</span>
             <strong data-cart-page-subtotal>0 EGP</strong>
           </div>
         </div>
 
         <aside class="cart-summary-card">
           <div class="cart-summary-top">
-            <span data-cart-summary-status>جاهز للتأكيد</span>
-            <strong>Subtotal (<b data-cart-summary-count>0</b> items)</strong>
+            <span data-cart-summary-status>جاهز لإتمام الطلب</span>
+            <strong>إجمالي الطلب (<b data-cart-summary-count>0</b> قطعة)</strong>
             <b data-cart-summary-total>0 EGP</b>
           </div>
 
           <form class="cart-checkout-form" data-cart-checkout-form>
-            <label>
-              الاسم
-              <input name="name" type="text" placeholder="اسم العميل" />
-            </label>
-            <label>
-              رقم الموبايل
-              <input name="phone" type="tel" placeholder="010..." />
-            </label>
-            <label>
-              العنوان
-              <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل"></textarea>
-            </label>
+            <div class="cart-form-grid">
+              <label>
+                الاسم
+                <input name="name" type="text" placeholder="اسم العميل" required />
+              </label>
+              <label>
+                رقم الموبايل
+                <input name="phone" type="tel" placeholder="010..." required />
+              </label>
+              <label>
+                الإيميل
+                <input name="email" type="email" placeholder="name@example.com" />
+              </label>
+              <label>
+                المدينة
+                <input name="city" type="text" placeholder="القاهرة الجديدة / مدينتي..." />
+              </label>
+              <label class="cart-span-full">
+                العنوان
+                <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل" required></textarea>
+              </label>
+              <label class="cart-span-full">
+                لينك اللوكيشن
+                <input name="locationLink" type="url" placeholder="https://maps.app.goo.gl/..." />
+              </label>
+              <label>
+                طريقة التوصيل
+                <select name="deliveryMethod" data-delivery-method>
+                  <option value="delivery">توصيل عادي</option>
+                  <option value="family_representative">مندوب العيلة</option>
+                  <option value="pickup">استلام من الفرع</option>
+                </select>
+              </label>
+              <label>
+                طريقة الدفع
+                <select name="paymentMethod" data-payment-method>
+                  <option value="cash">كاش عند الاستلام</option>
+                  <option value="online">دفع إلكتروني</option>
+                </select>
+              </label>
+              <label>
+                كوبون خصم
+                <input name="discountCode" type="text" placeholder="مثال: COVERUP10" />
+              </label>
+              <label>
+                ملاحظات للطلب
+                <input name="notes" type="text" placeholder="أي تعليمات إضافية للتوصيل أو الطلب" />
+              </label>
+            </div>
           </form>
 
-          <a class="button button-primary" href="https://wa.me/201050310516" target="_blank" rel="noreferrer" data-whatsapp-checkout>
-            اطلب على واتساب
-          </a>
-          <button class="button button-secondary" type="button" data-pay-online>ادفع إلكترونيًا</button>
+          <div class="cart-pricing-box">
+            <div><span>إجمالي المنتجات</span><b data-summary-subtotal>0 EGP</b></div>
+            <div><span>الخصم</span><b data-summary-discount>0 EGP</b></div>
+            <div><span>رسوم التوصيل</span><b data-summary-delivery>0 EGP</b></div>
+            <div class="is-total"><span>الإجمالي النهائي</span><b data-summary-grand-total>0 EGP</b></div>
+          </div>
+
+          <button class="button button-primary" type="button" data-place-cash-order>
+            أكد الطلب
+          </button>
+          <button class="button button-secondary" type="button" data-pay-online>
+            ادفع إلكترونيًا
+          </button>
           <a class="button button-secondary" href="account.html">اذهب للحساب</a>
+          <a class="button button-secondary" href="https://wa.me/201050310516" target="_blank" rel="noreferrer" data-whatsapp-checkout>
+            محتاج مساعدة على واتساب
+          </a>
           <p class="payment-message" data-cart-message></p>
         </aside>
       </section>

@@ -1,22 +1,15 @@
-const defaultProducts = [
-  {
-    id: "carbon-slide-camera-case",
-    name: "كفر Carbon Slide Camera",
-    category: "كفرات",
-    price: 449,
-    image: "assets/products/carbon-slide-camera-case.jpeg",
-    badge: "Premium",
-    description: "كفر شكل كاربون مع حماية متحركة لمنطقة الكاميرا.",
-  },
-  {
-    id: "orange-leopard-camera-case",
-    name: "كفر Leopard Orange",
-    category: "كفرات",
-    price: 399,
-    image: "assets/products/orange-leopard-camera-case.jpeg",
-    badge: "ستايل",
-    description: "كفر ليوبارد بلون برتقالي مع حماية بارزة للكاميرا.",
-  },
+const defaultProducts = [];
+const ORDER_STATUSES = [
+  "new",
+  "pending_payment",
+  "paid",
+  "confirmed",
+  "preparing",
+  "with_courier",
+  "delivered",
+  "cancelled",
+  "refunded",
+  "payment_failed",
 ];
 
 let adminPassword = sessionStorage.getItem("coverup-admin-password") || "";
@@ -48,11 +41,11 @@ function safeText(value) {
   return String(value || "").replace(/[<>]/g, "");
 }
 
-function recordDate(record) {
-  return record?.created_at || record?.createdAt;
+function safeCurrency(value) {
+  return Number(value || 0).toLocaleString("ar-EG");
 }
 
-async function imageToDataUrl(file) {
+async function fileToDataUrl(file) {
   if (!file) {
     return "";
   }
@@ -76,6 +69,25 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function uploadProductImage(file) {
+  const dataUrl = await fileToDataUrl(file);
+  if (!dataUrl) {
+    return "";
+  }
+
+  const result = await api("/api/storage-upload", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      kind: "product",
+      fileName: file.name || "product.png",
+      dataUrl,
+    }),
+  });
+
+  return result.url;
+}
+
 function renderProducts() {
   productList.innerHTML = products.length
     ? products
@@ -85,7 +97,9 @@ function renderProducts() {
               <img src="${product.image}" alt="" />
               <div>
                 <strong>${safeText(product.name)}</strong>
-                <span>${safeText(product.category)} - ${Number(product.price).toLocaleString("ar-EG")} EGP</span>
+                <span>${safeText(product.category)} - ${safeCurrency(product.price)} EGP</span>
+                <p>SKU: ${safeText(product.sku || "—")} | المخزون: ${Number(product.stock_quantity || 0)}</p>
+                <p>${Array.isArray(product.compatible_models) && product.compatible_models.length ? safeText(product.compatible_models.join(" / ")) : "بدون موديلات محددة"}</p>
               </div>
               <button type="button" data-edit-product="${product.id}">تعديل</button>
             </article>
@@ -109,7 +123,7 @@ function renderEvents() {
       <span>${safeText(customer.phone)} - ${safeText(customer.email)}</span>
       <p>${customer.email_verified_at ? "الإيميل متأكد" : "الإيميل غير مؤكد"}</p>
       <p>${safeText(customer.city)} ${customer.city && customer.address ? " - " : ""}${safeText(customer.address)}</p>
-      <p>اتسجل: ${formatDate(recordDate(customer))}${customer.last_login_at ? ` | آخر دخول: ${formatDate(customer.last_login_at)}` : ""}</p>
+      <p>اتسجل: ${formatDate(customer.created_at)}${customer.last_login_at ? ` | آخر دخول: ${formatDate(customer.last_login_at)}` : ""}</p>
       ${customer.notes ? `<p>${safeText(customer.notes)}</p>` : ""}
     </article>
   `);
@@ -118,7 +132,7 @@ function renderEvents() {
     <article class="admin-record">
       <strong>${safeText(reset.status)}</strong>
       <span>${safeText(reset.email)} ${reset.phone ? `- ${safeText(reset.phone)}` : ""}</span>
-      <p>${formatDate(recordDate(reset))}</p>
+      <p>${formatDate(reset.created_at)}</p>
     </article>
   `);
 
@@ -126,26 +140,34 @@ function renderEvents() {
     <article class="admin-record">
       <strong>${safeText(verification.status)}</strong>
       <span>${safeText(verification.email)}</span>
-      <p>${formatDate(recordDate(verification))}</p>
+      <p>${formatDate(verification.created_at)}</p>
     </article>
   `);
 
   renderList("[data-admin-orders]", events.orders, (order) => `
     <article class="admin-record">
-      <strong>${safeText(order.customer?.name || "عميل")}</strong>
-      <span>${safeText(order.channel)} - ${formatDate(recordDate(order))}</span>
+      <strong>${safeText(order.customer?.name || "عميل")} - ${safeText(order.status)}</strong>
+      <span>${safeText(order.channel)} - ${formatDate(order.created_at)}</span>
       <p>${safeText(order.customer?.phone)}${order.customer?.email ? ` | ${safeText(order.customer.email)}` : ""}</p>
-      <p>${safeText(order.customer?.address)}</p>
-      ${order.customer_id ? `<p>Customer ID: ${safeText(order.customer_id)}</p>` : ""}
+      <p>${safeText(order.customer?.address)}${order.customer?.city ? ` - ${safeText(order.customer.city)}` : ""}</p>
+      <p>الدفع: ${safeText(order.payment_method || "—")} | الحالة المالية: ${safeText(order.payment_status || "—")}</p>
+      <p>الخصم: ${safeText(order.discount_code || "—")} | التوصيل: ${safeCurrency(order.delivery_fee)} EGP</p>
       ${Array.isArray(order.items) ? `<p>${order.items.map((item) => `${safeText(item.name)} x ${safeText(item.quantity || 1)}`).join(" | ")}</p>` : ""}
-      <p>${Number(order.total || 0).toLocaleString("ar-EG")} EGP</p>
+      <p>${safeCurrency(order.grand_total || order.total || 0)} EGP</p>
+      <div class="admin-order-controls">
+        <select data-order-status="${order.id}">
+          ${ORDER_STATUSES.map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}
+        </select>
+        <input data-order-note="${order.id}" type="text" placeholder="ملاحظة للحالة" />
+        <button type="button" data-save-order="${order.id}">تحديث الحالة</button>
+      </div>
     </article>
   `);
 
   renderList("[data-admin-reviews]", events.reviews, (review) => `
     <article class="admin-record">
       <strong>${safeText(review.name)} - ${safeText(review.rating)}/5</strong>
-      <span>${formatDate(recordDate(review))}</span>
+      <span>${formatDate(review.created_at)}</span>
       <p>${safeText(review.message)}</p>
     </article>
   `);
@@ -153,14 +175,14 @@ function renderEvents() {
   renderList("[data-admin-complaints]", events.complaints, (complaint) => `
     <article class="admin-record">
       <strong>${safeText(complaint.name)}</strong>
-      <span>${safeText(complaint.phone)} - ${formatDate(recordDate(complaint))}</span>
+      <span>${safeText(complaint.phone)} - ${formatDate(complaint.created_at)}</span>
       <p>${safeText(complaint.message)}</p>
     </article>
   `);
 
   renderList("[data-admin-chats]", events.chats, (chat) => `
     <article class="admin-record">
-      <strong>${formatDate(recordDate(chat))}</strong>
+      <strong>${formatDate(chat.created_at)}</strong>
       <p><b>العميل:</b> ${safeText(chat.message)}</p>
       <p><b>Cover Up:</b> ${safeText(chat.reply)}</p>
     </article>
@@ -176,8 +198,8 @@ async function loadAdmin() {
   products = productData.products?.length ? productData.products : defaultProducts;
   events = eventData;
   setupMessage.textContent = productData.configured && eventData.configured
-    ? "Supabase متفعل والداشبورد متصل."
-    : "Supabase غير متفعل بالكامل. راجع SUPABASE_URL و SUPABASE_SERVICE_ROLE_KEY وبيانات دخول الإدارة على Vercel.";
+    ? "Supabase متفعل والداشبورد متصل. الصور والطلبات والمخزون جاهزين للإدارة."
+    : "في متغيرات ناقصة في Supabase أو Vercel. راجع الإعدادات قبل استخدام كل المزايا.";
   renderProducts();
   renderEvents();
 }
@@ -210,23 +232,38 @@ productList.addEventListener("click", (event) => {
 
   Object.entries(product).forEach(([key, value]) => {
     if (productForm.elements[key]) {
-      productForm.elements[key].value = value;
+      productForm.elements[key].value = Array.isArray(value) ? value.join(", ") : value;
     }
   });
+  productForm.elements.featured.value = product.featured ? "true" : "false";
 });
 
 productForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(productForm);
   const id = data.get("id") || data.get("name").toLowerCase().replace(/\s+/g, "-");
-  const uploadedImage = await imageToDataUrl(data.get("imageFile"));
+  const imageFile = data.get("imageFile");
+  const uploadedImage = imageFile && imageFile.size ? await uploadProductImage(imageFile) : "";
   const product = {
     id,
     name: data.get("name"),
     category: data.get("category"),
+    sku: data.get("sku"),
     price: Number(data.get("price")),
+    stock_quantity: Number(data.get("stock_quantity")),
     badge: data.get("badge") || "متوفر",
     description: data.get("description"),
+    compatible_models: String(data.get("compatible_models") || "")
+      .split(/[,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean),
+    colors: String(data.get("colors") || "")
+      .split(/[,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean),
+    material: data.get("material"),
+    featured: data.get("featured") === "true",
+    is_in_stock: Number(data.get("stock_quantity")) > 0,
     image: uploadedImage || data.get("image"),
   };
 
@@ -239,6 +276,28 @@ productForm.addEventListener("submit", async (event) => {
 
   productForm.reset();
   renderProducts();
+});
+
+document.addEventListener("click", async (event) => {
+  const saveOrderButton = event.target.closest("[data-save-order]");
+  if (!saveOrderButton) {
+    return;
+  }
+
+  const orderId = saveOrderButton.dataset.saveOrder;
+  const status = document.querySelector(`[data-order-status="${orderId}"]`)?.value;
+  const note = document.querySelector(`[data-order-note="${orderId}"]`)?.value || "";
+
+  try {
+    await api("/api/admin-orders", {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ orderId, status, note }),
+    });
+    await loadAdmin();
+  } catch (error) {
+    setupMessage.textContent = error.message;
+  }
 });
 
 if (adminPassword) {

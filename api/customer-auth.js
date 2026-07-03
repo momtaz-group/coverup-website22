@@ -10,6 +10,8 @@ const {
   updateCustomer,
   updateEmailVerification,
 } = require("./_store");
+const { authenticatedCustomer, beginCustomerSession, endCustomerSession } = require("./_auth");
+const { sendTransactionalEmail } = require("./_email");
 
 const passwordIterations = 120000;
 const passwordLength = 64;
@@ -53,6 +55,7 @@ function publicCustomer(customer) {
     address: customer.address,
     city: customer.city,
     notes: customer.notes,
+    avatar_url: customer.avatar_url || "",
     email_verified_at: customer.email_verified_at,
     created_at: customer.created_at,
   };
@@ -66,7 +69,7 @@ function hashToken(value) {
   return crypto.createHash("sha256").update(String(value)).digest("hex");
 }
 
-async function issueEmailVerification(customer, { isWelcome = false } = {}) {
+async function issueEmailVerification(customer) {
   const code = verificationCode();
   const codeHash = hashToken(code);
 
@@ -77,45 +80,20 @@ async function issueEmailVerification(customer, { isWelcome = false } = {}) {
     status: "pending",
   });
 
-  const emailSent = await sendOfficialEmail({
+  const emailSent = await sendTransactionalEmail("verification_code", {
     to: customer.email,
-    subject: isWelcome ? "كود تأكيد إيميل Cover Up" : "إعادة إرسال كود تأكيد Cover Up",
-    html: `
-      <p>أهلًا ${customer.name}،</p>
-      <p>كود تأكيد الإيميل الخاص بحسابك على Cover Up هو:</p>
-      <p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>
-      <p>الكود صالح لمدة 15 دقيقة.</p>
-    `,
+    customer,
+    code,
   }).catch(() => false);
 
   if (!emailSent) {
     await updateEmailVerification(saved.id, { status: "email_not_configured" });
   }
 
-  return { emailSent, code };
+  return { emailSent };
 }
 
-async function sendOfficialEmail({ to, subject, html }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.OFFICIAL_EMAIL_FROM || "Cover Up <hello@coverup.tech>";
-
-  if (!apiKey || !to) {
-    return false;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
-
-  return response.ok;
-}
-
-async function register(body) {
+async function register(body, request, response) {
   const name = cleanText(body.name, 120);
   const phone = cleanText(body.phone, 60);
   const email = normalizeEmail(body.email);
@@ -158,13 +136,9 @@ async function register(body) {
     password_salt: passwordData.salt,
   });
 
-  sendOfficialEmail({
-    to: email,
-    subject: "أهلًا بيك في Cover Up",
-    html: `<p>أهلًا ${name}، حسابك على Cover Up اتعمل بنجاح.</p><p>اسم المستخدم: <b>${username}</b></p>`,
-  }).catch(() => {});
-
-  const verification = await issueEmailVerification(customer, { isWelcome: true }).catch(() => ({ emailSent: false }));
+  await beginCustomerSession(response, customer, request);
+  await sendTransactionalEmail("welcome", { to: email, customer, username }).catch(() => {});
+  const verification = await issueEmailVerification(customer).catch(() => ({ emailSent: false }));
 
   return {
     status: 200,
@@ -176,7 +150,7 @@ async function register(body) {
   };
 }
 
-async function login(body) {
+async function login(body, request, response) {
   const identity = cleanText(body.identity, 160);
   const password = String(body.password || "");
   const customer = await findCustomer(identity, true);
@@ -186,11 +160,14 @@ async function login(body) {
   }
 
   const updated = await updateCustomer(customer.id, { last_login_at: new Date().toISOString() });
+  const resolved = updated || customer;
+  await beginCustomerSession(response, resolved, request);
+
   return {
     status: 200,
     payload: {
-      customer: publicCustomer(updated || customer),
-      requiresEmailVerification: !(updated || customer).email_verified_at,
+      customer: publicCustomer(resolved),
+      requiresEmailVerification: !resolved.email_verified_at,
     },
   };
 }
@@ -212,15 +189,10 @@ async function forgotPassword(body) {
   const temporaryPassword = `CU-${crypto.randomBytes(5).toString("hex")}`;
   const passwordData = hashPassword(temporaryPassword);
   const tokenHash = crypto.createHash("sha256").update(temporaryPassword).digest("hex");
-  const emailSent = await sendOfficialEmail({
+  const emailSent = await sendTransactionalEmail("password_reset", {
     to: customer.email,
-    subject: "استرجاع كلمة سر Cover Up",
-    html: `
-      <p>أهلًا ${customer.name}،</p>
-      <p>استخدم كلمة السر المؤقتة دي لتسجيل الدخول، وبعدها ابعت لنا لو حابب نغيرها لك:</p>
-      <p><b>${temporaryPassword}</b></p>
-      <p>لو أنت ماطلبتش الاسترجاع، تجاهل الرسالة وتواصل معنا فورًا.</p>
-    `,
+    customer,
+    temporaryPassword,
   }).catch(() => false);
 
   await createPasswordReset({
@@ -241,7 +213,7 @@ async function forgotPassword(body) {
   return { status: 200, payload: { message: genericMessage } };
 }
 
-async function verifyEmail(body) {
+async function verifyEmail(body, request, response) {
   const identity = cleanText(body.identity, 160);
   const code = cleanText(body.code, 20);
   const customer = await findCustomer(identity, true);
@@ -270,13 +242,11 @@ async function verifyEmail(body) {
 
   await updateEmailVerification(latest.id, { status: "verified" });
   const updated = await updateCustomer(customer.id, { email_verified_at: new Date().toISOString() });
-  await sendOfficialEmail({
-    to: customer.email,
-    subject: "تم تأكيد إيميل Cover Up",
-    html: `<p>أهلًا ${customer.name}، تم تأكيد إيميل حسابك بنجاح. أهلًا بيك في Cover Up.</p>`,
-  }).catch(() => {});
+  const resolved = updated || customer;
+  await beginCustomerSession(response, resolved, request);
+  await sendTransactionalEmail("email_verified", { to: resolved.email, customer: resolved }).catch(() => {});
 
-  return { status: 200, payload: { customer: publicCustomer(updated || customer) } };
+  return { status: 200, payload: { customer: publicCustomer(resolved) } };
 }
 
 async function resendVerification(body) {
@@ -302,28 +272,30 @@ async function resendVerification(body) {
   };
 }
 
-async function updateProfile(body) {
-  const id = cleanText(body.id, 120);
+async function updateProfile(body, request) {
+  const sessionCustomer = await authenticatedCustomer(request);
+  if (!sessionCustomer) {
+    return { status: 401, payload: { message: "الجلسة انتهت. سجل دخولك تاني." } };
+  }
+
   const name = cleanText(body.name, 120);
   const phone = cleanText(body.phone, 60);
   const address = cleanText(body.address, 300);
   const city = cleanText(body.city, 120);
   const notes = cleanText(body.notes, 500);
-
-  if (!id) {
-    return { status: 401, payload: { message: "سجل دخولك الأول عشان تعدل بيانات الحساب." } };
-  }
+  const avatarUrl = cleanText(body.avatar_url, 500);
 
   if (!name || !phone || !address) {
     return { status: 400, payload: { message: "الاسم ورقم الموبايل والعنوان مطلوبين." } };
   }
 
-  const updated = await updateCustomer(id, {
+  const updated = await updateCustomer(sessionCustomer.id, {
     name,
     phone,
     address,
     city,
     notes,
+    ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
   });
 
   if (!updated) {
@@ -331,6 +303,11 @@ async function updateProfile(body) {
   }
 
   return { status: 200, payload: { customer: publicCustomer(updated) } };
+}
+
+async function logout(_body, request, response) {
+  await endCustomerSession(response, request);
+  return { status: 200, payload: { message: "تم تسجيل الخروج." } };
 }
 
 module.exports = async function handler(request, response) {
@@ -344,14 +321,14 @@ module.exports = async function handler(request, response) {
     }
 
     const action = cleanText(request.body?.action, 40);
-    const handlers = { register, login, forgotPassword, verifyEmail, resendVerification, updateProfile };
+    const handlers = { register, login, forgotPassword, verifyEmail, resendVerification, updateProfile, logout };
     const run = handlers[action];
 
     if (!run) {
       return sendJson(response, 400, { message: "Invalid action" });
     }
 
-    const result = await run(request.body || {});
+    const result = await run(request.body || {}, request, response);
     return sendJson(response, result.status, result.payload);
   } catch (error) {
     if (String(error.message || "").includes("duplicate key")) {
