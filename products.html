@@ -331,20 +331,23 @@
           <div class="cart-account-line" data-cart-account-line></div>
           <div class="cart-items" data-cart-items></div>
 
-          <form class="checkout-fields" data-checkout-form>
-            <label>
-              الاسم
-              <input name="name" type="text" placeholder="اسم العميل" />
-            </label>
-            <label>
-              رقم الموبايل
-              <input name="phone" type="tel" placeholder="010..." />
-            </label>
-            <label>
-              العنوان
-              <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل"></textarea>
-            </label>
-          </form>
+          <details class="checkout-fields" data-checkout-details>
+            <summary>بيانات التوصيل</summary>
+            <form data-checkout-form>
+              <label>
+                الاسم
+                <input name="name" type="text" placeholder="اسم العميل" />
+              </label>
+              <label>
+                رقم الموبايل
+                <input name="phone" type="tel" placeholder="010..." />
+              </label>
+              <label>
+                العنوان
+                <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل"></textarea>
+              </label>
+            </form>
+          </details>
         </div>
 
         <div class="cart-total">

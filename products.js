@@ -349,14 +349,15 @@ function renderCart() {
   const entries = cartEntries();
   const totalQuantity = entries.reduce((sum, entry) => sum + entry.quantity, 0);
   const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
+  const pluralLabel = totalQuantity === 1 ? "قطعة واحدة" : `${totalQuantity} قطع`;
 
   cartCount.textContent = totalQuantity;
   cartItemsTotal.textContent = totalQuantity;
   cartSubtotal.textContent = formatter.format(total);
   cartTotal.textContent = formatter.format(total);
   cartAccountLine.innerHTML = state.customer
-    ? `الطلب باسم <strong>${escapeText(state.customer.name)}</strong> - ${escapeText(state.customer.phone)}`
-    : `سجل دخولك عشان بياناتك تتسجل تلقائيًا وتظهر طلباتك في حسابك.`;
+    ? `<span>الطلب باسم</span><strong>${escapeText(state.customer.name)}</strong><small>${escapeText(state.customer.phone)}</small>`
+    : `<span>حساب العميل</span><strong>ضيف</strong><small>سجل دخولك عشان بياناتك تتسجل تلقائيًا وتظهر طلباتك في حسابك.</small>`;
 
   if (entries.length === 0) {
     cartItems.innerHTML = `
@@ -374,23 +375,26 @@ function renderCart() {
 
   cartItems.innerHTML = entries
     .map(
-      ({ product, quantity }) => `
+      ({ product, quantity, unavailable }) => `
         <article class="cart-item">
           <div class="cart-item-media">
             ${product.image ? `<img src="${product.image}" alt="" />` : `<span>CU</span>`}
           </div>
           <div class="cart-item-details">
-            <strong>${escapeText(product.name)}</strong>
-            <span>${formatter.format(product.price)} × ${quantity}</span>
-            <small>${formatter.format(product.price * quantity)}</small>
-            ${unavailable ? '<small>المنتج اتغير في المتجر لكنه ما زال محفوظ في السلة الحالية.</small>' : ""}
+            <div class="cart-item-head">
+              <strong>${escapeText(product.name)}</strong>
+              <b>${formatter.format(product.price * quantity)}</b>
+            </div>
+            <span class="cart-stock">${unavailable ? "محفوظ من طلب سابق" : "متاح"}</span>
+            <span class="cart-unit-price">${formatter.format(product.price)} للقطعة</span>
             <div class="cart-item-controls">
               <div class="quantity-control">
+                <button class="quantity-trash" type="button" data-remove="${product.id}" aria-label="احذف ${product.name}">⌫</button>
                 <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
                 <span>${quantity}</span>
                 <button type="button" data-increase="${product.id}" aria-label="زود ${product.name}">+</button>
               </div>
-              <button class="remove-cart-item" type="button" data-remove="${product.id}">إلغاء</button>
+              <button class="remove-cart-item" type="button" data-remove="${product.id}">حذف</button>
             </div>
           </div>
         </article>
@@ -411,6 +415,7 @@ function renderCart() {
   const message = [
     "طلب جديد من موقع Cover Up:",
     ...customerLines,
+    `عدد القطع: ${pluralLabel}`,
     ...lines,
     `الإجمالي: ${formatter.format(total)}`,
   ].join("\n");
