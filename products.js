@@ -422,6 +422,35 @@ function renderCart() {
   checkoutLink.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 }
 
+function addCartItem(productId) {
+  const product = products.find((entry) => entry.id === productId);
+  const current = state.cart[productId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
+  current.quantity += 1;
+  if (product) current.snapshot = productSnapshot(product);
+  state.cart[productId] = current;
+  saveCart();
+  renderCart();
+}
+
+function decreaseCartItem(productId) {
+  if (!state.cart[productId]) {
+    return;
+  }
+
+  state.cart[productId].quantity -= 1;
+  if (state.cart[productId].quantity <= 0) {
+    delete state.cart[productId];
+  }
+  saveCart();
+  renderCart();
+}
+
+function removeCartItem(productId) {
+  delete state.cart[productId];
+  saveCart();
+  renderCart();
+}
+
 function currentOrderPayload(channel) {
   const entries = cartEntries();
   const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
@@ -680,48 +709,11 @@ function appendChatLine(name, message) {
 
 document.addEventListener("click", (event) => {
   const addId = event.target.closest("[data-add-product]")?.dataset.addProduct;
-  const increaseId = event.target.closest("[data-increase]")?.dataset.increase;
-  const decreaseId = event.target.closest("[data-decrease]")?.dataset.decrease;
-  const removeId = event.target.closest("[data-remove]")?.dataset.remove;
   const category = event.target.closest("[data-category]")?.dataset.category;
 
   if (addId) {
-    const product = products.find((entry) => entry.id === addId);
-    const current = state.cart[addId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
-    current.quantity += 1;
-    if (product) current.snapshot = productSnapshot(product);
-    state.cart[addId] = current;
-    saveCart();
-    renderCart();
+    addCartItem(addId);
     openCart();
-  }
-
-  if (increaseId) {
-    const product = products.find((entry) => entry.id === increaseId);
-    const current = state.cart[increaseId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
-    current.quantity += 1;
-    if (product) current.snapshot = productSnapshot(product);
-    state.cart[increaseId] = current;
-    saveCart();
-    renderCart();
-  }
-
-  if (decreaseId) {
-    if (!state.cart[decreaseId]) {
-      return;
-    }
-    state.cart[decreaseId].quantity -= 1;
-    if (state.cart[decreaseId].quantity <= 0) {
-      delete state.cart[decreaseId];
-    }
-    saveCart();
-    renderCart();
-  }
-
-  if (removeId) {
-    delete state.cart[removeId];
-    saveCart();
-    renderCart();
   }
 
   if (category) {
@@ -729,6 +721,31 @@ document.addEventListener("click", (event) => {
     renderFilters();
     renderProducts();
   }
+});
+
+cartItems.addEventListener("click", (event) => {
+  const increaseId = event.target.closest("[data-increase]")?.dataset.increase;
+  const decreaseId = event.target.closest("[data-decrease]")?.dataset.decrease;
+  const removeId = event.target.closest("[data-remove]")?.dataset.remove;
+
+  if (!increaseId && !decreaseId && !removeId) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (increaseId) {
+    addCartItem(increaseId);
+    return;
+  }
+
+  if (decreaseId) {
+    decreaseCartItem(decreaseId);
+    return;
+  }
+
+  removeCartItem(removeId);
 });
 
 document.querySelectorAll("[data-cart-open]").forEach((button) => {
