@@ -24,6 +24,7 @@ Customer registration works without an email provider. Welcome emails and passwo
 - `OFFICIAL_EMAIL_FROM`: sender address, for example `Cover Up <hello@coverup.tech>`.
 
 If email is not configured, password recovery requests are stored in the dashboard so the team can follow up manually.
+The same setup is used for welcome emails and email verification codes.
 
 ## Why These Are Required
 

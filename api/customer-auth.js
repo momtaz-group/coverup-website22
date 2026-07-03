@@ -1,11 +1,14 @@
 const crypto = require("node:crypto");
 const {
   createCustomer,
+  createEmailVerification,
   createPasswordReset,
   findCustomer,
+  getLatestEmailVerification,
   sendJson,
   supabaseConfigured,
   updateCustomer,
+  updateEmailVerification,
 } = require("./_store");
 
 const passwordIterations = 120000;
@@ -50,8 +53,46 @@ function publicCustomer(customer) {
     address: customer.address,
     city: customer.city,
     notes: customer.notes,
+    email_verified_at: customer.email_verified_at,
     created_at: customer.created_at,
   };
+}
+
+function verificationCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashToken(value) {
+  return crypto.createHash("sha256").update(String(value)).digest("hex");
+}
+
+async function issueEmailVerification(customer, { isWelcome = false } = {}) {
+  const code = verificationCode();
+  const codeHash = hashToken(code);
+
+  const saved = await createEmailVerification({
+    customer_id: customer.id,
+    email: customer.email,
+    code_hash: codeHash,
+    status: "pending",
+  });
+
+  const emailSent = await sendOfficialEmail({
+    to: customer.email,
+    subject: isWelcome ? "كود تأكيد إيميل Cover Up" : "إعادة إرسال كود تأكيد Cover Up",
+    html: `
+      <p>أهلًا ${customer.name}،</p>
+      <p>كود تأكيد الإيميل الخاص بحسابك على Cover Up هو:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>
+      <p>الكود صالح لمدة 15 دقيقة.</p>
+    `,
+  }).catch(() => false);
+
+  if (!emailSent) {
+    await updateEmailVerification(saved.id, { status: "email_not_configured" });
+  }
+
+  return { emailSent, code };
 }
 
 async function sendOfficialEmail({ to, subject, html }) {
@@ -123,7 +164,16 @@ async function register(body) {
     html: `<p>أهلًا ${name}، حسابك على Cover Up اتعمل بنجاح.</p><p>اسم المستخدم: <b>${username}</b></p>`,
   }).catch(() => {});
 
-  return { status: 200, payload: { customer: publicCustomer(customer) } };
+  const verification = await issueEmailVerification(customer, { isWelcome: true }).catch(() => ({ emailSent: false }));
+
+  return {
+    status: 200,
+    payload: {
+      customer: publicCustomer(customer),
+      requiresEmailVerification: true,
+      emailDeliveryReady: verification.emailSent,
+    },
+  };
 }
 
 async function login(body) {
@@ -136,7 +186,13 @@ async function login(body) {
   }
 
   const updated = await updateCustomer(customer.id, { last_login_at: new Date().toISOString() });
-  return { status: 200, payload: { customer: publicCustomer(updated || customer) } };
+  return {
+    status: 200,
+    payload: {
+      customer: publicCustomer(updated || customer),
+      requiresEmailVerification: !(updated || customer).email_verified_at,
+    },
+  };
 }
 
 async function forgotPassword(body) {
@@ -185,6 +241,67 @@ async function forgotPassword(body) {
   return { status: 200, payload: { message: genericMessage } };
 }
 
+async function verifyEmail(body) {
+  const identity = cleanText(body.identity, 160);
+  const code = cleanText(body.code, 20);
+  const customer = await findCustomer(identity, true);
+
+  if (!customer) {
+    return { status: 404, payload: { message: "الحساب غير موجود." } };
+  }
+
+  const latest = await getLatestEmailVerification(customer.id);
+  if (!latest) {
+    return { status: 404, payload: { message: "مفيش كود تأكيد متاح للحساب ده." } };
+  }
+
+  if (latest.status !== "pending" && latest.status !== "email_not_configured") {
+    return { status: 400, payload: { message: "الكود ده تم استخدامه أو انتهت صلاحيته." } };
+  }
+
+  if (new Date(latest.expires_at).getTime() < Date.now()) {
+    await updateEmailVerification(latest.id, { status: "expired" });
+    return { status: 400, payload: { message: "الكود انتهت صلاحيته. اطلب كود جديد." } };
+  }
+
+  if (hashToken(code) !== latest.code_hash) {
+    return { status: 400, payload: { message: "الكود غير صحيح." } };
+  }
+
+  await updateEmailVerification(latest.id, { status: "verified" });
+  const updated = await updateCustomer(customer.id, { email_verified_at: new Date().toISOString() });
+  await sendOfficialEmail({
+    to: customer.email,
+    subject: "تم تأكيد إيميل Cover Up",
+    html: `<p>أهلًا ${customer.name}، تم تأكيد إيميل حسابك بنجاح. أهلًا بيك في Cover Up.</p>`,
+  }).catch(() => {});
+
+  return { status: 200, payload: { customer: publicCustomer(updated || customer) } };
+}
+
+async function resendVerification(body) {
+  const identity = cleanText(body.identity, 160);
+  const customer = await findCustomer(identity, true);
+
+  if (!customer) {
+    return { status: 404, payload: { message: "الحساب غير موجود." } };
+  }
+
+  if (customer.email_verified_at) {
+    return { status: 200, payload: { message: "الإيميل متأكد بالفعل.", customer: publicCustomer(customer) } };
+  }
+
+  const verification = await issueEmailVerification(customer).catch(() => ({ emailSent: false }));
+  return {
+    status: 200,
+    payload: {
+      message: verification.emailSent
+        ? "تم إرسال كود جديد على الإيميل."
+        : "طلب الكود اتسجل، لكن لازم نفعّل خدمة الإيميل الرسمي أولًا.",
+    },
+  };
+}
+
 module.exports = async function handler(request, response) {
   try {
     if (request.method !== "POST") {
@@ -196,7 +313,7 @@ module.exports = async function handler(request, response) {
     }
 
     const action = cleanText(request.body?.action, 40);
-    const handlers = { register, login, forgotPassword };
+    const handlers = { register, login, forgotPassword, verifyEmail, resendVerification };
     const run = handlers[action];
 
     if (!run) {

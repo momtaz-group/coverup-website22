@@ -6,6 +6,7 @@ const TABLES = {
   chats: "chats",
   customers: "customers",
   passwordResets: "password_resets",
+  emailVerifications: "email_verifications",
 };
 
 function sendJson(response, statusCode, payload) {
@@ -145,6 +146,7 @@ function customerFromDb(row, includePrivate = false) {
     address: row.address,
     city: row.city,
     notes: row.notes,
+    email_verified_at: row.email_verified_at,
     last_login_at: row.last_login_at,
     created_at: row.created_at,
   };
@@ -223,23 +225,57 @@ async function createPasswordReset(reset) {
   return rows[0];
 }
 
+async function createEmailVerification(verification) {
+  const rows = await supabaseRequest(TABLES.emailVerifications, {
+    service: true,
+    method: "POST",
+    body: verification,
+  });
+
+  return rows[0];
+}
+
+async function getLatestEmailVerification(customerId) {
+  const rows = await supabaseRequest(TABLES.emailVerifications, {
+    service: true,
+    query: `?select=*&customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&limit=1`,
+  });
+
+  return rows[0] || null;
+}
+
+async function updateEmailVerification(id, updates) {
+  const rows = await supabaseRequest(TABLES.emailVerifications, {
+    service: true,
+    method: "PATCH",
+    query: `?id=eq.${encodeURIComponent(id)}`,
+    body: updates,
+  });
+
+  return rows[0] || null;
+}
+
 async function getEvents() {
-  const [orders, reviews, complaints, chats, customers, passwordResets] = await Promise.all([
+  const [orders, reviews, complaints, chats, customers, passwordResets, emailVerifications] = await Promise.all([
     supabaseRequest(TABLES.orders, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.reviews, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.complaints, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.chats, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.customers, {
       service: true,
-      query: "?select=id,name,phone,email,username,address,city,notes,last_login_at,created_at&order=created_at.desc&limit=500",
+      query: "?select=id,name,phone,email,username,address,city,notes,email_verified_at,last_login_at,created_at&order=created_at.desc&limit=500",
     }),
     supabaseRequest(TABLES.passwordResets, {
       service: true,
       query: "?select=*&order=created_at.desc&limit=200",
     }),
+    supabaseRequest(TABLES.emailVerifications, {
+      service: true,
+      query: "?select=*&order=created_at.desc&limit=200",
+    }),
   ]);
 
-  return { orders, reviews, complaints, chats, customers, passwordResets };
+  return { orders, reviews, complaints, chats, customers, passwordResets, emailVerifications };
 }
 
 function requireAdmin(request, response) {
@@ -264,13 +300,16 @@ function requireAdmin(request, response) {
 module.exports = {
   appendEvent,
   createCustomer,
+  createEmailVerification,
   createPasswordReset,
   findCustomer,
   getEvents,
+  getLatestEmailVerification,
   getProducts,
   requireAdmin,
   sendJson,
   setProducts,
   supabaseConfigured,
   updateCustomer,
+  updateEmailVerification,
 };

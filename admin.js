@@ -107,6 +107,7 @@ function renderEvents() {
     <article class="admin-record">
       <strong>${safeText(customer.name)} (@${safeText(customer.username)})</strong>
       <span>${safeText(customer.phone)} - ${safeText(customer.email)}</span>
+      <p>${customer.email_verified_at ? "الإيميل متأكد" : "الإيميل غير مؤكد"}</p>
       <p>${safeText(customer.city)} ${customer.city && customer.address ? " - " : ""}${safeText(customer.address)}</p>
       <p>اتسجل: ${formatDate(recordDate(customer))}${customer.last_login_at ? ` | آخر دخول: ${formatDate(customer.last_login_at)}` : ""}</p>
       ${customer.notes ? `<p>${safeText(customer.notes)}</p>` : ""}
@@ -118,6 +119,14 @@ function renderEvents() {
       <strong>${safeText(reset.status)}</strong>
       <span>${safeText(reset.email)} ${reset.phone ? `- ${safeText(reset.phone)}` : ""}</span>
       <p>${formatDate(recordDate(reset))}</p>
+    </article>
+  `);
+
+  renderList("[data-admin-email-verifications]", events.emailVerifications, (verification) => `
+    <article class="admin-record">
+      <strong>${safeText(verification.status)}</strong>
+      <span>${safeText(verification.email)}</span>
+      <p>${formatDate(recordDate(verification))}</p>
     </article>
   `);
 

@@ -95,7 +95,7 @@ const formatter = new Intl.NumberFormat("ar-EG", {
 const state = {
   search: "",
   category: "الكل",
-  cart: JSON.parse(localStorage.getItem("coverup-cart") || "{}"),
+  cart: readCartState(),
   customer: JSON.parse(localStorage.getItem("coverup-customer") || "null"),
 };
 
@@ -108,6 +108,8 @@ const cartDrawer = document.querySelector("[data-cart-drawer]");
 const cartItems = document.querySelector("[data-cart-items]");
 const cartTotal = document.querySelector("[data-cart-total]");
 const cartCount = document.querySelector("[data-cart-count]");
+const cartItemsTotal = document.querySelector("[data-cart-items-total]");
+const cartSubtotal = document.querySelector("[data-cart-subtotal]");
 const accountDrawer = document.querySelector("[data-account-drawer]");
 const accountLabel = document.querySelector("[data-account-label]");
 const accountSummary = document.querySelector("[data-account-summary]");
@@ -155,7 +157,56 @@ async function loadDashboardProducts() {
 }
 
 function saveCart() {
-  localStorage.setItem("coverup-cart", JSON.stringify(state.cart));
+  localStorage.setItem("coverup-cart-v2", JSON.stringify(state.cart));
+  localStorage.setItem(
+    "coverup-cart",
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(state.cart).map(([id, item]) => [id, item.quantity]),
+      ),
+    ),
+  );
+}
+
+function readCartState() {
+  const raw = JSON.parse(localStorage.getItem("coverup-cart-v2") || localStorage.getItem("coverup-cart") || "{}");
+
+  return Object.entries(raw).reduce((accumulator, [id, item]) => {
+    if (typeof item === "number" && item > 0) {
+      accumulator[id] = { quantity: item, snapshot: null };
+      return accumulator;
+    }
+
+    if (item && typeof item === "object" && Number(item.quantity) > 0) {
+      accumulator[id] = {
+        quantity: Number(item.quantity),
+        snapshot: item.snapshot && typeof item.snapshot === "object" ? item.snapshot : null,
+      };
+    }
+
+    return accumulator;
+  }, {});
+}
+
+function productSnapshot(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    price: Number(product.price) || 0,
+    image: product.image || "",
+    badge: product.badge || "",
+  };
+}
+
+function syncCartSnapshots() {
+  Object.entries(state.cart).forEach(([id, item]) => {
+    const product = products.find((entry) => entry.id === id);
+    if (product) {
+      item.snapshot = productSnapshot(product);
+    }
+  });
+  saveCart();
 }
 
 function saveCustomer(customer) {
@@ -265,9 +316,31 @@ function checkoutData() {
 
 function cartEntries() {
   return Object.entries(state.cart)
-    .map(([id, quantity]) => {
-      const product = products.find((item) => item.id === id);
-      return product ? { product, quantity } : null;
+    .map(([id, item]) => {
+      const product = products.find((entry) => entry.id === id);
+      const snapshot = item.snapshot || null;
+      const resolved = product ? productSnapshot(product) : snapshot;
+
+      if (!resolved) {
+        return {
+          product: {
+            id,
+            name: "منتج محفوظ في السلة",
+            category: "منتجات",
+            price: 0,
+            image: "",
+            badge: "غير متاح",
+          },
+          quantity: item.quantity,
+          unavailable: true,
+        };
+      }
+
+      return {
+        product: resolved,
+        quantity: item.quantity,
+        unavailable: !product,
+      };
     })
     .filter(Boolean);
 }
@@ -278,6 +351,8 @@ function renderCart() {
   const total = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
 
   cartCount.textContent = totalQuantity;
+  cartItemsTotal.textContent = totalQuantity;
+  cartSubtotal.textContent = formatter.format(total);
   cartTotal.textContent = formatter.format(total);
   cartAccountLine.innerHTML = state.customer
     ? `الطلب باسم <strong>${escapeText(state.customer.name)}</strong> - ${escapeText(state.customer.phone)}`
@@ -308,6 +383,7 @@ function renderCart() {
             <strong>${escapeText(product.name)}</strong>
             <span>${formatter.format(product.price)} × ${quantity}</span>
             <small>${formatter.format(product.price * quantity)}</small>
+            ${unavailable ? '<small>المنتج اتغير في المتجر لكنه ما زال محفوظ في السلة الحالية.</small>' : ""}
           </div>
           <div class="quantity-control">
             <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
@@ -603,21 +679,32 @@ document.addEventListener("click", (event) => {
   const category = event.target.closest("[data-category]")?.dataset.category;
 
   if (addId) {
-    state.cart[addId] = (state.cart[addId] || 0) + 1;
+    const product = products.find((entry) => entry.id === addId);
+    const current = state.cart[addId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
+    current.quantity += 1;
+    if (product) current.snapshot = productSnapshot(product);
+    state.cart[addId] = current;
     saveCart();
     renderCart();
     openCart();
   }
 
   if (increaseId) {
-    state.cart[increaseId] = (state.cart[increaseId] || 0) + 1;
+    const product = products.find((entry) => entry.id === increaseId);
+    const current = state.cart[increaseId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
+    current.quantity += 1;
+    if (product) current.snapshot = productSnapshot(product);
+    state.cart[increaseId] = current;
     saveCart();
     renderCart();
   }
 
   if (decreaseId) {
-    state.cart[decreaseId] -= 1;
-    if (state.cart[decreaseId] <= 0) {
+    if (!state.cart[decreaseId]) {
+      return;
+    }
+    state.cart[decreaseId].quantity -= 1;
+    if (state.cart[decreaseId].quantity <= 0) {
       delete state.cart[decreaseId];
     }
     saveCart();
@@ -648,7 +735,6 @@ document.querySelector("[data-account-close]").addEventListener("click", closeAc
 document.querySelector("[data-continue-shopping]").addEventListener("click", closeCart);
 document.querySelector("[data-go-account]").addEventListener("click", () => {
   closeCart();
-  openAccount();
 });
 paymentButton.addEventListener("click", payOnline);
 checkoutForm.addEventListener("input", renderCart);
@@ -799,6 +885,7 @@ menuToggle.addEventListener("click", () => {
 
 async function init() {
   await loadDashboardProducts();
+  syncCartSnapshots();
   renderFilters();
   renderTimeSlots();
   renderDeviceRows();

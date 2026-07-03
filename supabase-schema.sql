@@ -65,6 +65,7 @@ create table if not exists public.customers (
   address text not null default '',
   city text not null default '',
   notes text not null default '',
+  email_verified_at timestamptz,
   last_login_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -89,14 +90,26 @@ create table if not exists public.password_resets (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.email_verifications (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers(id) on delete cascade,
+  email text not null default '',
+  code_hash text not null default '',
+  status text not null default 'pending',
+  expires_at timestamptz not null default now() + interval '15 minutes',
+  created_at timestamptz not null default now()
+);
+
 alter table public.products enable row level security;
 alter table public.orders add column if not exists customer_id uuid;
 alter table public.orders enable row level security;
 alter table public.reviews enable row level security;
 alter table public.complaints enable row level security;
 alter table public.chats enable row level security;
+alter table public.customers add column if not exists email_verified_at timestamptz;
 alter table public.customers enable row level security;
 alter table public.password_resets enable row level security;
+alter table public.email_verifications enable row level security;
 
 drop policy if exists "public can read active products" on public.products;
 create policy "public can read active products"
