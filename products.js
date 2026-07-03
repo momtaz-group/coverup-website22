@@ -379,18 +379,20 @@ function renderCart() {
           <div class="cart-item-media">
             ${product.image ? `<img src="${product.image}" alt="" />` : `<span>CU</span>`}
           </div>
-          <div>
+          <div class="cart-item-details">
             <strong>${escapeText(product.name)}</strong>
             <span>${formatter.format(product.price)} × ${quantity}</span>
             <small>${formatter.format(product.price * quantity)}</small>
             ${unavailable ? '<small>المنتج اتغير في المتجر لكنه ما زال محفوظ في السلة الحالية.</small>' : ""}
+            <div class="cart-item-controls">
+              <div class="quantity-control">
+                <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
+                <span>${quantity}</span>
+                <button type="button" data-increase="${product.id}" aria-label="زود ${product.name}">+</button>
+              </div>
+              <button class="remove-cart-item" type="button" data-remove="${product.id}">إلغاء</button>
+            </div>
           </div>
-          <div class="quantity-control">
-            <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
-            <span>${quantity}</span>
-            <button type="button" data-increase="${product.id}" aria-label="زود ${product.name}">+</button>
-          </div>
-          <button class="remove-cart-item" type="button" data-remove="${product.id}">إلغاء</button>
         </article>
       `,
     )
