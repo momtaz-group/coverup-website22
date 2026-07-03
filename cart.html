@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="سلة Cover Up: راجع المنتجات، عدل الكميات، احذف المنتجات، وكمل طلبك بسهولة."
+    />
+    <meta name="theme-color" content="#080806" />
+    <title>Cover Up | السلة</title>
+    <link rel="icon" href="assets/brand/cover-up-symbol.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <a class="brand" href="index.html" aria-label="Cover Up home">
+        <img class="brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
+        <bdi class="brand-wordmark"><span>Cover </span><strong>Up</strong></bdi>
+      </a>
+
+      <button class="menu-toggle" type="button" aria-label="افتح القائمة" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <nav class="site-nav" aria-label="التنقل الرئيسي">
+        <a href="products.html">المتجر</a>
+        <a href="products.html#family-visit">مندوب العيلة</a>
+        <a href="index.html#repairs">الصيانه</a>
+        <a href="index.html#corporate">الشركات</a>
+        <a href="products.html#support">شكاوى واقتراحات</a>
+        <a href="index.html#contact">تواصل</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="account-button" href="account.html">
+          حسابي
+          <span data-account-label>دخول</span>
+        </a>
+        <a class="cart-button" href="cart.html" aria-current="page">
+          السلة
+          <span data-cart-count>0</span>
+        </a>
+        <a class="button button-primary button-small" href="https://wa.me/201050310516" target="_blank" rel="noreferrer">واتساب</a>
+      </div>
+    </header>
+
+    <main class="cart-page">
+      <section class="cart-page-head">
+        <div>
+          <p class="eyebrow">سلة Cover Up</p>
+          <h1>راجع طلبك قبل التأكيد.</h1>
+        </div>
+        <a class="button button-secondary" href="products.html">اكمل تسوق</a>
+      </section>
+
+      <section class="cart-layout" aria-live="polite">
+        <div class="cart-main-card">
+          <div class="cart-main-title">
+            <h2>Shopping Cart</h2>
+            <span>السعر</span>
+          </div>
+          <div class="cart-page-list" data-cart-list></div>
+          <div class="cart-page-subtotal">
+            <span>Subtotal (<b data-cart-items-count>0</b> items):</span>
+            <strong data-cart-page-subtotal>0 EGP</strong>
+          </div>
+        </div>
+
+        <aside class="cart-summary-card">
+          <div class="cart-summary-top">
+            <span data-cart-summary-status>جاهز للتأكيد</span>
+            <strong>Subtotal (<b data-cart-summary-count>0</b> items)</strong>
+            <b data-cart-summary-total>0 EGP</b>
+          </div>
+
+          <form class="cart-checkout-form" data-cart-checkout-form>
+            <label>
+              الاسم
+              <input name="name" type="text" placeholder="اسم العميل" />
+            </label>
+            <label>
+              رقم الموبايل
+              <input name="phone" type="tel" placeholder="010..." />
+            </label>
+            <label>
+              العنوان
+              <textarea name="address" rows="3" placeholder="العنوان أو ملاحظات التوصيل"></textarea>
+            </label>
+          </form>
+
+          <a class="button button-primary" href="https://wa.me/201050310516" target="_blank" rel="noreferrer" data-whatsapp-checkout>
+            اطلب على واتساب
+          </a>
+          <button class="button button-secondary" type="button" data-pay-online>ادفع إلكترونيًا</button>
+          <a class="button button-secondary" href="account.html">اذهب للحساب</a>
+          <p class="payment-message" data-cart-message></p>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <a class="brand" href="index.html">
+          <img class="brand-logo" src="assets/brand/cover-up-symbol.png" alt="" />
+        </a>
+        <p>وجهتك في مصر لإكسسوارات الموبايل والصيانة الاحترافية.</p>
+      </div>
+      <div>
+        <h3>روابط سريعة</h3>
+        <a href="index.html">الرئيسية</a>
+        <a href="products.html">المتجر</a>
+        <a href="index.html#contact">تواصل</a>
+      </div>
+      <div>
+        <h3>التواصل</h3>
+        <p>R3, Egypt</p>
+        <a href="tel:+201050310516">01050310516</a>
+        <a href="mailto:hello@coverup.tech">hello@coverup.tech</a>
+      </div>
+      <p class="copyright">© <span data-year></span> Cover Up. All rights reserved.</p>
+    </footer>
+
+    <script src="cart.js"></script>
+  </body>
+</html>

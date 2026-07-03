@@ -713,7 +713,7 @@ document.addEventListener("click", (event) => {
 
   if (addId) {
     addCartItem(addId);
-    openCart();
+    window.location.href = "cart.html";
   }
 
   if (category) {
