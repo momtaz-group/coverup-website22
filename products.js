@@ -95,13 +95,17 @@ const formatter = new Intl.NumberFormat("ar-EG", {
 const state = {
   search: "",
   category: "الكل",
+  model: "الكل",
+  wishlist: JSON.parse(localStorage.getItem("coverup-wishlist") || "[]"),
   cart: readCartState(),
   customer: JSON.parse(localStorage.getItem("coverup-customer") || "null"),
 };
 
 const grid = document.querySelector("[data-products-grid]");
 const searchInput = document.querySelector("[data-product-search]");
+const modelFilter = document.querySelector("[data-model-filter]");
 const filters = document.querySelector("[data-category-filters]");
+const wishlistGrid = document.querySelector("[data-wishlist-grid]");
 const emptyState = document.querySelector("[data-empty-state]");
 const countNode = document.querySelector("[data-products-count]");
 const cartDrawer = document.querySelector("[data-cart-drawer]");
@@ -131,6 +135,10 @@ const reviewForm = document.querySelector("[data-review-form]");
 const complaintForm = document.querySelector("[data-complaint-form]");
 const chatForm = document.querySelector("[data-chat-form]");
 const chatLog = document.querySelector("[data-chat-log]");
+const faqList = document.querySelector("[data-faq-list]");
+const trackOrderForm = document.querySelector("[data-track-order-form]");
+const trackingResult = document.querySelector("[data-tracking-result]");
+const reviewProductSelect = document.querySelector("[data-review-product-select]");
 const menuToggle = document.querySelector(".menu-toggle");
 const header = document.querySelector(".site-header");
 const year = document.querySelector("[data-year]");
@@ -180,6 +188,10 @@ function saveCart() {
   );
 }
 
+function saveWishlist() {
+  localStorage.setItem("coverup-wishlist", JSON.stringify(state.wishlist));
+}
+
 function readCartState() {
   const raw = JSON.parse(localStorage.getItem("coverup-cart-v2") || localStorage.getItem("coverup-cart") || "{}");
 
@@ -208,7 +220,18 @@ function productSnapshot(product) {
     price: Number(product.price) || 0,
     image: product.image || "",
     badge: product.badge || "",
+    stock_quantity: Number(product.stock_quantity || 0),
+    is_in_stock: product.is_in_stock !== false,
   };
+}
+
+function availableStock(product) {
+  const quantity = Number(product?.stock_quantity || 0);
+  return quantity > 0 ? quantity : Number.POSITIVE_INFINITY;
+}
+
+function canSellProduct(product) {
+  return Boolean(product) && product.is_in_stock !== false;
 }
 
 function syncCartSnapshots() {
@@ -250,6 +273,9 @@ function productImage(product) {
 function productMatches(product) {
   const query = state.search.trim().toLowerCase();
   const categoryMatch = state.category === "الكل" || product.category === state.category;
+  const modelMatch =
+    state.model === "الكل" ||
+    (Array.isArray(product.compatible_models) && product.compatible_models.includes(state.model));
   const searchMatch =
     !query ||
     product.name.toLowerCase().includes(query) ||
@@ -257,7 +283,7 @@ function productMatches(product) {
     product.description.toLowerCase().includes(query) ||
     (Array.isArray(product.compatible_models) && product.compatible_models.join(" ").toLowerCase().includes(query));
 
-  return categoryMatch && searchMatch;
+  return categoryMatch && modelMatch && searchMatch;
 }
 
 function renderFilters() {
@@ -271,6 +297,18 @@ function renderFilters() {
         </button>
       `,
     )
+    .join("");
+
+  const models = [
+    "الكل",
+    ...new Set(products.flatMap((product) => Array.isArray(product.compatible_models) ? product.compatible_models : [])),
+  ];
+  modelFilter.innerHTML = models
+    .map((model) => `<option value="${escapeText(model)}" ${state.model === model ? "selected" : ""}>${escapeText(model)}</option>`)
+    .join("");
+
+  reviewProductSelect.innerHTML = products
+    .map((product) => `<option value="${escapeText(product.id)}">${escapeText(product.name)}</option>`)
     .join("");
 }
 
@@ -289,6 +327,17 @@ async function postEvent(payload) {
   }
 }
 
+async function api(path, options = {}) {
+  const response = await fetch(path, options);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "حصل خطأ في الطلب.");
+  }
+
+  return data;
+}
+
 function renderProducts() {
   const visibleProducts = products.filter(productMatches);
 
@@ -296,17 +345,19 @@ function renderProducts() {
     .map(
       (product) => `
         <article class="catalog-card">
-          <div class="catalog-image">
+          <a class="catalog-image" href="product.html?id=${encodeURIComponent(product.id)}" aria-label="${escapeText(product.name)}">
             ${productImage(product)}
-          </div>
+          </a>
           <div class="catalog-copy">
             <span>${product.badge}</span>
-            <h2>${product.name}</h2>
+            <h2><a href="product.html?id=${encodeURIComponent(product.id)}">${product.name}</a></h2>
             <p>${product.description}</p>
-            <small>${product.is_in_stock === false ? "نفد من المخزون" : `${Number(product.stock_quantity || 0)} قطعة متاحة`}</small>
+            ${Array.isArray(product.compatible_models) && product.compatible_models.length ? `<em>${escapeText(product.compatible_models.slice(0, 3).join(" / "))}</em>` : ""}
+            <small>${product.is_in_stock === false ? "نفد من المخزون" : Number(product.stock_quantity || 0) > 0 ? `${Number(product.stock_quantity || 0)} قطعة متاحة` : "متاح للطلب"}</small>
           </div>
           <div class="catalog-bottom">
             <strong>${formatter.format(product.price)}</strong>
+            <button class="wishlist-button${state.wishlist.includes(product.id) ? " is-active" : ""}" type="button" data-wishlist="${product.id}" aria-label="احفظ ${escapeText(product.name)}">♡</button>
             <button type="button" data-add-product="${product.id}" ${product.is_in_stock === false ? "disabled" : ""}>
               ${product.is_in_stock === false ? "غير متاح" : "ضيف للسلة"}
             </button>
@@ -317,6 +368,35 @@ function renderProducts() {
     .join("");
 
   emptyState.hidden = visibleProducts.length > 0;
+  renderWishlist();
+}
+
+function renderWishlist() {
+  const items = state.wishlist
+    .map((id) => products.find((product) => product.id === id))
+    .filter(Boolean);
+
+  wishlistGrid.innerHTML = items.length
+    ? items.map((product) => `
+        <article class="wishlist-card">
+          ${productImage(product)}
+          <div>
+            <strong>${escapeText(product.name)}</strong>
+            <span>${formatter.format(product.price)}</span>
+          </div>
+          <a href="product.html?id=${encodeURIComponent(product.id)}">التفاصيل</a>
+          <button type="button" data-wishlist="${product.id}">×</button>
+        </article>
+      `).join("")
+    : `<p class="empty-cart">لسه مفيش منتجات في المفضلة.</p>`;
+}
+
+function toggleWishlist(productId) {
+  state.wishlist = state.wishlist.includes(productId)
+    ? state.wishlist.filter((id) => id !== productId)
+    : [...state.wishlist, productId];
+  saveWishlist();
+  renderProducts();
 }
 
 function checkoutData() {
@@ -401,14 +481,14 @@ function renderCart() {
               <strong>${escapeText(product.name)}</strong>
               <b>${formatter.format(product.price * quantity)}</b>
             </div>
-            <span class="cart-stock">${unavailable ? "محفوظ من طلب سابق" : "متاح"}</span>
+    <span class="cart-stock">${unavailable ? "محفوظ من طلب سابق" : product.stock_quantity > 0 ? `متبقي ${product.stock_quantity}` : "متاح"}</span>
             <span class="cart-unit-price">${formatter.format(product.price)} للقطعة</span>
             <div class="cart-item-controls">
               <div class="quantity-control">
-                <button class="quantity-trash" type="button" data-remove="${product.id}" aria-label="احذف ${product.name}">⌫</button>
+                <button class="quantity-trash" type="button" data-remove="${product.id}" aria-label="احذف ${product.name}">×</button>
                 <button type="button" data-decrease="${product.id}" aria-label="قلل ${product.name}">−</button>
                 <span>${quantity}</span>
-                <button type="button" data-increase="${product.id}" aria-label="زود ${product.name}">+</button>
+                <button type="button" data-increase="${product.id}" ${!unavailable && quantity >= availableStock(product) ? "disabled" : ""} aria-label="زود ${product.name}">+</button>
               </div>
               <button class="remove-cart-item" type="button" data-remove="${product.id}">حذف</button>
             </div>
@@ -440,13 +520,13 @@ function renderCart() {
 
 function addCartItem(productId) {
   const product = products.find((entry) => entry.id === productId);
-  if (!product || product.is_in_stock === false) {
+  if (!canSellProduct(product)) {
     paymentMessage.textContent = "المنتج ده غير متاح حاليًا.";
     return;
   }
 
   const current = state.cart[productId] || { quantity: 0, snapshot: product ? productSnapshot(product) : null };
-  if (current.quantity >= Number(product.stock_quantity || 0)) {
+  if (current.quantity >= availableStock(product)) {
     paymentMessage.textContent = "وصلت لأقصى كمية متاحة من المنتج ده.";
     return;
   }
@@ -597,7 +677,12 @@ function renderTimeSlots() {
 
 function renderDeviceRows() {
   const count = Math.max(1, Math.min(8, Number(phoneCountInput.value) || 1));
-  const productOptions = products
+  const caseOptions = products
+    .filter((product) => /كفر|case|magsafe|fabric/i.test(`${product.category} ${product.name}`))
+    .map((product) => `<option value="${product.name}">${product.name} - ${formatter.format(product.price)}</option>`)
+    .join("");
+  const screenOptions = products
+    .filter((product) => /اسكرين|screen|glass|حماية/i.test(`${product.category} ${product.name}`))
     .map((product) => `<option value="${product.name}">${product.name} - ${formatter.format(product.price)}</option>`)
     .join("");
 
@@ -620,10 +705,17 @@ function renderDeviceRows() {
           </select>
         </label>
         <label>
-          اختيار من المنتجات
-          <select name="deviceProduct${number}">
+          الكفر
+          <select name="deviceCase${number}">
             <option value="يرشحلي المندوب الأنسب">يرشحلي المندوب الأنسب</option>
-            ${productOptions}
+            ${caseOptions}
+          </select>
+        </label>
+        <label>
+          الاسكرينة
+          <select name="deviceScreen${number}">
+            <option value="يرشحلي المندوب الأنسب">يرشحلي المندوب الأنسب</option>
+            ${screenOptions}
           </select>
         </label>
       </fieldset>
@@ -638,7 +730,7 @@ function familyVisitMessage(form) {
 
   for (let index = 1; index <= count; index += 1) {
     devices.push(
-      `${index}. ${data.get(`deviceModel${index}`)} - ${data.get(`deviceNeed${index}`)} - ${data.get(`deviceProduct${index}`)}`,
+      `${index}. ${data.get(`deviceModel${index}`)} - ${data.get(`deviceNeed${index}`)} - كفر: ${data.get(`deviceCase${index}`)} - اسكرينة: ${data.get(`deviceScreen${index}`)}`,
     );
   }
 
@@ -680,6 +772,14 @@ function scriptedReply(message) {
     return "الدفع الإلكتروني جاهز للربط عبر Paymob، ولحد التفعيل النهائي تقدر تكمل الطلب واتساب أو تدفع عند الاستلام حسب التأكيد.";
   }
 
+  if (text.includes("استبدال") || text.includes("استرجاع") || text.includes("return")) {
+    return "الاستبدال متاح خلال 14 يوم لو المنتج بحالته الأصلية، والمنتجات المركبة أو المستخدمة بتتراجع حسب الحالة. التفاصيل في صفحة السياسات.";
+  }
+
+  if (text.includes("شركات") || text.includes("bulk")) {
+    return "للشركات نقدر نجهز عرض Bulk حسب عدد الأجهزة والموديلات المطلوبة. افتح صفحة الشركات وابعت بيانات الطلب.";
+  }
+
   if (text.includes("معاد") || text.includes("وقت") || text.includes("مواعيد")) {
     return "مواعيد الزيارات من 10 صباحًا لـ 10 مساءً كل يوم. اختار الوقت المناسب من فورمة مندوب العيلة.";
   }
@@ -696,11 +796,18 @@ function appendChatLine(name, message) {
 
 document.addEventListener("click", (event) => {
   const addId = event.target.closest("[data-add-product]")?.dataset.addProduct;
+  const wishlistId = event.target.closest("[data-wishlist]")?.dataset.wishlist;
   const category = event.target.closest("[data-category]")?.dataset.category;
+
+  if (wishlistId) {
+    toggleWishlist(wishlistId);
+    return;
+  }
 
   if (addId) {
     addCartItem(addId);
     window.location.href = "cart.html";
+    return;
   }
 
   if (category) {
@@ -823,7 +930,7 @@ familyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = familyVisitMessage(familyForm);
   const formData = new FormData(familyForm);
-  const selectedProducts = Array.from(deviceList.querySelectorAll("select[name^='deviceProduct']"))
+  const selectedProducts = Array.from(deviceList.querySelectorAll("select[name^='deviceCase'], select[name^='deviceScreen']"))
     .map((select) => products.find((product) => product.name === select.value))
     .filter(Boolean)
     .map((product) => ({ id: product.id, quantity: 1 }));
@@ -878,11 +985,17 @@ familyForm.addEventListener("submit", async (event) => {
 reviewForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(reviewForm));
-  const saved = await postEvent({ type: "review", ...data });
-  reviewForm.reset();
-  document.querySelector("[data-review-status]").textContent = saved
-    ? "تم استلام التقييم، شكرًا لوقتك."
-    : "التقييم اتكتب، لكن حفظه في الداشبورد محتاج تفعيل التخزين.";
+  try {
+    await api("/api/product-reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    reviewForm.reset();
+    document.querySelector("[data-review-status]").textContent = "تم نشر التقييم لأنه مرتبط بطلب تم تسليمه.";
+  } catch (error) {
+    document.querySelector("[data-review-status]").textContent = error.message;
+  }
 });
 
 complaintForm.addEventListener("submit", async (event) => {
@@ -918,6 +1031,46 @@ chatForm.addEventListener("submit", async (event) => {
     : "الشات شغال، لكن حفظه في الداشبورد محتاج تفعيل التخزين.";
 });
 
+faqList.addEventListener("click", (event) => {
+  const question = event.target.closest("[data-faq-question]")?.dataset.faqQuestion;
+  if (!question) {
+    return;
+  }
+
+  const prompts = {
+    delivery: "التوصيل بياخد قد إيه؟",
+    family: "إزاي مندوب العيلة بيشتغل؟",
+    payment: "الدفع الإلكتروني متاح؟",
+    returns: "سياسة الاستبدال والاسترجاع؟",
+    bulk: "محتاج عرض سعر للشركات Bulk.",
+  };
+  const prompt = prompts[question] || question;
+  appendChatLine("أنت", prompt);
+  appendChatLine("Cover Up", scriptedReply(prompt));
+});
+
+trackOrderForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = new FormData(trackOrderForm);
+  trackingResult.textContent = "بنراجع الطلب...";
+  try {
+    const params = new URLSearchParams({
+      orderId: data.get("orderId"),
+      phone: data.get("phone"),
+    });
+    const result = await api(`/api/track-order?${params.toString()}`);
+    const order = result.order;
+    trackingResult.innerHTML = `
+      <strong>الحالة: ${escapeText(order.status)}</strong>
+      <span>الدفع: ${escapeText(order.payment_status)}</span>
+      <span>الإجمالي: ${formatter.format(order.grand_total)}</span>
+      <small>${Array.isArray(order.items) ? order.items.map((item) => `${escapeText(item.name)} x ${escapeText(item.quantity || 1)}`).join(" | ") : ""}</small>
+    `;
+  } catch (error) {
+    trackingResult.textContent = error.message;
+  }
+});
+
 cartDrawer.addEventListener("click", (event) => {
   if (event.target === cartDrawer) {
     closeCart();
@@ -932,6 +1085,11 @@ accountDrawer.addEventListener("click", (event) => {
 
 searchInput.addEventListener("input", (event) => {
   state.search = event.target.value;
+  renderProducts();
+});
+
+modelFilter.addEventListener("change", (event) => {
+  state.model = event.target.value;
   renderProducts();
 });
 

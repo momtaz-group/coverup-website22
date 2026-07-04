@@ -8,8 +8,16 @@ function cleanProduct(product) {
     category: String(product.category || "منتجات").trim(),
     price: Number(product.price) || 0,
     image: String(product.image || "").trim(),
+    images: Array.isArray(product.images)
+      ? product.images
+      : String(product.images || "")
+          .split(/[,\n]/)
+          .map((item) => item.trim())
+          .filter(Boolean),
     badge: String(product.badge || "متوفر").trim(),
     description: String(product.description || "").trim(),
+    seo_title: String(product.seo_title || product.seoTitle || "").trim(),
+    seo_description: String(product.seo_description || product.seoDescription || "").trim(),
     sku: String(product.sku || "").trim(),
     stock_quantity: Math.max(0, Number(product.stock_quantity ?? product.stockQuantity ?? 0)),
     is_in_stock: product.is_in_stock ?? product.isInStock,

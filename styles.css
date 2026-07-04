@@ -1594,7 +1594,8 @@ h1 span {
   font-weight: 900;
 }
 
-.search-field input {
+.search-field input,
+.search-field select {
   width: 100%;
   min-height: 54px;
   padding: 0 18px;
@@ -1603,6 +1604,11 @@ h1 span {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   font: inherit;
+}
+
+.search-field select option,
+.tracking-card option {
+  color: #111;
 }
 
 .filter-row {
@@ -1667,6 +1673,11 @@ h1 span {
   padding: 10px;
 }
 
+.catalog-image {
+  color: inherit;
+  text-decoration: none;
+}
+
 .product-placeholder {
   display: grid;
   width: 72%;
@@ -1696,9 +1707,22 @@ h1 span {
   line-height: 1.25;
 }
 
+.catalog-copy h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .catalog-copy p {
   margin: 0;
   color: var(--muted);
+}
+
+.catalog-copy em {
+  display: block;
+  margin-top: 10px;
+  color: var(--gold-soft);
+  font-style: normal;
+  font-weight: 800;
 }
 
 .catalog-bottom {
@@ -1728,6 +1752,316 @@ h1 span {
 
 .catalog-bottom button {
   padding: 0 16px;
+}
+
+.wishlist-button {
+  width: 44px;
+  padding: 0 !important;
+  font-size: 1.25rem;
+}
+
+.wishlist-button.is-active {
+  background: rgba(206, 178, 71, 0.28);
+  color: var(--gold);
+}
+
+.wishlist-section,
+.tracking-section,
+.policy-strip {
+  margin-inline: clamp(20px, 4vw, 48px);
+}
+
+.wishlist-section,
+.tracking-section {
+  display: grid;
+  gap: 20px;
+  padding: 34px 0;
+  border-top: 1px solid var(--line);
+}
+
+.wishlist-section h2,
+.tracking-section h2,
+.corporate-request h1,
+.policy-page h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.wishlist-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.wishlist-card img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.wishlist-card strong,
+.wishlist-card span {
+  display: block;
+}
+
+.wishlist-card span {
+  color: var(--gold-soft);
+  font-weight: 900;
+}
+
+.wishlist-card a,
+.wishlist-card button,
+.policy-strip a {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(206, 178, 71, 0.32);
+  border-radius: 8px;
+  background: rgba(206, 178, 71, 0.08);
+  color: var(--gold-soft);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.tracking-section {
+  grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1.2fr);
+  align-items: start;
+}
+
+.tracking-card,
+.corporate-request form {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tracking-card label,
+.corporate-request label {
+  display: grid;
+  gap: 8px;
+  color: var(--gold-soft);
+  font-weight: 900;
+}
+
+.tracking-card input,
+.corporate-request input,
+.corporate-request textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  font: inherit;
+}
+
+.tracking-result {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tracking-result strong {
+  color: var(--gold-soft);
+  font-size: 1.25rem;
+}
+
+.tracking-timeline {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tracking-timeline p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.faq-list {
+  display: grid;
+  gap: 8px;
+}
+
+.faq-list button {
+  min-height: 42px;
+  border: 1px solid rgba(206, 178, 71, 0.3);
+  border-radius: 8px;
+  background: rgba(206, 178, 71, 0.08);
+  color: var(--gold-soft);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  text-align: start;
+}
+
+.policy-strip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 32px 0 70px;
+  border-top: 1px solid var(--line);
+}
+
+.simple-page,
+.product-detail-page {
+  padding: calc(var(--header-height) + 40px) clamp(20px, 4vw, 48px) 80px;
+}
+
+.product-detail {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+  gap: clamp(24px, 5vw, 72px);
+  align-items: start;
+}
+
+.product-gallery,
+.product-detail-copy {
+  display: grid;
+  gap: 16px;
+}
+
+.product-main-image {
+  display: grid;
+  min-height: 520px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b0b09;
+}
+
+.product-main-image img {
+  width: 100%;
+  height: 520px;
+  object-fit: contain;
+  padding: 18px;
+}
+
+.product-thumbs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-thumbs button {
+  width: 82px;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.product-thumbs img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-detail-copy h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2.5rem, 7vw, 7rem);
+  line-height: 0.95;
+}
+
+.product-detail-copy p {
+  color: var(--muted);
+}
+
+.product-detail-price {
+  color: var(--gold);
+  font-size: 2rem;
+}
+
+.product-detail-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-detail-meta span {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--gold-soft);
+  font-weight: 900;
+}
+
+.product-detail-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.product-reviews {
+  display: grid;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.product-reviews h2 {
+  margin: 0;
+}
+
+.product-reviews article {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.product-reviews strong {
+  color: var(--gold);
+}
+
+.policy-page,
+.corporate-request {
+  display: grid;
+  gap: 22px;
+  max-width: 1120px;
+}
+
+.policy-page article {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.policy-page h2 {
+  margin: 0 0 10px;
 }
 
 .empty-state,
@@ -2360,6 +2694,33 @@ h1 span {
   background: rgba(206, 178, 71, 0.08);
 }
 
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.admin-metrics article {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.admin-metrics span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-metrics strong {
+  color: var(--gold);
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  line-height: 1.2;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(320px, 0.75fr) minmax(320px, 1.25fr);
@@ -2596,7 +2957,9 @@ h1 span {
   .corporate,
   .split-section,
   .family-preview,
-  .family-visit {
+  .family-visit,
+  .tracking-section,
+  .product-detail {
     grid-template-columns: 1fr;
   }
 
@@ -2611,15 +2974,19 @@ h1 span {
   .service-grid,
   .product-grid,
   .catalog-grid,
+  .wishlist-grid,
   .store-highlights,
   .support-grid,
   .admin-grid,
+  .admin-metrics,
   .admin-grid-wide {
     grid-template-columns: repeat(2, 1fr);
   }
 
   .shop-hero,
   .shop-tools,
+  .product-detail,
+  .tracking-section,
   .account-hero,
   .account-shell,
   .auth-shell,
@@ -2672,9 +3039,11 @@ h1 span {
   .product-grid,
   .corporate-list,
   .testimonial-grid,
+  .wishlist-grid,
   .store-highlights,
   .support-grid,
   .admin-grid,
+  .admin-metrics,
   .admin-grid-wide,
   .account-customer-grid,
   .form-grid,
@@ -2774,8 +3143,29 @@ h1 span {
     flex-direction: column;
   }
 
+  .product-detail-actions,
+  .policy-strip {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .catalog-grid {
     grid-template-columns: 1fr;
+  }
+
+  .wishlist-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .wishlist-card a,
+  .wishlist-card button {
+    grid-column: 1 / -1;
+  }
+
+  .product-main-image,
+  .product-main-image img {
+    min-height: 360px;
+    height: 360px;
   }
 
   .account-actions-inline {

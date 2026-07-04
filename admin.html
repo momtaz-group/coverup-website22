@@ -39,6 +39,19 @@
 
         <p class="admin-alert" data-admin-setup></p>
 
+        <section class="admin-metrics" data-admin-metrics></section>
+
+        <div class="admin-grid admin-grid-wide">
+          <section class="admin-card">
+            <h2>تنبيهات تحتاج متابعة</h2>
+            <div class="admin-list" data-admin-notifications></div>
+          </section>
+          <section class="admin-card">
+            <h2>لوحة المندوب</h2>
+            <div class="admin-list" data-admin-courier></div>
+          </section>
+        </div>
+
         <div class="admin-grid">
           <section class="admin-card">
             <h2>إضافة / تعديل منتج</h2>
@@ -52,7 +65,10 @@
               <label>Badge <input name="badge" type="text" placeholder="Premium" /></label>
               <label>الموديلات المتوافقة <textarea name="compatible_models" rows="2" placeholder="iPhone 15 Pro Max, iPhone 15 Pro"></textarea></label>
               <label>الألوان <input name="colors" type="text" placeholder="أسود, بني, Navy" /></label>
+              <label>صور إضافية <textarea name="images" rows="2" placeholder="رابط صورة لكل سطر أو مفصول بفاصلة"></textarea></label>
               <label>الخامة <input name="material" type="text" placeholder="Silicone / Fabric / Glass" /></label>
+              <label>SEO Title <input name="seo_title" type="text" placeholder="كفر iPhone 15 Pro Max من Cover Up" /></label>
+              <label>SEO Description <textarea name="seo_description" rows="2" placeholder="وصف مختصر يظهر في Google"></textarea></label>
               <label>الوصف <textarea name="description" rows="3" required></textarea></label>
               <label>مميز في المتجر
                 <select name="featured">

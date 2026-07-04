@@ -47,6 +47,9 @@ function cleanPublicItem(type, body) {
     return {
       name: cleanText(body.name, 120),
       phone: cleanText(body.phone, 60),
+      product_id: cleanText(body.productId || body.product_id, 120),
+      order_id: cleanText(body.orderId || body.order_id, 120) || null,
+      customer_id: cleanText(body.customerId || body.customer_id, 120) || null,
       rating: Math.max(1, Math.min(5, Number(body.rating) || 5)),
       message: cleanText(body.message, 1000),
       is_published: false,

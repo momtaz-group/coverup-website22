@@ -108,7 +108,7 @@ async function accountRequest(payload) {
 
 function redirectToStore() {
   window.setTimeout(() => {
-    window.location.href = "index.html";
+    window.location.href = "products.html";
   }, 750);
 }
 
@@ -321,6 +321,7 @@ avatarInput.addEventListener("change", async () => {
   try {
     setProfileMessage("بنرفع الصورة...", "loading");
     await uploadAvatar(file);
+    avatarInput.value = "";
   } catch (error) {
     setProfileMessage(error.message, "error");
   }

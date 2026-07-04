@@ -122,8 +122,11 @@ function productFromDb(row) {
     category: row.category,
     price: Number(row.price || 0),
     image: row.image,
+    images: cleanArray(row.images),
     badge: row.badge,
     description: row.description,
+    seo_title: row.seo_title || "",
+    seo_description: row.seo_description || "",
     sku: row.sku || "",
     stock_quantity: Number(row.stock_quantity || 0),
     is_in_stock: typeof row.is_in_stock === "boolean" ? row.is_in_stock : Number(row.stock_quantity || 0) > 0,
@@ -145,8 +148,11 @@ function productToDb(product) {
     category: String(product.category || "منتجات").trim(),
     price: Number(product.price) || 0,
     image: String(product.image || "").trim(),
+    images: cleanArray(product.images),
     badge: String(product.badge || "متوفر").trim(),
     description: String(product.description || "").trim(),
+    seo_title: String(product.seo_title || product.seoTitle || "").trim(),
+    seo_description: String(product.seo_description || product.seoDescription || "").trim(),
     sku: String(product.sku || "").trim(),
     stock_quantity: stockQuantity,
     is_in_stock: toBoolean(product.is_in_stock ?? product.isInStock, stockQuantity > 0),
@@ -209,6 +215,21 @@ function orderFromDb(row) {
     inventory_reserved: Boolean(row.inventory_reserved),
     created_at: row.created_at,
     updated_at: row.updated_at || row.created_at,
+  };
+}
+
+function reviewFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name || "",
+    phone: row.phone || "",
+    product_id: row.product_id || "",
+    order_id: row.order_id || null,
+    customer_id: row.customer_id || null,
+    rating: Number(row.rating || 5),
+    message: row.message || "",
+    is_published: Boolean(row.is_published),
+    created_at: row.created_at,
   };
 }
 
@@ -469,6 +490,26 @@ async function findOrderById(id) {
   return rows[0] ? orderFromDb(rows[0]) : null;
 }
 
+async function findOrderForTracking(orderId, phone) {
+  const cleanId = String(orderId || "").trim();
+  const cleanPhone = String(phone || "").replace(/\D/g, "");
+  if (!cleanId || !cleanPhone) {
+    return null;
+  }
+
+  const order = await findOrderById(cleanId);
+  if (!order) {
+    return null;
+  }
+
+  const orderPhone = String(order.customer?.phone || "").replace(/\D/g, "");
+  if (!orderPhone || !orderPhone.endsWith(cleanPhone.slice(-10))) {
+    return null;
+  }
+
+  return order;
+}
+
 async function findOrderByPaymentReference(reference) {
   const rows = await supabaseRequest(TABLES.orders, {
     service: true,
@@ -506,6 +547,53 @@ async function updateOrderStatus(id, status, details = {}) {
   });
 }
 
+async function getPublicProductReviews(productId) {
+  const cleanProductId = String(productId || "").trim();
+  if (!cleanProductId) {
+    return [];
+  }
+
+  const rows = await supabaseRequest(TABLES.reviews, {
+    service: true,
+    query: `?select=*&product_id=eq.${encodeURIComponent(cleanProductId)}&is_published=eq.true&order=created_at.desc&limit=40`,
+  });
+
+  return rows.map(reviewFromDb);
+}
+
+async function createVerifiedReview({ orderId, productId, phone, rating, message }) {
+  const order = await findOrderForTracking(orderId, phone);
+  if (!order) {
+    throw new Error("رقم الطلب أو الموبايل غير صحيح.");
+  }
+
+  if (order.status !== "delivered") {
+    throw new Error("التقييم متاح بعد تسليم الطلب فقط.");
+  }
+
+  const existsInOrder = (order.items || []).some((item) => item.id === productId);
+  if (!existsInOrder) {
+    throw new Error("المنتج ده مش موجود في الطلب.");
+  }
+
+  const rows = await supabaseRequest(TABLES.reviews, {
+    service: true,
+    method: "POST",
+    body: {
+      name: order.customer?.name || "",
+      phone: order.customer?.phone || phone || "",
+      product_id: productId,
+      order_id: order.id,
+      customer_id: order.customer_id || null,
+      rating: Math.max(1, Math.min(5, Number(rating) || 5)),
+      message: String(message || "").trim().slice(0, 1000),
+      is_published: true,
+    },
+  });
+
+  return rows[0] ? reviewFromDb(rows[0]) : null;
+}
+
 async function updateProductStock(productId, nextQuantity) {
   const rows = await supabaseRequest(TABLES.products, {
     service: true,
@@ -537,14 +625,21 @@ async function reserveInventoryForOrder(order) {
     }
 
     const requested = Math.max(0, Number(item.quantity || 0));
-    if (product.stock_quantity < requested) {
+    const trackedStock = Number(product.stock_quantity || 0);
+    if (product.is_in_stock === false) {
+      throw new Error(`المنتج ${product.name} لم يعد متاحًا.`);
+    }
+
+    if (trackedStock > 0 && trackedStock < requested) {
       throw new Error(`المخزون المتاح من ${product.name} أقل من الكمية المطلوبة.`);
     }
   }
 
   for (const item of current.items || []) {
     const product = await getProductById(item.id);
-    await updateProductStock(item.id, product.stock_quantity - Number(item.quantity || 0));
+    if (Number(product.stock_quantity || 0) > 0) {
+      await updateProductStock(item.id, product.stock_quantity - Number(item.quantity || 0));
+    }
   }
 
   return updateOrder(current.id, { inventory_reserved: true });
@@ -676,15 +771,18 @@ module.exports = {
   createEmailVerification,
   createOrder,
   createPasswordReset,
+  createVerifiedReview,
   customerFromDb,
   deleteCustomerSession,
   findCustomer,
   findCustomerById,
   findCustomerSessionByToken,
   findOrderById,
+  findOrderForTracking,
   findOrderByPaymentReference,
   getEvents,
   getLatestEmailVerification,
+  getPublicProductReviews,
   getProductById,
   getProducts,
   orderFromDb,

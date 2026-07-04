@@ -24,6 +24,9 @@ const loginStatus = document.querySelector("[data-login-status]");
 const setupMessage = document.querySelector("[data-admin-setup]");
 const productForm = document.querySelector("[data-product-form]");
 const productList = document.querySelector("[data-admin-products]");
+const metricsNode = document.querySelector("[data-admin-metrics]");
+const notificationsNode = document.querySelector("[data-admin-notifications]");
+const courierNode = document.querySelector("[data-admin-courier]");
 
 function headers() {
   return {
@@ -43,6 +46,80 @@ function safeText(value) {
 
 function safeCurrency(value) {
   return Number(value || 0).toLocaleString("ar-EG");
+}
+
+function orderWhatsAppMessage(order) {
+  const statusCopy = {
+    confirmed: "تم تأكيد طلبك من Cover Up.",
+    preparing: "طلبك من Cover Up جاري تجهيزه.",
+    with_courier: "طلبك مع مندوب Cover Up وفي الطريق إليك.",
+    delivered: "تم تسليم طلبك من Cover Up. شكراً لثقتك.",
+    cancelled: "تم إلغاء طلبك من Cover Up. للتفاصيل تواصل معنا.",
+  };
+  return [
+    statusCopy[order.status] || `تحديث حالة طلب Cover Up: ${order.status}`,
+    `رقم الطلب: ${order.id}`,
+    `الإجمالي: ${safeCurrency(order.grand_total || order.total || 0)} EGP`,
+    "تتبع الطلب:",
+    `https://coverup.tech/track.html`,
+  ].join("\n");
+}
+
+function renderMetrics() {
+  const orders = events.orders || [];
+  const customers = events.customers || [];
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayOrders = orders.filter((order) => String(order.created_at || "").slice(0, 10) === todayKey);
+  const salesToday = todayOrders.reduce((sum, order) => sum + Number(order.grand_total || order.total || 0), 0);
+  const pendingOrders = orders.filter((order) => ["new", "pending_payment", "confirmed", "preparing"].includes(order.status)).length;
+  const newCustomers = customers.filter((customer) => String(customer.created_at || "").slice(0, 10) === todayKey).length;
+  const productCounts = {};
+  orders.forEach((order) => (order.items || []).forEach((item) => {
+    productCounts[item.name] = (productCounts[item.name] || 0) + Number(item.quantity || 1);
+  }));
+  const topProduct = Object.entries(productCounts).sort((a, b) => b[1] - a[1])[0];
+
+  metricsNode.innerHTML = [
+    ["مبيعات اليوم", `${safeCurrency(salesToday)} EGP`],
+    ["أوردرات معلقة", pendingOrders],
+    ["عملاء جدد", newCustomers],
+    ["أكتر منتج اتباع", topProduct ? `${safeText(topProduct[0])} (${topProduct[1]})` : "—"],
+  ].map(([label, value]) => `
+    <article>
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </article>
+  `).join("");
+}
+
+function renderNotifications() {
+  const orders = (events.orders || []).filter((order) => ["new", "pending_payment"].includes(order.status)).slice(0, 8);
+  const complaints = (events.complaints || []).filter((complaint) => complaint.status === "new").slice(0, 8);
+  const notifications = [
+    ...orders.map((order) => ({ title: `أوردر جديد: ${order.customer?.name || "عميل"}`, text: `${safeCurrency(order.grand_total || order.total)} EGP - ${formatDate(order.created_at)}` })),
+    ...complaints.map((complaint) => ({ title: `شكوى جديدة: ${complaint.name}`, text: `${complaint.phone} - ${formatDate(complaint.created_at)}` })),
+  ];
+
+  notificationsNode.innerHTML = notifications.length
+    ? notifications.map((item) => `<article class="admin-record"><strong>${safeText(item.title)}</strong><p>${safeText(item.text)}</p></article>`).join("")
+    : `<p class="empty-cart">لا توجد تنبيهات جديدة.</p>`;
+}
+
+function renderCourierBoard() {
+  const courierOrders = (events.orders || [])
+    .filter((order) => order.delivery_method === "family_representative" || order.status === "with_courier" || order.channel === "family-visit")
+    .slice(0, 20);
+
+  courierNode.innerHTML = courierOrders.length
+    ? courierOrders.map((order) => `
+      <article class="admin-record">
+        <strong>${safeText(order.customer?.name || "عميل")} - ${safeText(order.status)}</strong>
+        <span>${safeText(order.customer?.phone)} | ${formatDate(order.created_at)}</span>
+        <p>${safeText(order.customer?.address)} ${order.location_link ? `| ${safeText(order.location_link)}` : ""}</p>
+        <p>${safeText(order.notes || "")}</p>
+      </article>
+    `).join("")
+    : `<p class="empty-cart">لا توجد زيارات مندوب حاليًا.</p>`;
 }
 
 async function fileToDataUrl(file) {
@@ -117,6 +194,10 @@ function renderList(selector, items, renderItem) {
 }
 
 function renderEvents() {
+  renderMetrics();
+  renderNotifications();
+  renderCourierBoard();
+
   renderList("[data-admin-customers]", events.customers, (customer) => `
     <article class="admin-record">
       <strong>${safeText(customer.name)} (@${safeText(customer.username)})</strong>
@@ -154,6 +235,7 @@ function renderEvents() {
       <p>الخصم: ${safeText(order.discount_code || "—")} | التوصيل: ${safeCurrency(order.delivery_fee)} EGP</p>
       ${Array.isArray(order.items) ? `<p>${order.items.map((item) => `${safeText(item.name)} x ${safeText(item.quantity || 1)}`).join(" | ")}</p>` : ""}
       <p>${safeCurrency(order.grand_total || order.total || 0)} EGP</p>
+      <a class="text-button" href="https://wa.me/${safeText(order.customer?.phone || "")}?text=${encodeURIComponent(orderWhatsAppMessage(order))}" target="_blank" rel="noreferrer">رسالة واتساب للحالة</a>
       <div class="admin-order-controls">
         <select data-order-status="${order.id}">
           ${ORDER_STATUSES.map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}
@@ -261,7 +343,13 @@ productForm.addEventListener("submit", async (event) => {
       .split(/[,\n]/)
       .map((item) => item.trim())
       .filter(Boolean),
+    images: String(data.get("images") || "")
+      .split(/[,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean),
     material: data.get("material"),
+    seo_title: data.get("seo_title"),
+    seo_description: data.get("seo_description"),
     featured: data.get("featured") === "true",
     is_in_stock: Number(data.get("stock_quantity")) > 0,
     image: uploadedImage || data.get("image"),

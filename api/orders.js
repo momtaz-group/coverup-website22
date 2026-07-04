@@ -76,6 +76,15 @@ function paymentLabel(method) {
   return method === "online" ? "دفع إلكتروني" : "كاش عند الاستلام";
 }
 
+function availableStock(product) {
+  if (!product || product.is_in_stock === false) {
+    return 0;
+  }
+
+  const quantity = Number(product.stock_quantity || 0);
+  return quantity > 0 ? quantity : Number.POSITIVE_INFINITY;
+}
+
 function normalizeItems(items, products) {
   return items.map((item) => {
     const product = products.find((entry) => entry.id === item.id);
@@ -84,7 +93,7 @@ function normalizeItems(items, products) {
     }
 
     const quantity = Math.max(1, Number(item.quantity || 0));
-    if (!product.is_in_stock || product.stock_quantity < quantity) {
+    if (quantity > availableStock(product)) {
       throw new Error(`الكمية المطلوبة من ${product.name} غير متاحة.`);
     }
 

@@ -37,6 +37,7 @@
         <a href="index.html#repairs">الصيانه</a>
         <a href="index.html#corporate">الشركات</a>
         <a href="#support">شكاوى واقتراحات</a>
+        <a href="#tracking">تتبع الطلب</a>
         <a href="index.html#contact">تواصل</a>
       </nav>
 
@@ -64,6 +65,7 @@
           <div class="shop-actions">
             <a class="button button-primary" href="#family-visit">اطلب مندوب للعيلة</a>
             <a class="button button-secondary" href="cart.html">افتح السلة</a>
+            <a class="button button-secondary" href="#wishlist">المفضلة</a>
           </div>
         </div>
         <div class="shop-summary">
@@ -97,6 +99,12 @@
           <span>دور على منتج</span>
           <input type="search" placeholder="اكتب اسم المنتج أو نوعه..." data-product-search />
         </label>
+        <label class="search-field">
+          <span>نوع الموبايل</span>
+          <select data-model-filter>
+            <option value="الكل">كل الموديلات</option>
+          </select>
+        </label>
         <div class="filter-row" data-category-filters></div>
       </section>
 
@@ -105,10 +113,18 @@
         <p class="empty-state" hidden data-empty-state>مفيش منتجات مطابقة للبحث ده.</p>
       </section>
 
+      <section class="wishlist-section" id="wishlist">
+        <div>
+          <p class="eyebrow">المفضلة</p>
+          <h2>منتجات محفوظة للرجوع السريع.</h2>
+        </div>
+        <div class="wishlist-grid" data-wishlist-grid></div>
+      </section>
+
       <section class="family-visit" id="family-visit">
         <div class="family-copy">
           <p class="eyebrow">ميزة Cover Up</p>
-          <h2>مندوب واحد يجهز موبايلات العيلة كلها.</h2>
+          <h2>Bundle للعيلة: لكل موبايل كفر واسكرينة.</h2>
           <p>
             اختار عدد التليفونات، نوع كل جهاز، الكفر أو الاسكرينة المطلوبة، وحدد عنوانك ووقت الزيارة من 10 صباحًا لـ 10 مساءً. المندوب يوصلك الاختيارات ويركب الاسكرينات في المكان.
           </p>
@@ -159,7 +175,27 @@
             <textarea name="notes" rows="4" placeholder="مثال: عايزين اختيارات كفرات أسود وشفاف، والتركيب يكون قبل المغرب."></textarea>
           </label>
 
-          <button class="button button-primary" type="submit">ابعت طلب المندوب على واتساب</button>
+          <button class="button button-primary" type="submit">ابعت Bundle العيلة على واتساب</button>
+        </form>
+      </section>
+
+      <section class="tracking-section" id="tracking">
+        <div>
+          <p class="eyebrow">تتبع الطلب</p>
+          <h2>اعرف حالة الأوردر برقم الطلب.</h2>
+          <p>اكتب رقم الطلب ورقم الموبايل، وهتشوف آخر حالة مسجلة في النظام.</p>
+        </div>
+        <form class="tracking-card" data-track-order-form>
+          <label>
+            رقم الطلب
+            <input name="orderId" type="text" placeholder="مثال: 8f3a..." required />
+          </label>
+          <label>
+            رقم الموبايل
+            <input name="phone" type="tel" placeholder="010..." required />
+          </label>
+          <button class="button button-primary" type="submit">تتبع الطلب</button>
+          <div class="tracking-result" data-tracking-result></div>
         </form>
       </section>
 
@@ -174,8 +210,20 @@
           <form class="support-card" data-review-form>
             <h3>تقييم حقيقي</h3>
             <label>
+              رقم الطلب
+              <input name="orderId" type="text" placeholder="رقم أوردر تم تسليمه" required />
+            </label>
+            <label>
+              رقم الموبايل
+              <input name="phone" type="tel" placeholder="نفس رقم الطلب" required />
+            </label>
+            <label>
+              المنتج
+              <select name="productId" required data-review-product-select></select>
+            </label>
+            <label>
               الاسم
-              <input name="name" type="text" placeholder="اسمك" required />
+              <input name="name" type="text" placeholder="اسمك" />
             </label>
             <label>
               التقييم
@@ -218,9 +266,16 @@
           </form>
 
           <div class="support-card ai-chat">
-            <h3>مساعد Cover Up</h3>
+            <h3>FAQ ذكي</h3>
+            <div class="faq-list" data-faq-list>
+              <button type="button" data-faq-question="delivery">التوصيل بياخد قد إيه؟</button>
+              <button type="button" data-faq-question="family">إزاي مندوب العيلة بيشتغل؟</button>
+              <button type="button" data-faq-question="payment">الدفع الإلكتروني متاح؟</button>
+              <button type="button" data-faq-question="returns">الاستبدال والاسترجاع إيه نظامه؟</button>
+              <button type="button" data-faq-question="bulk">محتاج عرض سعر للشركات.</button>
+            </div>
             <div class="chat-log" data-chat-log>
-              <p><strong>Cover Up:</strong> أهلاً بيك، اسألني عن الكفرات، الاسكرينات، التوصيل، أو مندوب العيلة.</p>
+              <p><strong>Cover Up:</strong> اختار سؤال جاهز أو اكتب سؤالك عن المنتجات والتوصيل ومندوب العيلة.</p>
             </div>
             <form data-chat-form>
               <label>
@@ -232,6 +287,12 @@
             <p data-chat-status></p>
           </div>
         </div>
+      </section>
+
+      <section class="policy-strip">
+        <a href="policies.html#shipping">سياسة الشحن</a>
+        <a href="policies.html#returns">الاستبدال والاسترجاع</a>
+        <a href="corporate.html">حلول الشركات وBulk</a>
       </section>
     </main>
 

@@ -127,6 +127,15 @@ function productSnapshot(product) {
   };
 }
 
+function availableStock(product) {
+  const quantity = Number(product?.stock_quantity || 0);
+  return quantity > 0 ? quantity : Number.POSITIVE_INFINITY;
+}
+
+function canSellProduct(product) {
+  return Boolean(product) && product.is_in_stock !== false;
+}
+
 async function loadSessionCustomer() {
   try {
     const response = await fetch("/api/customer-session");
@@ -227,7 +236,7 @@ function pricingSummary() {
   const entries = cartEntries();
   const subtotal = entries.reduce((sum, entry) => sum + entry.product.price * entry.quantity, 0);
   const discount = couponSummary(subtotal);
-  const fee = deliveryFee(checkoutForm.elements.deliveryMethod.value);
+  const fee = entries.length ? deliveryFee(checkoutForm.elements.deliveryMethod.value) : 0;
   const grandTotal = Math.max(0, subtotal - discount.amount + fee);
 
   return {
@@ -279,7 +288,7 @@ function renderCart() {
   cartList.innerHTML = entries
     .map(({ product, quantity, unavailable }) => {
       const total = product.price * quantity;
-      const maxed = quantity >= Number(product.stock_quantity || quantity);
+      const maxed = quantity >= availableStock(product);
       return `
         <article class="cart-page-item">
           <a class="cart-page-media" href="products.html" aria-label="${escapeText(product.name)}">
@@ -296,7 +305,7 @@ function renderCart() {
             </div>
             <div class="cart-page-actions">
               <div class="amazon-quantity" aria-label="كمية ${escapeText(product.name)}">
-                <button class="amazon-trash" type="button" data-remove="${product.id}" aria-label="حذف ${escapeText(product.name)}">⌫</button>
+                <button class="amazon-trash" type="button" data-remove="${product.id}" aria-label="حذف ${escapeText(product.name)}">×</button>
                 <button type="button" data-decrease="${product.id}" aria-label="قلل ${escapeText(product.name)}">−</button>
                 <b>${quantity}</b>
                 <button type="button" data-increase="${product.id}" ${maxed || unavailable ? "disabled" : ""} aria-label="زود ${escapeText(product.name)}">+</button>
@@ -423,13 +432,13 @@ async function payOnline() {
 
 function addItem(productId) {
   const product = products.find((entry) => entry.id === productId);
-  if (!product || !product.is_in_stock) {
+  if (!canSellProduct(product)) {
     messageNode.textContent = "المنتج ده غير متاح حاليًا.";
     return;
   }
 
   const current = state.cart[productId] || { quantity: 0, snapshot: productSnapshot(product) };
-  if (current.quantity >= Number(product.stock_quantity || 0)) {
+  if (current.quantity >= availableStock(product)) {
     messageNode.textContent = "وصلت لأقصى كمية متاحة من المنتج ده.";
     return;
   }

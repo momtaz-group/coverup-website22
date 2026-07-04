@@ -14,8 +14,11 @@ create table if not exists public.products (
   category text not null default 'منتجات',
   price numeric(10, 2) not null default 0,
   image text not null default '',
+  images jsonb not null default '[]'::jsonb,
   badge text not null default 'متوفر',
   description text not null default '',
+  seo_title text not null default '',
+  seo_description text not null default '',
   sku text not null default '',
   stock_quantity integer not null default 0,
   is_in_stock boolean not null default true,
@@ -59,6 +62,9 @@ create table if not exists public.reviews (
   id uuid primary key default gen_random_uuid(),
   name text not null default '',
   phone text not null default '',
+  product_id text not null default '',
+  order_id uuid,
+  customer_id uuid,
   rating int not null default 5 check (rating between 1 and 5),
   message text not null default '',
   is_published boolean not null default false,
@@ -136,6 +142,9 @@ create table if not exists public.email_verifications (
 );
 
 alter table public.products add column if not exists sku text not null default '';
+alter table public.products add column if not exists images jsonb not null default '[]'::jsonb;
+alter table public.products add column if not exists seo_title text not null default '';
+alter table public.products add column if not exists seo_description text not null default '';
 alter table public.products add column if not exists stock_quantity integer not null default 0;
 alter table public.products add column if not exists is_in_stock boolean not null default true;
 alter table public.products add column if not exists compatible_models jsonb not null default '[]'::jsonb;
@@ -165,6 +174,10 @@ alter table public.customers add column if not exists avatar_url text not null d
 alter table public.customers add column if not exists email_verified_at timestamptz;
 alter table public.customers add column if not exists updated_at timestamptz not null default now();
 
+alter table public.reviews add column if not exists product_id text not null default '';
+alter table public.reviews add column if not exists order_id uuid;
+alter table public.reviews add column if not exists customer_id uuid;
+
 create unique index if not exists customers_email_unique
 on public.customers (lower(email))
 where email <> '';
@@ -183,6 +196,10 @@ where payment_reference <> '';
 
 create unique index if not exists customer_sessions_token_hash_unique
 on public.customer_sessions (token_hash);
+
+create index if not exists reviews_product_id_idx
+on public.reviews (product_id)
+where is_published = true;
 
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
@@ -227,6 +244,30 @@ begin
   ) then
     alter table public.orders
     add constraint orders_customer_id_fkey
+    foreign key (customer_id) references public.customers(id)
+    on delete set null;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'reviews_order_id_fkey'
+  ) then
+    alter table public.reviews
+    add constraint reviews_order_id_fkey
+    foreign key (order_id) references public.orders(id)
+    on delete set null;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'reviews_customer_id_fkey'
+  ) then
+    alter table public.reviews
+    add constraint reviews_customer_id_fkey
     foreign key (customer_id) references public.customers(id)
     on delete set null;
   end if;
