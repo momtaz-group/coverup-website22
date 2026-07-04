@@ -1889,6 +1889,41 @@ h1 span {
   font-size: 1.25rem;
 }
 
+.tracking-orders-card {
+  grid-column: 1 / -1;
+}
+
+.tracking-orders {
+  display: grid;
+  gap: 12px;
+}
+
+.tracking-order-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.tracking-order-card div {
+  display: grid;
+  gap: 6px;
+}
+
+.tracking-order-card strong,
+.tracking-order-card b {
+  color: var(--gold-soft);
+}
+
+.tracking-order-card span,
+.tracking-order-card small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .tracking-timeline {
   display: grid;
   gap: 8px;
@@ -3147,6 +3182,10 @@ h1 span {
   .policy-strip {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .tracking-order-card {
+    grid-template-columns: 1fr;
   }
 
   .catalog-grid {

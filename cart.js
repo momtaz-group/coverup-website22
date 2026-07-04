@@ -1,5 +1,6 @@
 const whatsappNumber = "201050310516";
 const customerStorageKey = "coverup-customer";
+const recentOrdersStorageKey = "coverup-recent-orders";
 
 const fallbackProducts = [
   {
@@ -111,6 +112,28 @@ function saveCustomer(customer) {
   } else {
     localStorage.removeItem(customerStorageKey);
   }
+}
+
+function saveRecentOrder(order, customer) {
+  if (!order?.id) {
+    return;
+  }
+
+  const recent = JSON.parse(localStorage.getItem(recentOrdersStorageKey) || "[]");
+  const phone = String(order.customer?.phone || customer?.phone || "").trim();
+  const next = [
+    {
+      id: order.id,
+      phone,
+      status: order.status || "",
+      payment_status: order.payment_status || "",
+      grand_total: Number(order.grand_total || 0),
+      created_at: order.created_at || new Date().toISOString(),
+    },
+    ...recent.filter((item) => item.id !== order.id),
+  ].slice(0, 20);
+
+  localStorage.setItem(recentOrdersStorageKey, JSON.stringify(next));
 }
 
 function productSnapshot(product) {
@@ -402,8 +425,9 @@ async function placeCashOrder() {
     cashButton.disabled = true;
 
     const result = await createOrder("cash");
+    saveRecentOrder(result.order, customerData());
     clearCart();
-    messageNode.textContent = `تم تأكيد طلبك رقم ${String(result.order.id).slice(0, 8)} بنجاح.`;
+    messageNode.innerHTML = `تم تأكيد طلبك رقم ${String(result.order.id).slice(0, 8)} بنجاح. <a href="track.html">تابع حالة الطلب</a>`;
   } catch (error) {
     messageNode.textContent = error.message;
   } finally {
@@ -417,6 +441,7 @@ async function payOnline() {
     payButton.disabled = true;
 
     const orderResult = await createOrder("online");
+    saveRecentOrder(orderResult.order, customerData());
     const payment = await requestJson("/api/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

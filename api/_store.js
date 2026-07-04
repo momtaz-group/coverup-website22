@@ -251,6 +251,23 @@ async function getProductById(id) {
   return rows[0] ? productFromDb(rows[0]) : null;
 }
 
+async function upsertProduct(product) {
+  const row = productToDb(product);
+  if (!row.id || !row.name || row.price <= 0) {
+    throw new Error("بيانات المنتج ناقصة.");
+  }
+
+  const rows = await supabaseRequest(TABLES.products, {
+    service: true,
+    method: "POST",
+    query: "?on_conflict=id",
+    body: row,
+    prefer: "resolution=merge-duplicates,return=representation",
+  });
+
+  return rows[0] ? productFromDb(rows[0]) : null;
+}
+
 async function setProducts(products) {
   const rows = products.map(productToDb).filter((product) => product.id && product.name && product.price > 0);
 
@@ -508,6 +525,25 @@ async function findOrderForTracking(orderId, phone) {
   }
 
   return order;
+}
+
+async function getCustomerOrdersForTracking(customer) {
+  if (!customer) {
+    return [];
+  }
+
+  const phone = String(customer.phone || "").replace(/\D/g, "");
+  const filters = [`customer_id.eq.${encodeURIComponent(customer.id)}`];
+  if (phone) {
+    filters.push(`customer->>phone.like.*${encodeURIComponent(phone.slice(-10))}`);
+  }
+
+  const rows = await supabaseRequest(TABLES.orders, {
+    service: true,
+    query: `?select=*&or=(${filters.join(",")})&order=created_at.desc&limit=50`,
+  });
+
+  return rows.map(orderFromDb);
 }
 
 async function findOrderByPaymentReference(reference) {
@@ -785,6 +821,7 @@ module.exports = {
   getPublicProductReviews,
   getProductById,
   getProducts,
+  getCustomerOrdersForTracking,
   orderFromDb,
   productFromDb,
   releaseInventoryForOrder,
@@ -801,4 +838,5 @@ module.exports = {
   updateOrder,
   updateOrderStatus,
   uploadStorageObjectFromDataUrl,
+  upsertProduct,
 };

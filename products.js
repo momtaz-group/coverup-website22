@@ -91,6 +91,7 @@ const formatter = new Intl.NumberFormat("ar-EG", {
   currency: "EGP",
   maximumFractionDigits: 0,
 });
+const recentOrdersStorageKey = "coverup-recent-orders";
 
 const state = {
   search: "",
@@ -251,6 +252,27 @@ function saveCustomer(customer) {
   } else {
     localStorage.removeItem("coverup-customer");
   }
+}
+
+function saveRecentOrder(order) {
+  if (!order?.id) {
+    return;
+  }
+
+  const recent = JSON.parse(localStorage.getItem(recentOrdersStorageKey) || "[]");
+  const next = [
+    {
+      id: order.id,
+      phone: order.customer?.phone || "",
+      status: order.status || "",
+      payment_status: order.payment_status || "",
+      grand_total: Number(order.grand_total || 0),
+      created_at: order.created_at || new Date().toISOString(),
+    },
+    ...recent.filter((item) => item.id !== order.id),
+  ].slice(0, 20);
+
+  localStorage.setItem(recentOrdersStorageKey, JSON.stringify(next));
 }
 
 function escapeText(value) {
@@ -937,7 +959,7 @@ familyForm.addEventListener("submit", async (event) => {
 
   try {
     if (selectedProducts.length) {
-      await fetch("/api/orders", {
+      const orderResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -956,6 +978,10 @@ familyForm.addEventListener("submit", async (event) => {
           items: selectedProducts,
         }),
       });
+      const orderData = await orderResponse.json().catch(() => ({}));
+      if (orderResponse.ok) {
+        saveRecentOrder(orderData.order);
+      }
     } else {
       await postEvent({
         type: "order",

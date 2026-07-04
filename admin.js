@@ -152,17 +152,24 @@ async function uploadProductImage(file) {
     return "";
   }
 
-  const result = await api("/api/storage-upload", {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      kind: "product",
-      fileName: file.name || "product.png",
-      dataUrl,
-    }),
-  });
+  try {
+    const result = await api("/api/storage-upload", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        kind: "product",
+        fileName: file.name || "product.png",
+        dataUrl,
+      }),
+    });
 
-  return result.url;
+    return result.url;
+  } catch {
+    if (dataUrl.length < 750000) {
+      return dataUrl;
+    }
+    throw new Error("الصورة كبيرة ومحتاجة تفعيل Supabase Storage الأول.");
+  }
 }
 
 function renderProducts() {
@@ -324,46 +331,52 @@ productForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(productForm);
   const id = data.get("id") || data.get("name").toLowerCase().replace(/\s+/g, "-");
-  const imageFile = data.get("imageFile");
-  const uploadedImage = imageFile && imageFile.size ? await uploadProductImage(imageFile) : "";
-  const product = {
-    id,
-    name: data.get("name"),
-    category: data.get("category"),
-    sku: data.get("sku"),
-    price: Number(data.get("price")),
-    stock_quantity: Number(data.get("stock_quantity")),
-    badge: data.get("badge") || "متوفر",
-    description: data.get("description"),
-    compatible_models: String(data.get("compatible_models") || "")
-      .split(/[,\n]/)
-      .map((item) => item.trim())
-      .filter(Boolean),
-    colors: String(data.get("colors") || "")
-      .split(/[,\n]/)
-      .map((item) => item.trim())
-      .filter(Boolean),
-    images: String(data.get("images") || "")
-      .split(/[,\n]/)
-      .map((item) => item.trim())
-      .filter(Boolean),
-    material: data.get("material"),
-    seo_title: data.get("seo_title"),
-    seo_description: data.get("seo_description"),
-    featured: data.get("featured") === "true",
-    is_in_stock: Number(data.get("stock_quantity")) > 0,
-    image: uploadedImage || data.get("image"),
-  };
+  try {
+    setupMessage.textContent = "بنحفظ المنتج...";
+    const imageFile = data.get("imageFile");
+    const uploadedImage = imageFile && imageFile.size ? await uploadProductImage(imageFile) : "";
+    const product = {
+      id,
+      name: data.get("name"),
+      category: data.get("category"),
+      sku: data.get("sku"),
+      price: Number(data.get("price")),
+      stock_quantity: Number(data.get("stock_quantity")),
+      badge: data.get("badge") || "متوفر",
+      description: data.get("description"),
+      compatible_models: String(data.get("compatible_models") || "")
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      colors: String(data.get("colors") || "")
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      images: String(data.get("images") || "")
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      material: data.get("material"),
+      seo_title: data.get("seo_title"),
+      seo_description: data.get("seo_description"),
+      featured: data.get("featured") === "true",
+      is_in_stock: Number(data.get("stock_quantity")) > 0,
+      image: uploadedImage || data.get("image"),
+    };
 
-  products = [product, ...products.filter((item) => item.id !== id)];
-  await api("/api/store-products", {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({ products }),
-  });
+    const result = await api("/api/store-product", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ product }),
+    });
 
-  productForm.reset();
-  renderProducts();
+    products = [result.product || product, ...products.filter((item) => item.id !== id)];
+    productForm.reset();
+    renderProducts();
+    setupMessage.textContent = "تم حفظ المنتج وظهر في المتجر.";
+  } catch (error) {
+    setupMessage.textContent = error.message || "حصلت مشكلة أثناء حفظ المنتج.";
+  }
 });
 
 document.addEventListener("click", async (event) => {

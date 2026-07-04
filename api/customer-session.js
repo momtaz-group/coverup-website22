@@ -1,5 +1,5 @@
 const { authenticatedCustomer, endCustomerSession } = require("./_auth");
-const { sendJson, supabaseConfigured } = require("./_store");
+const { getCustomerOrdersForTracking, sendJson, supabaseConfigured } = require("./_store");
 
 function publicCustomer(customer) {
   return customer
@@ -19,6 +19,26 @@ function publicCustomer(customer) {
     : null;
 }
 
+function publicOrder(order) {
+  return {
+    id: order.id,
+    status: order.status,
+    payment_status: order.payment_status,
+    delivery_method: order.delivery_method,
+    grand_total: order.grand_total,
+    items: order.items || [],
+    customer: {
+      name: order.customer?.name || "",
+      phone: order.customer?.phone || "",
+      city: order.customer?.city || "",
+      address: order.customer?.address || "",
+    },
+    status_history: order.status_history || [],
+    created_at: order.created_at,
+    updated_at: order.updated_at,
+  };
+}
+
 module.exports = async function handler(request, response) {
   try {
     if (!supabaseConfigured(true)) {
@@ -27,7 +47,11 @@ module.exports = async function handler(request, response) {
 
     if (request.method === "GET") {
       const customer = await authenticatedCustomer(request);
-      return sendJson(response, 200, { customer: publicCustomer(customer) });
+      const orders = customer ? await getCustomerOrdersForTracking(customer) : [];
+      return sendJson(response, 200, {
+        customer: publicCustomer(customer),
+        orders: orders.map(publicOrder),
+      });
     }
 
     if (request.method === "DELETE") {
