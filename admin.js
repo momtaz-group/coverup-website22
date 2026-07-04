@@ -165,10 +165,7 @@ async function uploadProductImage(file) {
 
     return result.url;
   } catch {
-    if (dataUrl.length < 750000) {
-      return dataUrl;
-    }
-    throw new Error("الصورة كبيرة ومحتاجة تفعيل Supabase Storage الأول.");
+    return "";
   }
 }
 
@@ -335,6 +332,7 @@ productForm.addEventListener("submit", async (event) => {
     setupMessage.textContent = "بنحفظ المنتج...";
     const imageFile = data.get("imageFile");
     const uploadedImage = imageFile && imageFile.size ? await uploadProductImage(imageFile) : "";
+    const imageUploadSkipped = Boolean(imageFile && imageFile.size && !uploadedImage);
     const product = {
       id,
       name: data.get("name"),
@@ -373,7 +371,9 @@ productForm.addEventListener("submit", async (event) => {
     products = [result.product || product, ...products.filter((item) => item.id !== id)];
     productForm.reset();
     renderProducts();
-    setupMessage.textContent = "تم حفظ المنتج وظهر في المتجر.";
+    setupMessage.textContent = imageUploadSkipped
+      ? "تم حفظ المنتج. الصورة محتاجة Supabase Storage أو رابط صورة مباشر عشان تظهر."
+      : "تم حفظ المنتج وظهر في المتجر.";
   } catch (error) {
     setupMessage.textContent = error.message || "حصلت مشكلة أثناء حفظ المنتج.";
   }

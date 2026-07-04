@@ -115,14 +115,39 @@ function toBoolean(value, fallback = false) {
   return fallback;
 }
 
+const PRODUCT_IMAGE_FALLBACKS = {
+  "black-full-glue-screen-protector": "assets/products/black-full-glue-screen-protector.jpeg",
+  "black-magsafe-fabric-case": "assets/products/black-magsafe-fabric-case.jpeg",
+  "brown-magsafe-fabric-case": "assets/products/brown-magsafe-fabric-case.jpeg",
+  "carbon-slide-camera-case": "assets/products/carbon-slide-camera-case.jpeg",
+  "navy-apple-fabric-case": "assets/products/navy-apple-fabric-case.jpeg",
+  "orange-leopard-camera-case": "assets/products/orange-leopard-camera-case.jpeg",
+  "privacy-screen-protector": "assets/products/privacy-screen-protector.jpeg",
+  "samsung-clear-shockproof-case": "assets/products/samsung-clear-shockproof-case.jpeg",
+  "tempered-glass-screen-protector": "assets/products/tempered-glass-screen-protector.jpeg",
+};
+
+function publicProductImage(id, image) {
+  const value = String(image || "").trim();
+  if (!value || value.startsWith("data:image/")) {
+    return PRODUCT_IMAGE_FALLBACKS[id] || "";
+  }
+
+  return value;
+}
+
+function publicProductImages(id, images) {
+  return cleanArray(images).filter((image) => !image.startsWith("data:image/")).slice(0, 8);
+}
+
 function productFromDb(row) {
   return {
     id: row.id,
     name: row.name,
     category: row.category,
     price: Number(row.price || 0),
-    image: row.image,
-    images: cleanArray(row.images),
+    image: publicProductImage(row.id, row.image),
+    images: publicProductImages(row.id, row.images),
     badge: row.badge,
     description: row.description,
     seo_title: row.seo_title || "",
