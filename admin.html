@@ -41,6 +41,41 @@
 
         <section class="admin-metrics" data-admin-metrics></section>
 
+        <div class="admin-grid">
+          <section class="admin-card">
+            <h2>POS بيع من الفرع</h2>
+            <form data-pos-form>
+              <label>اختار المنتج
+                <select name="productId" data-pos-product required></select>
+              </label>
+              <label>عدد القطع
+                <input name="quantity" type="number" min="1" value="1" required />
+              </label>
+              <label>طريقة الدفع
+                <select name="paymentMethod">
+                  <option value="cash">كاش</option>
+                  <option value="card">كارت في الفرع</option>
+                  <option value="wallet">محفظة / Instapay</option>
+                </select>
+              </label>
+              <label>اسم العميل اختياري
+                <input name="customerName" type="text" placeholder="عميل الفرع" />
+              </label>
+              <label>رقم العميل اختياري
+                <input name="customerPhone" type="tel" placeholder="010..." />
+              </label>
+              <p class="admin-mini-note" data-pos-stock></p>
+              <button class="button button-primary" type="submit">تسجيل البيع</button>
+            </form>
+            <p class="admin-mini-note" data-pos-message></p>
+          </section>
+
+          <section class="admin-card">
+            <h2>المخزون السريع</h2>
+            <div class="admin-list admin-inventory-list" data-admin-inventory></div>
+          </section>
+        </div>
+
         <div class="admin-grid admin-grid-wide">
           <section class="admin-card">
             <h2>تنبيهات تحتاج متابعة</h2>

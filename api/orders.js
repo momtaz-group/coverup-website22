@@ -2,6 +2,7 @@ const { authenticatedCustomer } = require("./_auth");
 const {
   createOrder,
   getProducts,
+  requireAdmin,
   reserveInventoryForOrder,
   sendJson,
   supabaseConfigured,
@@ -73,7 +74,16 @@ function deliveryLabel(method) {
 }
 
 function paymentLabel(method) {
-  return method === "online" ? "دفع إلكتروني" : "كاش عند الاستلام";
+  switch (method) {
+    case "online":
+      return "دفع إلكتروني";
+    case "card":
+      return "كارت في الفرع";
+    case "wallet":
+      return "محفظة / Instapay";
+    default:
+      return "كاش";
+  }
 }
 
 function availableStock(product) {
@@ -120,7 +130,13 @@ module.exports = async function handler(request, response) {
     }
 
     const body = typeof request.body === "object" ? request.body : {};
-    const customer = await authenticatedCustomer(request);
+    const channel = cleanText(body.channel, 80) || "website";
+    const isPosOrder = channel === "pos";
+    if (isPosOrder && !requireAdmin(request, response)) {
+      return;
+    }
+
+    const customer = isPosOrder ? null : await authenticatedCustomer(request);
     const items = Array.isArray(body.items) ? body.items.slice(0, 30) : [];
 
     if (!items.length) {
@@ -131,26 +147,26 @@ module.exports = async function handler(request, response) {
     const normalizedItems = normalizeItems(items, products);
     const subtotal = normalizedItems.reduce((sum, item) => sum + item.line_total, 0);
     const discount = applyCoupon(subtotal, body.discountCode);
-    const method = cleanText(body.deliveryMethod, 80) || "delivery";
+    const method = isPosOrder ? "pickup" : cleanText(body.deliveryMethod, 80) || "delivery";
     const paymentMethod = cleanText(body.paymentMethod, 40) || "cash";
     const fee = deliveryFee(method);
     const grandTotal = Math.max(0, subtotal - discount.amount + fee);
     const customerPayload = {
-      name: cleanText(body.customer?.name || customer?.name, 120),
-      phone: cleanText(body.customer?.phone || customer?.phone, 60),
+      name: cleanText(body.customer?.name || customer?.name || (isPosOrder ? "عميل الفرع" : ""), 120),
+      phone: cleanText(body.customer?.phone || customer?.phone || (isPosOrder ? "POS" : ""), 60),
       email: cleanText(body.customer?.email || customer?.email, 160),
       username: cleanText(customer?.username, 80),
-      address: cleanText(body.customer?.address || customer?.address, 300),
-      city: cleanText(body.customer?.city || customer?.city, 120),
+      address: cleanText(body.customer?.address || customer?.address || (isPosOrder ? "فرع Cover Up" : ""), 300),
+      city: cleanText(body.customer?.city || customer?.city || (isPosOrder ? "Cairo" : ""), 120),
       location_link: cleanText(body.customer?.locationLink, 500),
     };
 
-    if (!customerPayload.name || !customerPayload.phone || !customerPayload.address) {
+    if (!isPosOrder && (!customerPayload.name || !customerPayload.phone || !customerPayload.address)) {
       return sendJson(response, 400, { message: "بيانات العميل الأساسية مطلوبة لإتمام الطلب." });
     }
 
-    const initialStatus = paymentMethod === "online" ? "pending_payment" : "confirmed";
-    const initialPaymentStatus = paymentMethod === "online" ? "pending" : "cash_pending";
+    const initialStatus = paymentMethod === "online" ? "pending_payment" : isPosOrder ? "paid" : "confirmed";
+    const initialPaymentStatus = paymentMethod === "online" ? "pending" : isPosOrder ? "paid" : "cash_pending";
 
     let order = await createOrder({
       customer_id: customer?.id || null,
@@ -159,14 +175,18 @@ module.exports = async function handler(request, response) {
       subtotal,
       total: subtotal,
       grand_total: grandTotal,
-      channel: cleanText(body.channel, 80) || "website",
+      channel,
       status: initialStatus,
       status_history: [
         {
           status: initialStatus,
           at: new Date().toISOString(),
-          note: paymentMethod === "online" ? "في انتظار الدفع الإلكتروني" : "تم تأكيد طلب الدفع عند الاستلام",
-          actor: customer ? "customer" : "guest",
+          note: isPosOrder
+            ? "تم تسجيل بيع من الفرع"
+            : paymentMethod === "online"
+              ? "في انتظار الدفع الإلكتروني"
+              : "تم تأكيد طلب الدفع عند الاستلام",
+          actor: isPosOrder ? "admin" : customer ? "customer" : "guest",
         },
       ],
       payment_method: paymentMethod,

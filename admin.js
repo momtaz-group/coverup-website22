@@ -27,6 +27,11 @@ const productList = document.querySelector("[data-admin-products]");
 const metricsNode = document.querySelector("[data-admin-metrics]");
 const notificationsNode = document.querySelector("[data-admin-notifications]");
 const courierNode = document.querySelector("[data-admin-courier]");
+const inventoryNode = document.querySelector("[data-admin-inventory]");
+const posForm = document.querySelector("[data-pos-form]");
+const posProductSelect = document.querySelector("[data-pos-product]");
+const posStockNote = document.querySelector("[data-pos-stock]");
+const posMessage = document.querySelector("[data-pos-message]");
 
 function headers() {
   return {
@@ -190,6 +195,58 @@ function renderProducts() {
     : `<p class="empty-cart">مفيش منتجات محفوظة في الداشبورد لسه.</p>`;
 }
 
+function renderInventory() {
+  if (!inventoryNode) {
+    return;
+  }
+
+  const sortedProducts = [...products].sort((a, b) => Number(a.stock_quantity || 0) - Number(b.stock_quantity || 0));
+  inventoryNode.innerHTML = sortedProducts.length
+    ? sortedProducts.map((product) => {
+      const stock = Number(product.stock_quantity || 0);
+      const statusClass = stock === 0 ? "is-out" : stock <= 5 ? "is-low" : "";
+      const statusText = stock === 0 ? "نفد" : stock <= 5 ? "قليل" : "متوفر";
+      return `
+        <article class="admin-inventory-item ${statusClass}">
+          <div>
+            <strong>${safeText(product.name)}</strong>
+            <span>SKU: ${safeText(product.sku || "—")} | ${safeText(product.category || "—")}</span>
+          </div>
+          <b>${stock}</b>
+          <em>${statusText}</em>
+        </article>
+      `;
+    }).join("")
+    : `<p class="empty-cart">لسه مفيش منتجات علشان نعرض المخزون.</p>`;
+}
+
+function renderPosProducts() {
+  if (!posProductSelect) {
+    return;
+  }
+
+  const sellableProducts = products.filter((product) => product.is_in_stock !== false && Number(product.stock_quantity || 0) > 0);
+  posProductSelect.innerHTML = sellableProducts.length
+    ? sellableProducts.map((product) => `
+      <option value="${product.id}">
+        ${safeText(product.name)} - ${safeCurrency(product.price)} EGP - مخزون ${Number(product.stock_quantity || 0)}
+      </option>
+    `).join("")
+    : `<option value="">لا توجد منتجات متاحة للبيع</option>`;
+  updatePosStockNote();
+}
+
+function updatePosStockNote() {
+  if (!posProductSelect || !posStockNote) {
+    return;
+  }
+
+  const product = products.find((item) => item.id === posProductSelect.value);
+  posStockNote.textContent = product
+    ? `المتاح حالياً: ${Number(product.stock_quantity || 0)} قطعة | السعر: ${safeCurrency(product.price)} EGP`
+    : "اختار منتج متاح لتسجيل بيع من الفرع.";
+}
+
 function renderList(selector, items, renderItem) {
   const node = document.querySelector(selector);
   node.innerHTML = items?.length
@@ -287,6 +344,8 @@ async function loadAdmin() {
     ? "Supabase متفعل والداشبورد متصل. الصور والطلبات والمخزون جاهزين للإدارة."
     : "في متغيرات ناقصة في Supabase أو Vercel. راجع الإعدادات قبل استخدام كل المزايا.";
   renderProducts();
+  renderInventory();
+  renderPosProducts();
   renderEvents();
 }
 
@@ -371,11 +430,62 @@ productForm.addEventListener("submit", async (event) => {
     products = [result.product || product, ...products.filter((item) => item.id !== id)];
     productForm.reset();
     renderProducts();
+    renderInventory();
+    renderPosProducts();
     setupMessage.textContent = imageUploadSkipped
       ? "تم حفظ المنتج. الصورة محتاجة Supabase Storage أو رابط صورة مباشر عشان تظهر."
       : "تم حفظ المنتج وظهر في المتجر.";
   } catch (error) {
     setupMessage.textContent = error.message || "حصلت مشكلة أثناء حفظ المنتج.";
+  }
+});
+
+posProductSelect?.addEventListener("change", updatePosStockNote);
+
+posForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const data = new FormData(posForm);
+  const productId = String(data.get("productId") || "");
+  const product = products.find((item) => item.id === productId);
+  const quantity = Math.max(1, Number(data.get("quantity") || 1));
+
+  if (!product) {
+    posMessage.textContent = "اختار منتج متاح الأول.";
+    return;
+  }
+
+  if (quantity > Number(product.stock_quantity || 0)) {
+    posMessage.textContent = "الكمية المطلوبة أكبر من المخزون الموجود.";
+    return;
+  }
+
+  try {
+    posMessage.textContent = "بنسجل البيع...";
+    const customerName = String(data.get("customerName") || "").trim();
+    const customerPhone = String(data.get("customerPhone") || "").trim();
+    const result = await api("/api/orders", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        channel: "pos",
+        deliveryMethod: "pickup",
+        paymentMethod: data.get("paymentMethod") || "cash",
+        customer: {
+          name: customerName || "عميل الفرع",
+          phone: customerPhone || "POS",
+          address: "فرع Cover Up",
+          city: "Cairo",
+        },
+        items: [{ id: productId, quantity }],
+        notes: "بيع من الفرع عبر POS Dashboard",
+      }),
+    });
+
+    posMessage.textContent = `تم تسجيل البيع. رقم الأوردر: ${result.order?.id || "—"}`;
+    posForm.reset();
+    await loadAdmin();
+  } catch (error) {
+    posMessage.textContent = error.message || "حصلت مشكلة أثناء تسجيل البيع.";
   }
 });
 

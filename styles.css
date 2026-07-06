@@ -2649,7 +2649,8 @@ h1 span {
   font: inherit;
 }
 
-.support-card option {
+.support-card option,
+.admin-card option {
   color: #111;
 }
 
@@ -2818,6 +2819,62 @@ h1 span {
   cursor: pointer;
   font: inherit;
   font-weight: 800;
+}
+
+.admin-mini-note {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-inventory-list {
+  max-height: 430px;
+}
+
+.admin-inventory-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.admin-inventory-item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.admin-inventory-item b {
+  min-width: 48px;
+  color: var(--gold);
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.admin-inventory-item em {
+  min-width: 62px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(43, 174, 102, 0.14);
+  color: #7ee0a6;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+}
+
+.admin-inventory-item.is-low em {
+  background: rgba(206, 178, 71, 0.16);
+  color: var(--gold-soft);
+}
+
+.admin-inventory-item.is-out em {
+  background: rgba(255, 97, 97, 0.14);
+  color: #ff8f8f;
 }
 
 .split-section {
