@@ -1,0 +1,40 @@
+import "./globals.css";
+import { LanguageProvider } from "@/context/LanguageContext";
+import { CartProvider } from "@/context/CartContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+
+export const metadata = {
+  title: "Cover Up",
+  description: "حساب Cover Up: تسجيل دخول، إنشاء حساب، ومتابعة الطلبات والصيانة.",
+  icons: {
+    icon: "/assets/brand/cover-up-symbol.png",
+    shortcut: "/assets/brand/cover-up-symbol.png",
+    apple: "/assets/brand/cover-up-symbol.png",
+  },
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="ar" dir="rtl">
+      <head>
+        <title>Cover Up</title>
+        <link rel="icon" href="/assets/brand/cover-up-symbol.png" type="image/png" />
+        <link rel="shortcut icon" href="/assets/brand/cover-up-symbol.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/assets/brand/cover-up-symbol.png" />
+      </head>
+      <body>
+        <ThemeProvider>
+          <LanguageProvider>
+            <CartProvider>
+              <Header />
+              {children}
+              <Footer />
+            </CartProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

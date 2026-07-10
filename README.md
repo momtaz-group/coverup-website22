@@ -1,47 +1,36 @@
-# Cover Up Website
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Premium static website for Cover Up: mobile accessories, repairs, screen protection, and corporate device care.
+## Getting Started
 
-## Files
-
-- `index.html` - page structure and SEO tags
-- `styles.css` - responsive visual design
-- `script.js` - mobile menu and Arabic/English language toggle
-- `assets/` - favicon and website imagery
-
-## Run Locally
-
-Open `index.html` in a browser, or run a small local server:
+First, run the development server:
 
 ```bash
-python3 -m http.server 3000
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Then open:
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```text
-http://localhost:3000
-```
+You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
-## Deploy
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-### GitHub Pages
+## Learn More
 
-1. Create a repository named `coverup-website`.
-2. Upload these files to the repository.
-3. Go to `Settings` -> `Pages`.
-4. Choose `Deploy from a branch`.
-5. Select `main` and `/root`.
+To learn more about Next.js, take a look at the following resources:
 
-### Vercel
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-1. Import the GitHub repository into Vercel.
-2. Framework preset: `Other`.
-3. Build command: leave empty.
-4. Output directory: leave empty.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Brand Details
+## Deploy on Vercel
 
-- Phone / WhatsApp: `01050310516`
-- Email: `hello@coverup.tech`
-- Domain target: `coverup.tech`
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -1,0 +1,530 @@
+.page {
+  background: var(--bg);
+  color: var(--text);
+  min-height: calc(100svh - 77px);
+}
+
+.hero {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 24px 34px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #1267e8;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hero h1 {
+  margin: 12px 0 14px;
+  font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.hero p {
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 600px;
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 24px 90px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 34px;
+  align-items: start;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px;
+  background: var(--panel);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.cardSubtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.formGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.formGroup input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  padding: 13px 14px;
+  outline-color: #1267e8;
+  transition: all 180ms ease;
+}
+
+.formGroup input:focus {
+  border-color: #1267e8;
+  box-shadow: 0 0 0 3px rgba(18, 103, 232, 0.08);
+}
+
+.submitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #1267e8;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(18, 103, 232, 0.18);
+  transition: all 180ms ease;
+  margin-top: 6px;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #0758cf;
+  transform: translateY(-2px);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorBox {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(180, 35, 24, 0.08);
+  border: 1px solid rgba(180, 35, 24, 0.2);
+  color: #b42318;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+/* Tracking Result Redesign */
+.resultContainer {
+  margin-top: 28px;
+  display: grid;
+  gap: 24px;
+}
+
+.resultCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--panel);
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.orderTitle {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.statusBadges {
+  display: flex;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.badgeSuccess {
+  background: rgba(2, 122, 72, 0.08);
+  color: #027a48;
+  border: 1px solid rgba(2, 122, 72, 0.2);
+}
+
+.badgeInfo {
+  background: rgba(18, 103, 232, 0.08);
+  color: #1267e8;
+  border: 1px solid rgba(18, 103, 232, 0.2);
+}
+
+.badgeWarning {
+  background: rgba(180, 103, 24, 0.08);
+  color: #b46718;
+  border: 1px solid rgba(180, 103, 24, 0.2);
+}
+
+.badgeDanger {
+  background: rgba(180, 35, 24, 0.08);
+  color: #b42318;
+  border: 1px solid rgba(180, 35, 24, 0.2);
+}
+
+/* Visual Progress Tracker */
+.trackerWrapper {
+  padding: 10px 0 24px;
+}
+
+.progressTracker {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.progressTracker::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: var(--line);
+  z-index: 1;
+}
+
+.progressLineActive {
+  position: absolute;
+  top: 15px;
+  left: 20px;
+  height: 3px;
+  background: #1267e8;
+  z-index: 2;
+  transition: width 0.5s ease-in-out;
+}
+
+[dir="rtl"] .progressLineActive {
+  left: auto;
+  right: 20px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 3;
+  flex: 1;
+}
+
+.bullet {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: all 0.3s ease;
+}
+
+.stepActive .bullet {
+  border-color: #1267e8;
+  color: #1267e8;
+  background: var(--panel);
+  box-shadow: 0 0 0 4px rgba(18, 103, 232, 0.15);
+}
+
+.stepCompleted .bullet {
+  border-color: #1267e8;
+  background: #1267e8;
+  color: #fff;
+}
+
+.stepLabel {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-align: center;
+}
+
+.stepActive .stepLabel,
+.stepCompleted .stepLabel {
+  color: var(--text);
+}
+
+/* Order Summary Table */
+.summaryTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 24px 0 12px;
+}
+
+.itemsList {
+  display: grid;
+  gap: 12px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft, rgba(0,0,0,0.01));
+}
+
+.itemName {
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
+.itemQuantity {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.itemPrice {
+  font-weight: 800;
+  color: #1267e8;
+}
+
+.invoice {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.invoiceRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.invoiceTotal {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.invoiceTotalVal {
+  color: #1267e8;
+}
+
+/* Timeline history */
+.timelineTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 28px 0 16px;
+}
+
+.timeline {
+  border-left: 2px solid var(--line);
+  margin-left: 10px;
+  padding-left: 20px;
+  display: grid;
+  gap: 20px;
+  position: relative;
+}
+
+[dir="rtl"] .timeline {
+  border-left: none;
+  border-right: 2px solid var(--line);
+  margin-left: 0;
+  margin-right: 10px;
+  padding-left: 0;
+  padding-right: 20px;
+}
+
+.timelineItem {
+  position: relative;
+}
+
+.timelineItem::before {
+  content: "";
+  position: absolute;
+  left: -27px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--line);
+  border: 2px solid var(--panel);
+}
+
+[dir="rtl"] .timelineItem::before {
+  left: auto;
+  right: -27px;
+}
+
+.timelineItemActive::before {
+  background: #1267e8;
+  box-shadow: 0 0 0 3px rgba(18, 103, 232, 0.15);
+}
+
+.timelineStatus {
+  font-weight: 800;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.timelineTime {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Recent Orders section */
+.recentOrders {
+  display: grid;
+  gap: 16px;
+}
+
+.recentCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: all 180ms ease;
+  position: relative;
+  overflow: hidden;
+  text-align: start;
+  width: 100%;
+}
+
+.recentCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--line);
+  transition: background 180ms ease;
+}
+
+[dir="rtl"] .recentCard::before {
+  left: auto;
+  right: 0;
+}
+
+.recentCard:hover {
+  border-color: #1267e8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.recentCard:hover::before {
+  background: #1267e8;
+}
+
+.recentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.recentId {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.recentDate {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.recentPrice {
+  font-weight: 800;
+  color: #1267e8;
+  font-size: 1.05rem;
+}
+
+.recentProducts {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+@media (max-width: 820px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .progressTracker::before,
+  .progressLineActive {
+    display: none;
+  }
+
+  .progressTracker {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .step {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .stepLabel {
+    margin-top: 0;
+    text-align: left;
+  }
+}

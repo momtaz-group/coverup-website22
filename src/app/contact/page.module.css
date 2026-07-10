@@ -1,0 +1,257 @@
+.page {
+  background: var(--bg);
+  color: var(--text);
+  min-height: calc(100svh - 77px);
+}
+
+.hero {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 70px 24px 34px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #1267e8;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hero h1 {
+  margin: 12px 0 14px;
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.hero p {
+  max-width: 600px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 24px 90px;
+  display: grid;
+  gap: 34px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--panel);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  transition: all 180ms ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.card:hover {
+  border-color: #1267e8;
+  box-shadow: 0 4px 15px rgba(18, 103, 232, 0.04);
+  transform: translateY(-2px);
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: rgba(18, 103, 232, 0.08);
+  color: #1267e8;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.cardContent {
+  display: grid;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.cardVal {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.cardLink {
+  color: #1267e8;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* WhatsApp CTA Card */
+.whatsappCta {
+  border: 1px solid rgba(37, 211, 102, 0.2);
+  border-radius: 12px;
+  background: rgba(37, 211, 102, 0.03);
+  padding: 34px 24px;
+  text-align: center;
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  box-shadow: 0 8px 30px rgba(37, 211, 102, 0.02);
+}
+
+.whatsappTitle {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.whatsappDesc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.whatsappBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  border-radius: 10px;
+  padding: 0 32px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 10px 25px rgba(37, 211, 102, 0.25);
+  transition: all 200ms ease;
+}
+
+.whatsappBtn:hover {
+  background: #20ba56;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(37, 211, 102, 0.35);
+}
+
+.whatsappBtn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Stylized Store Map Card */
+.mapCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.mapTitle {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.mapVisual {
+  height: 220px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 50%, rgba(18, 103, 232, 0.05) 0%, rgba(0,0,0,0) 70%), var(--panel-soft, rgba(0, 0, 0, 0.02));
+  border: 1px dashed var(--line);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mapVisual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  background-image: 
+    radial-gradient(var(--text) 1px, transparent 1px),
+    radial-gradient(var(--text) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.mapPin {
+  color: #b42318;
+  animation: bounce 2s infinite ease-in-out;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.mapBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.mapBtn:hover {
+  border-color: #1267e8;
+  color: #1267e8;
+  background: var(--panel-soft, rgba(18, 103, 232, 0.02));
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .hero {
+    padding: 50px 20px 20px;
+  }
+  
+  .container {
+    padding: 10px 20px 60px;
+  }
+}
