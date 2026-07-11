@@ -16,7 +16,7 @@ export default function AccountPage() {
   const router = useRouter();
   const { locale } = useLanguage();
   const text = (ar, en) => (locale === "ar" ? ar : en);
-  const [step, setStep] = useState("email");
+  const [step, setStep] = useState("loading");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +36,7 @@ export default function AccountPage() {
   const [showLocationForm, setShowLocationForm] = useState(false);
   const [locationForm, setLocationForm] = useState({
     id: "",
+    recipientName: "",
     label: "",
     address1: "",
     address2: "",
@@ -78,9 +79,13 @@ export default function AccountPage() {
     };
 
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (active && user) {
-        setStep("signed-in");
-        loadProfile();
+      if (active) {
+        if (user) {
+          setStep("signed-in");
+          loadProfile();
+        } else {
+          setStep("email");
+        }
       }
     });
 
@@ -159,7 +164,7 @@ export default function AccountPage() {
     setBusy(true); setStatus("");
     try {
       await profileRequest({ location: nextLocations });
-      setLocationForm({ id: "", label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: false });
+      setLocationForm({ id: "", recipientName: "", label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: false });
       setShowLocationForm(false);
       setStatus(text("تم حفظ عنوان التوصيل.", "Address saved successfully."));
     } catch (error) { setStatus(error.message); }
@@ -641,11 +646,20 @@ export default function AccountPage() {
     "forgot-verify": "رمز التحقق للاستعادة",
     "reset-password": "كلمة المرور الجديدة",
     "signed-in": "تم تسجيل الدخول",
+    "loading": "جارٍ التحميل...",
   }[step];
 
   const resendLabel = resendSeconds > 0
     ? `إعادة الإرسال بعد ${resendSeconds} ثانية`
     : "إعادة إرسال الرمز";
+
+  if (step === "loading") {
+    return (
+      <main className={styles.page} style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <p style={{ color: 'var(--muted)' }}>{text("جارٍ التحميل...", "Loading...")}</p>
+      </main>
+    );
+  }
 
   return (
     <main className={`${styles.page} ${isSignedInView ? styles.pageProfile : ""}`} dir="rtl">
@@ -1002,108 +1016,201 @@ export default function AccountPage() {
           )}
 
           {step === "signed-in" && (
-            <>
-              <div className={styles.profileHeader}>
-                <div className={styles.profileIdentity}>
-                  <p className={styles.profileEyebrow}>{text("إعدادات الحساب", "Account settings")}</p>
-                  <h2>{profile?.name || text("حسابي", "My account")}</h2>
-                  <span>{profile?.email || email}</span>
-                  <small>{text("إدارة بياناتك وعناوينك من مكان واحد.", "Manage your details and saved addresses in one place.")}</small>
+            <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto', background: 'var(--panel)', padding: '32px', borderRadius: '24px', border: '1px solid var(--line)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--line)', paddingBottom: '24px', marginBottom: '24px' }}>
+                <div>
+                  <h2 style={{ margin: '0 0 4px', fontSize: '24px', color: 'var(--text)' }}>{profile?.name || text("حسابي", "My account")}</h2>
+                  <p style={{ margin: 0, color: 'var(--muted)', fontSize: '14px' }}>{profile?.email || email}</p>
                 </div>
-                <button className={styles.back} type="button" onClick={() => router.push("/")}>{text("الرئيسية", "Home")}</button>
+                <button type="button" onClick={() => supabase.auth.signOut().then(() => { setStatus(""); setStep("email"); })} style={{ background: 'rgba(255, 77, 77, 0.1)', color: '#ff4d4d', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  {text("تسجيل الخروج", "Sign out")}
+                </button>
               </div>
-              <div className={styles.profileLayout}>
-                <nav className={styles.profileTabs} aria-label={text("إعدادات الحساب", "Account settings")}>
+
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px', flex: 1 }}>
                   {profileTabs.map((tab) => (
                     <button
                       key={tab.id}
-                      className={profileTab === tab.id ? styles.activeTab : ""}
                       type="button"
                       onClick={() => setProfileTab(tab.id)}
+                      style={{ 
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '12px', border: 'none', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'start',
+                        background: profileTab === tab.id ? '#0070f3' : 'var(--input-bg)',
+                        color: profileTab === tab.id ? '#fff' : 'var(--text)',
+                        boxShadow: profileTab === tab.id ? '0 4px 12px rgba(0, 112, 243, 0.3)' : 'none'
+                      }}
                     >
-                      <span className={styles.tabIconWrap}>
-                        <AccountTabIcon name={tab.icon} className={styles.tabIcon} />
-                      </span>
-                      <span className={styles.tabText}>
-                        <strong>{tab.label}</strong>
-                        <small>{tab.description}</small>
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <strong style={{ fontSize: '15px' }}>{tab.label}</strong>
+                        <small style={{ color: profileTab === tab.id ? 'rgba(255,255,255,0.8)' : 'var(--muted)', marginTop: '2px', fontSize: '12px' }}>{tab.description}</small>
+                      </div>
                     </button>
                   ))}
-                  <button className={styles.signOutTab} type="button" onClick={() => supabase.auth.signOut().then(() => { setStatus(""); setStep("email"); })}>
-                    <span className={styles.tabIconWrap}>
-                      <AccountTabIcon name="signout" className={styles.tabIcon} />
-                    </span>
-                    <span className={styles.tabText}>
-                      <strong>{text("تسجيل الخروج", "Sign out")}</strong>
-                      <small>{text("إنهاء الجلسة الحالية", "End the current session")}</small>
-                    </span>
-                  </button>
                 </nav>
-                <section className={styles.profilePanel}>
-                  {profileTab === "name" && <form onSubmit={saveName} className={styles.settingsForm}>
-                    <h3>{text("الاسم", "Name")}</h3>
-                    <p>{text("حدّث الاسم الذي يظهر في حسابك وطلباتك.", "Update the name shown in your account and orders.")}</p>
-                    <label>{text("الاسم", "Name")}<input value={profileName} onChange={(event) => setProfileName(event.target.value)} required /></label>
-                    <button className={styles.next} disabled={busy}>{busy ? text("جارٍ الحفظ...", "Saving...") : text("حفظ التغييرات", "Save changes")}</button>
-                  </form>}
-                  {profileTab === "email" && <div className={styles.settingsForm}>
-                    <h3>{text("البريد الإلكتروني", "Email")}</h3><p>{text("البريد المرتبط بحسابك في Supabase Auth.", "The email linked to your Supabase Auth account.")}</p>
-                    <label>{text("البريد الإلكتروني", "Email")}<input value={profile?.email || email} readOnly type="email" /></label>
-                  </div>}
-                  {profileTab === "password" && <form onSubmit={savePassword} className={styles.settingsForm}>
-                    <h3>{text("تحديث كلمة المرور", "Update password")}</h3><p>{text("أدخل كلمة المرور الحالية أولاً لحماية حسابك.", "Enter your current password first to protect your account.")}</p>
-                    <label>{text("كلمة المرور الحالية", "Current password")}<input type="password" value={oldPassword} onChange={(event) => setOldPassword(event.target.value)} required /></label>
-                    <label>{text("كلمة المرور الجديدة", "New password")}<input type="password" minLength="8" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label>
-                    <label>{text("تأكيد كلمة المرور", "Confirm password")}<input type="password" minLength="8" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>
-                    <button className={styles.next} disabled={busy}>{busy ? text("جارٍ الحفظ...", "Saving...") : text("تحديث كلمة المرور", "Update password")}</button>
-                  </form>}
-                  {profileTab === "location" && <div className={styles.settingsForm}>
-                    <h3>{text("عناوين التوصيل", "Delivery addresses")}</h3><p>{text("احفظ حتى 3 عناوين واختر العنوان الافتراضي عند الدفع.", "Save up to 3 addresses and choose the default one at checkout.")}</p>
-                    {Array.isArray(profile?.location) && profile.location.length > 0 && <div className={styles.savedLocations}>
-                      {profile.location.map((location) => (
-                        <article key={location.id} className={styles.savedLocation}>
-                          <div className={styles.savedLocationTop}>
-                            <div>
-                              <strong>{location.label || text("عنوان", "Address")}</strong>
-                              {location.isDefault && <small>{text("العنوان الافتراضي", "Default address")}</small>}
-                            </div>
-                            <button type="button" className={styles.editLocationButton} onClick={() => editLocation(location)} aria-label={text("تعديل العنوان", "Edit address")}>
-                              <AccountTabIcon name="edit" className={styles.editLocationIcon} />
-                              <span>{text("تعديل", "Edit")}</span>
-                            </button>
-                          </div>
-                          <span>{[location.address1, location.address2].filter(Boolean).join(", ")}</span>
-                          <span>{[location.city, location.state, location.postalCode].filter(Boolean).join(" - ")}</span>
-                          <span>{location.phone}</span>
-                        </article>
-                      ))}
-                    </div>}
-                    <div className={styles.locationActions}>
-                      <button type="button" className={styles.addAddressButton} disabled={Array.isArray(profile?.location) && profile.location.length >= MAX_LOCATIONS && !showLocationForm} onClick={startNewLocation}>
-                        {text("إضافة عنوان", "Add address")}
-                      </button>
-                      <span>{text(`تم حفظ ${Array.isArray(profile?.location) ? profile.location.length : 0} من 3`, `Saved ${(Array.isArray(profile?.location) ? profile.location.length : 0)} of 3`)}</span>
-                    </div>
-                    {showLocationForm && <form onSubmit={saveLocation} className={styles.locationForm}>
-                      <div className={styles.locationFormHeader}>
-                        <h4>{locationForm.id ? text("تعديل العنوان", "Edit address") : text("عنوان جديد", "New address")}</h4>
-                        <button type="button" className={styles.linkButton} onClick={() => setShowLocationForm(false)}>{text("إلغاء", "Cancel")}</button>
-                      </div>
-                      <div className={styles.formGrid}><label>{text("اسم العنوان", "Address label")}<input value={locationForm.label} onChange={(event) => setLocationForm({ ...locationForm, label: event.target.value })} placeholder={text("مثال: المنزل", "e.g. Home")} /></label><label>{text("رقم الهاتف", "Phone number")}<input type="tel" value={locationForm.phone} onChange={(event) => setLocationForm({ ...locationForm, phone: event.target.value })} required /></label></div>
-                      <label>{text("العنوان الأول", "Address line 1")}<input value={locationForm.address1} onChange={(event) => setLocationForm({ ...locationForm, address1: event.target.value })} required placeholder={text("رقم المبنى واسم الشارع", "Building number and street")} /></label>
-                      <label>{text("العنوان الثاني", "Address line 2")}<input value={locationForm.address2} onChange={(event) => setLocationForm({ ...locationForm, address2: event.target.value })} placeholder={text("الشقة، الدور، العلامة المميزة", "Apartment, floor, landmark")} /></label>
-                      <div className={styles.formGrid}><label>{text("المدينة", "City")}<input value={locationForm.city} onChange={(event) => setLocationForm({ ...locationForm, city: event.target.value })} required /></label><label>{text("المحافظة / المنطقة", "State / area")}<input value={locationForm.state} onChange={(event) => setLocationForm({ ...locationForm, state: event.target.value })} /></label></div>
-                      <div className={styles.formGrid}><label>{text("الرمز البريدي", "Postal code")}<input value={locationForm.postalCode} onChange={(event) => setLocationForm({ ...locationForm, postalCode: event.target.value })} /></label><label>{text("ملاحظات التوصيل", "Delivery notes")}<input value={locationForm.notes} onChange={(event) => setLocationForm({ ...locationForm, notes: event.target.value })} /></label></div>
-                      <label className={styles.checkbox}><input type="checkbox" checked={locationForm.isDefault} onChange={(event) => setLocationForm({ ...locationForm, isDefault: event.target.checked })} /> {text("استخدام هذا العنوان افتراضياً", "Use this as the default address")}</label>
-                      <button className={styles.next} disabled={busy}>{busy ? text("جارٍ الحفظ...", "Saving...") : locationForm.id ? text("تحديث العنوان", "Update address") : text("حفظ العنوان", "Save address")}</button>
-                    </form>}
-                  </div>}
-                </section>
-              </div>
-            </>
-          )}
 
+                <div style={{ flex: 3, minWidth: '280px', background: 'var(--input-bg)', borderRadius: '16px', padding: '24px', border: '1px solid var(--line)' }}>
+                  {profileTab === "name" && (
+                    <form onSubmit={saveName} style={{ display: 'grid', gap: '16px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px' }}>{text("تحديث الاسم", "Update Name")}</h3>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+                        {text("الاسم", "Name")}
+                        <input value={profileName} onChange={(e) => setProfileName(e.target.value)} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} />
+                      </label>
+                      <button disabled={busy} style={{ background: '#0070f3', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
+                        {busy ? text("جارٍ الحفظ...", "Saving...") : text("حفظ التغييرات", "Save changes")}
+                      </button>
+                    </form>
+                  )}
+
+                  {profileTab === "email" && (
+                    <div style={{ display: 'grid', gap: '16px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px' }}>{text("البريد الإلكتروني", "Email")}</h3>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+                        {text("البريد الحالي", "Current Email")}
+                        <input value={profile?.email || email} readOnly type="email" style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', opacity: 0.7 }} />
+                      </label>
+                    </div>
+                  )}
+
+                  {profileTab === "password" && (
+                    <form onSubmit={savePassword} style={{ display: 'grid', gap: '16px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px' }}>{text("تحديث كلمة المرور", "Update Password")}</h3>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+                        {text("كلمة المرور الحالية", "Current Password")}
+                        <input type="password" autoComplete="current-password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+                        {text("كلمة المرور الجديدة", "New Password")}
+                        <input type="password" minLength="8" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+                        {text("تأكيد كلمة المرور", "Confirm Password")}
+                        <input type="password" minLength="8" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} />
+                      </label>
+                      <button disabled={busy} style={{ background: '#0070f3', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
+                        {busy ? text("جارٍ الحفظ...", "Saving...") : text("تحديث كلمة المرور", "Update password")}
+                      </button>
+                    </form>
+                  )}
+
+                  {profileTab === "location" && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h3 style={{ margin: 0, fontSize: '18px' }}>{text("عناوين التوصيل", "Delivery Addresses")}</h3>
+                        <button type="button" disabled={Array.isArray(profile?.location) && profile.location.length >= MAX_LOCATIONS && !showLocationForm} onClick={startNewLocation} style={{ background: 'none', border: 'none', color: '#0070f3', fontWeight: 'bold', cursor: 'pointer' }}>
+                          {text("+ إضافة عنوان", "+ Add address")}
+                        </button>
+                      </div>
+
+                      {Array.isArray(profile?.location) && profile.location.length > 0 && !showLocationForm && (
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {profile.location.map((location) => (
+                            <article key={location.id} style={{ background: 'var(--panel)', border: location.isDefault ? '2px solid #0070f3' : '1px solid var(--line)', borderRadius: '12px', padding: '16px', position: 'relative' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                <div>
+                                  <strong style={{ fontSize: '16px', color: location.isDefault ? '#0070f3' : 'var(--text)' }}>{location.label || text("عنوان", "Address")}</strong>
+                                  {location.isDefault && <span style={{ marginLeft: '8px', marginRight: '8px', background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{text("أساسي", "Default")}</span>}
+                                </div>
+                                <button type="button" onClick={() => editLocation(location)} style={{ background: 'var(--input-bg)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', color: 'var(--text)' }}>
+                                  {text("تعديل", "Edit")}
+                                </button>
+                              </div>
+                              <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{[location.address1, location.address2].filter(Boolean).join(", ")}</p>
+                              <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{[location.city, location.state].filter(Boolean).join(" - ")}</p>
+                              <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{location.phone}</p>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+
+                      {showLocationForm && (
+                        <form onSubmit={saveLocation} style={{ display: 'grid', gap: '16px', background: 'var(--panel)', padding: '24px', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px' }}>{locationForm.id ? text("تعديل العنوان", "Edit address") : text("عنوان جديد", "New address")}</h4>
+                            <button type="button" onClick={() => setShowLocationForm(false)} style={{ background: 'none', border: 'none', fontSize: '14px', color: 'var(--muted)', cursor: 'pointer' }}>{text("إلغاء", "Cancel")}</button>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("الاسم الشخصي", "Recipient Name")}
+                              <input value={locationForm.recipientName || ""} onChange={(e) => setLocationForm({ ...locationForm, recipientName: e.target.value })} placeholder={text("اسم المستلم", "Full Name")} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("اسم العنوان", "Address label")}
+                              <input value={locationForm.label} onChange={(e) => setLocationForm({ ...locationForm, label: e.target.value })} placeholder={text("مثال: المنزل", "e.g. Home")} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("رقم الهاتف", "Phone number")}
+                              <input type="tel" value={locationForm.phone} onChange={(e) => setLocationForm({ ...locationForm, phone: e.target.value })} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                          </div>
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("العنوان الأول", "Address line 1")}
+                            <input value={locationForm.address1} onChange={(e) => setLocationForm({ ...locationForm, address1: e.target.value })} required placeholder={text("رقم المبنى والشارع", "Building and street")} style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                          </label>
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("العنوان الثاني", "Address line 2")}
+                            <input value={locationForm.address2} onChange={(e) => setLocationForm({ ...locationForm, address2: e.target.value })} placeholder={text("شقة، دور...", "Apt, floor...")} style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("المدينة", "City")}
+                              <input value={locationForm.city} onChange={(e) => setLocationForm({ ...locationForm, city: e.target.value })} required style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("المحافظة", "State")}
+                              <select value={locationForm.state} onChange={(e) => setLocationForm({...locationForm, state: e.target.value}) } style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)', cursor: 'pointer' }}>
+
+                      <option value="">{text("اختر المحافظة", "Select Governorate")}</option>
+                      <option value="القاهرة">القاهرة (Cairo)</option>
+                      <option value="الجيزة">الجيزة (Giza)</option>
+                      <option value="الإسكندرية">الإسكندرية (Alexandria)</option>
+                      <option value="الدقهلية">الدقهلية (Dakahlia)</option>
+                      <option value="الشرقية">الشرقية (Al Sharqia)</option>
+                      <option value="المنوفية">المنوفية (Monufia)</option>
+                      <option value="القليوبية">القليوبية (Qalyubia)</option>
+                      <option value="البحيرة">البحيرة (Beheira)</option>
+                      <option value="الغربية">الغربية (Gharbia)</option>
+                      <option value="بورسعيد">بورسعيد (Port Said)</option>
+                      <option value="دمياط">دمياط (Damietta)</option>
+                      <option value="الإسماعيلية">الإسماعيلية (Ismailia)</option>
+                      <option value="السويس">السويس (Suez)</option>
+                      <option value="كفر الشيخ">كفر الشيخ (Kafr El Sheikh)</option>
+                      <option value="الفيوم">الفيوم (Faiyum)</option>
+                      <option value="بني سويف">بني سويف (Beni Suef)</option>
+                      <option value="مطروح">مطروح (Matrouh)</option>
+                      <option value="شمال سيناء">شمال سيناء (North Sinai)</option>
+                      <option value="جنوب سيناء">جنوب سيناء (South Sinai)</option>
+                      <option value="المنيا">المنيا (Minya)</option>
+                      <option value="أسيوط">أسيوط (Asyut)</option>
+                      <option value="سوهاج">سوهاج (Sohag)</option>
+                      <option value="قنا">قنا (Qena)</option>
+                      <option value="البحر الأحمر">البحر الأحمر (Red Sea)</option>
+                      <option value="الأقصر">الأقصر (Luxor)</option>
+                      <option value="أسوان">أسوان (Aswan)</option>
+                      <option value="الوادي الجديد">الوادي الجديد (New Valley)</option>
+
+                              </select>
+                            </label>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("الرمز البريدي", "Postal Code")}
+                              <input value={locationForm.postalCode || ""} onChange={(e) => setLocationForm({ ...locationForm, postalCode: e.target.value })} style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{text("ملاحظات التوصيل", "Delivery Notes")}
+                              <input value={locationForm.notes || ""} onChange={(e) => setLocationForm({ ...locationForm, notes: e.target.value })} style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--input-bg)', outline: 'none', textAlign: 'start', fontSize: '14px', color: 'var(--text)' }} />
+                            </label>
+                          </div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', marginTop: '8px' }}>
+                            <input type="checkbox" checked={locationForm.isDefault} onChange={(e) => setLocationForm({ ...locationForm, isDefault: e.target.checked })} style={{ width: '18px', height: '18px', accentColor: '#0070f3' }} /> 
+                            {text("استخدام كعنوان أساسي", "Set as default")}
+                          </label>
+                          <button disabled={busy} style={{ background: '#0070f3', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
+                            {busy ? text("جارٍ الحفظ...", "Saving...") : locationForm.id ? text("تحديث", "Update") : text("حفظ", "Save")}
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {status && <div className={styles.status}>{status}</div>}
         </div>
       </section>

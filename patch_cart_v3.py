@@ -1,3 +1,6 @@
+import os
+
+file_content = """\
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
@@ -34,7 +37,7 @@ function CartContent() {
   const [savedLocations, setSavedLocations] = useState([]);
   
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [addressForm, setAddressForm] = useState({ recipientName: "", label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: true });
+  const [addressForm, setAddressForm] = useState({ label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: true });
   const [addressBusy, setAddressBusy] = useState(false);
 
   useEffect(() => {
@@ -80,7 +83,7 @@ function CartContent() {
       setSavedLocations(updatedLocations);
       setShowAddressModal(false);
       setFormData(prev => ({ ...prev, selectedLocationId: newLoc.id }));
-      setAddressForm({ recipientName: "", label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: true });
+      setAddressForm({ label: "", address1: "", address2: "", city: "", state: "", postalCode: "", phone: "", notes: "", isDefault: true });
     } catch (err) {
       alert(err.message);
     } finally {
@@ -185,7 +188,7 @@ function CartContent() {
           <p className="eyebrow">{locale === "ar" ? "سلة Cover Up" : "Your Cart"}</p>
           <h1>{locale === "ar" ? "راجع طلبك قبل التأكيد." : "Review your details."}</h1>
         </div>
-        <Link href="/products" className="button" style={{ background: '#0070f3', color: '#fff', border: 'none' }}>
+        <Link href="/products" className="button button-secondary">
           {locale === "ar" ? "اكمل تسوق" : "Continue Shopping"}
         </Link>
       </section>
@@ -202,7 +205,7 @@ function CartContent() {
                     <div className="cart-page-info">
                       <div className="cart-page-item-head">
                         <h2 style={{ fontSize: '18px', margin: '0 0 8px 0' }}><Link href={`/product?id=${item.id}`}>{displayName}</Link></h2>
-                        <strong style={{ fontSize: '18px', color: '#0070f3' }}>{formatMoney(item.product.price * item.quantity)}</strong>
+                        <strong style={{ fontSize: '18px', color: 'var(--blue)' }}>{formatMoney(item.product.price * item.quantity)}</strong>
                       </div>
                       <div className="cart-page-actions" style={{ marginTop: '16px', background: 'var(--input-bg)', padding: '4px', borderRadius: '8px', display: 'inline-flex' }}>
                         <button type="button" className="quantity-btn" onClick={() => updateQuantity(item.id, item.quantity - 1)}>-</button>
@@ -240,7 +243,7 @@ function CartContent() {
                 <div style={{ display: 'grid', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "عنوان التوصيل" : "Delivery Address"}</label>
-                    <button type="button" onClick={() => setShowAddressModal(true)} style={{ background: 'none', border: 'none', color: '#0070f3', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    <button type="button" onClick={() => setShowAddressModal(true)} style={{ background: 'none', border: 'none', color: 'var(--blue)', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
                       {locale === "ar" ? "+ إضافة أو تغيير عنوان" : "+ Change or Add Address"}
                     </button>
                   </div>
@@ -252,8 +255,8 @@ function CartContent() {
                       <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{selectedLocation.phone}</p>
                     </div>
                   ) : (
-                    <div style={{ padding: '24px', background: 'rgba(0,112,243,0.05)', border: '1px dashed #0070f3', borderRadius: '12px', textAlign: 'center', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
-                      <p style={{ margin: 0, color: '#0070f3', fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "لم يتم تحديد عنوان. انقر هنا للاختيار." : "No address selected. Click to choose."}</p>
+                    <div style={{ padding: '24px', background: 'rgba(0,112,243,0.05)', border: '1px dashed var(--blue)', borderRadius: '12px', textAlign: 'center', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
+                      <p style={{ margin: 0, color: 'var(--blue)', fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "لم يتم تحديد عنوان. انقر هنا للاختيار." : "No address selected. Click to choose."}</p>
                     </div>
                   )}
                 </div>
@@ -271,14 +274,14 @@ function CartContent() {
                 <label style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '12px', display: 'block' }}>{locale === "ar" ? "طريقة الدفع" : "Payment Method"}</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div 
-                    style={{ padding: '16px', background: formData.paymentMethod === 'cash' ? '#0070f3' : 'var(--input-bg)', color: formData.paymentMethod === 'cash' ? '#fff' : 'var(--text)', border: formData.paymentMethod === 'cash' ? 'none' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s ease', boxShadow: formData.paymentMethod === 'cash' ? '0 8px 24px rgba(0, 112, 243, 0.4)' : 'none' }}
+                    style={{ padding: '16px', background: formData.paymentMethod === 'cash' ? 'var(--blue)' : 'var(--input-bg)', color: formData.paymentMethod === 'cash' ? '#fff' : 'var(--text)', border: formData.paymentMethod === 'cash' ? 'none' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s ease', boxShadow: formData.paymentMethod === 'cash' ? '0 8px 24px rgba(0, 112, 243, 0.4)' : 'none' }}
                     onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
                   >
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
                     <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{locale === "ar" ? "كاش" : "Cash"}</span>
                   </div>
                   <div 
-                    style={{ padding: '16px', background: formData.paymentMethod === 'online' ? '#0070f3' : 'var(--input-bg)', color: formData.paymentMethod === 'online' ? '#fff' : 'var(--text)', border: formData.paymentMethod === 'online' ? 'none' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s ease', boxShadow: formData.paymentMethod === 'online' ? '0 8px 24px rgba(0, 112, 243, 0.4)' : 'none' }}
+                    style={{ padding: '16px', background: formData.paymentMethod === 'online' ? 'var(--blue)' : 'var(--input-bg)', color: formData.paymentMethod === 'online' ? '#fff' : 'var(--text)', border: formData.paymentMethod === 'online' ? 'none' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s ease', boxShadow: formData.paymentMethod === 'online' ? '0 8px 24px rgba(0, 112, 243, 0.4)' : 'none' }}
                     onClick={() => setFormData({...formData, paymentMethod: 'online'})}
                   >
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
@@ -287,7 +290,7 @@ function CartContent() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{locale === "ar" ? "كوبون الخصم" : "Discount Coupon"}</label>
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid var(--line)', paddingBottom: '8px' }}>
@@ -300,12 +303,6 @@ function CartContent() {
                   <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid var(--line)', paddingBottom: '8px' }}>
                     <input style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '15px', color: 'var(--text)' }} name="tipAmount" type="number" min="0" placeholder="0" value={formData.tipAmount} onChange={(e) => setFormData(prev => ({...prev, tipAmount: e.target.value}))} />
                     <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 'bold' }}>{locale === "ar" ? "ج.م" : "EGP"}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--muted)' }}>{locale === "ar" ? "ملاحظات إضافية (اختياري)" : "Additional Notes (Optional)"}</label>
-                  <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid var(--line)', paddingBottom: '8px' }}>
-                    <input style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '15px', color: 'var(--text)' }} name="notes" type="text" placeholder={locale === "ar" ? "اكتب أي ملاحظات للطلب هنا..." : "Any special requests..."} value={formData.notes} onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))} />
                   </div>
                 </div>
               </div>
@@ -336,7 +333,7 @@ function CartContent() {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: 'bold', marginTop: '12px' }}>
                 <span>{locale === "ar" ? "الإجمالي النهائي" : "Grand Total"}</span>
-                <b style={{ color: '#0070f3' }}>{formatMoney(grandTotal + (Number(formData.tipAmount) || 0))}</b>
+                <b style={{ color: 'var(--blue)' }}>{formatMoney(grandTotal + (Number(formData.tipAmount) || 0))}</b>
               </div>
             </div>
 
@@ -381,9 +378,9 @@ function CartContent() {
                   <div 
                     key={loc.id} 
                     onClick={() => { setFormData(prev => ({...prev, selectedLocationId: loc.id})); setShowAddressModal(false); }}
-                    style={{ padding: '16px', background: formData.selectedLocationId === loc.id ? 'rgba(0,112,243,0.05)' : 'var(--input-bg)', border: formData.selectedLocationId === loc.id ? '2px solid #0070f3' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
+                    style={{ padding: '16px', background: formData.selectedLocationId === loc.id ? 'rgba(0,112,243,0.05)' : 'var(--input-bg)', border: formData.selectedLocationId === loc.id ? '2px solid var(--blue)' : '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
                   >
-                    <strong style={{ display: 'block', fontSize: '15px', color: formData.selectedLocationId === loc.id ? '#0070f3' : 'var(--text)' }}>{loc.label}</strong>
+                    <strong style={{ display: 'block', fontSize: '15px', color: formData.selectedLocationId === loc.id ? 'var(--blue)' : 'var(--text)' }}>{loc.label}</strong>
                     <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{loc.address1}, {loc.city}</p>
                   </div>
                 ))}
@@ -394,14 +391,9 @@ function CartContent() {
               <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>{locale === "ar" ? "إضافة عنوان جديد" : "Add New Address"}</h3>
               <form onSubmit={saveNewAddress} style={{ display: 'grid', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "الاسم الشخصي" : "Recipient Name"}
-                    <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.recipientName} onChange={(e) => setAddressForm({...addressForm, recipientName: e.target.value})} placeholder={locale === "ar" ? "اسم المستلم" : "Full Name"} required />
-                  </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "اسم العنوان" : "Address Label"}
                     <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.label} onChange={(e) => setAddressForm({...addressForm, label: e.target.value})} placeholder={locale === "ar" ? "المنزل" : "Home"} required />
                   </label>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "رقم الهاتف" : "Phone"}
                     <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} type="tel" value={addressForm.phone} onChange={(e) => setAddressForm({...addressForm, phone: e.target.value})} required />
                   </label>
@@ -409,61 +401,15 @@ function CartContent() {
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "العنوان الأول" : "Address Line 1"}
                   <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.address1} onChange={(e) => setAddressForm({...addressForm, address1: e.target.value})} required placeholder={locale === "ar" ? "رقم المبنى والشارع" : "Building and street"} />
                 </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "العنوان الثاني" : "Address Line 2"}
-                  <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.address2} onChange={(e) => setAddressForm({...addressForm, address2: e.target.value})} placeholder={locale === "ar" ? "الشقة، الدور، العلامة المميزة" : "Apartment, floor, landmark"} />
-                </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "المدينة" : "City"}
                     <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.city} onChange={(e) => setAddressForm({...addressForm, city: e.target.value})} required />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "المحافظة" : "State"}
-                    <select style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)', cursor: 'pointer' }} value={addressForm.state} onChange={(e) => setAddressForm({...addressForm, state: e.target.value})}>
-
-                      <option value="">{locale === "ar" ? "اختر المحافظة" : "Select Governorate"}</option>
-                      <option value="القاهرة">القاهرة (Cairo)</option>
-                      <option value="الجيزة">الجيزة (Giza)</option>
-                      <option value="الإسكندرية">الإسكندرية (Alexandria)</option>
-                      <option value="الدقهلية">الدقهلية (Dakahlia)</option>
-                      <option value="الشرقية">الشرقية (Al Sharqia)</option>
-                      <option value="المنوفية">المنوفية (Monufia)</option>
-                      <option value="القليوبية">القليوبية (Qalyubia)</option>
-                      <option value="البحيرة">البحيرة (Beheira)</option>
-                      <option value="الغربية">الغربية (Gharbia)</option>
-                      <option value="بورسعيد">بورسعيد (Port Said)</option>
-                      <option value="دمياط">دمياط (Damietta)</option>
-                      <option value="الإسماعيلية">الإسماعيلية (Ismailia)</option>
-                      <option value="السويس">السويس (Suez)</option>
-                      <option value="كفر الشيخ">كفر الشيخ (Kafr El Sheikh)</option>
-                      <option value="الفيوم">الفيوم (Faiyum)</option>
-                      <option value="بني سويف">بني سويف (Beni Suef)</option>
-                      <option value="مطروح">مطروح (Matrouh)</option>
-                      <option value="شمال سيناء">شمال سيناء (North Sinai)</option>
-                      <option value="جنوب سيناء">جنوب سيناء (South Sinai)</option>
-                      <option value="المنيا">المنيا (Minya)</option>
-                      <option value="أسيوط">أسيوط (Asyut)</option>
-                      <option value="سوهاج">سوهاج (Sohag)</option>
-                      <option value="قنا">قنا (Qena)</option>
-                      <option value="البحر الأحمر">البحر الأحمر (Red Sea)</option>
-                      <option value="الأقصر">الأقصر (Luxor)</option>
-                      <option value="أسوان">أسوان (Aswan)</option>
-                      <option value="الوادي الجديد">الوادي الجديد (New Valley)</option>
-
-                    </select>
+                    <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.state} onChange={(e) => setAddressForm({...addressForm, state: e.target.value})} />
                   </label>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "الرمز البريدي" : "Postal Code"}
-                    <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.postalCode} onChange={(e) => setAddressForm({...addressForm, postalCode: e.target.value})} />
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', fontWeight: 'bold' }}>{locale === "ar" ? "ملاحظات التوصيل" : "Delivery Notes"}
-                    <input style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', outline: 'none', fontSize: '14px', color: 'var(--text)' }} value={addressForm.notes} onChange={(e) => setAddressForm({...addressForm, notes: e.target.value})} />
-                  </label>
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', marginTop: '8px' }}>
-                  <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} style={{ width: '18px', height: '18px', accentColor: '#0070f3' }} /> 
-                  {locale === "ar" ? "استخدام كعنوان أساسي" : "Set as default"}
-                </label>
-                <button type="submit" disabled={addressBusy} style={{ padding: '16px', borderRadius: '12px', border: 'none', background: '#0070f3', color: 'white', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
+                <button type="submit" disabled={addressBusy} style={{ padding: '16px', borderRadius: '12px', border: 'none', background: 'var(--blue)', color: 'white', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
                   {addressBusy ? (locale === "ar" ? "جارٍ الحفظ..." : "Saving...") : (locale === "ar" ? "حفظ واستخدام العنوان" : "Save & Use Address")}
                 </button>
               </form>
@@ -482,3 +428,7 @@ export default function CartPage() {
     </Suspense>
   );
 }
+"""
+
+with open("src/app/cart/page.js", "w", encoding="utf-8") as f:
+    f.write(file_content)

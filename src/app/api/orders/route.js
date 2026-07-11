@@ -149,8 +149,10 @@ export async function POST(request) {
     const discount = applyCoupon(subtotal, body.discountCode);
     const method = isPosOrder ? "pickup" : cleanText(body.deliveryMethod, 80) || "delivery";
     const paymentMethod = cleanText(body.paymentMethod, 40) || "cash";
+    const tipAmount = Math.max(0, Number(body.tipAmount) || 0);
+    const branchLocation = cleanText(body.branchLocation, 200) || "";
     const fee = deliveryFee(method);
-    const grandTotal = Math.max(0, subtotal - discount.amount + fee);
+    const grandTotal = Math.max(0, subtotal - discount.amount + fee) + tipAmount;
     const savedLocation = Array.isArray(customer?.location)
       ? (customer.location.find((location) => location.isDefault) || customer.location[0])
       : null;
@@ -203,6 +205,8 @@ export async function POST(request) {
       location_link: customerPayload.location_link,
       notes: cleanText(body.notes, 500),
       inventory_reserved: false,
+      tip_amount: tipAmount,
+      branch_location: branchLocation,
     });
 
     if (paymentMethod !== "online") {

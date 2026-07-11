@@ -3826,10 +3826,7 @@ body {
   }
 
   .amazon-sidebar {
-    position: static;
-    max-height: none;
-    padding: 16px;
-    border-radius: 14px;
+    display: none !important;
   }
 
   .sidebar-categories {

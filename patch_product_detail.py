@@ -1,4 +1,6 @@
-"use client";
+import sys
+
+new_content = """"use client";
 
 import React, { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -266,3 +268,9 @@ export default function ProductDetailPage() {
     </Suspense>
   );
 }
+"""
+
+with open("src/app/product/page.js", "w", encoding="utf-8") as f:
+    f.write(new_content)
+
+print("Product page successfully completely overhauled!")

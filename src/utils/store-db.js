@@ -288,6 +288,8 @@ function orderFromDb(row) {
     location_link: row.location_link || "",
     notes: row.notes || "",
     inventory_reserved: Boolean(row.inventory_reserved),
+    tip_amount: Number(row.tip_amount || 0),
+    branch_location: row.branch_location || "",
     created_at: row.created_at,
     updated_at: row.updated_at || row.created_at,
   };
@@ -310,8 +312,6 @@ function reviewFromDb(row) {
 
 async function getProducts(ids = []) {
   const query = ids.length
-    ? `?select=*&is_active=eq.true&id=in.(${ids.map((id) => encodeURIComponent(id)).join(",")})&order=created_at.asc`
-    : "?select=*&is_active=eq.true&order=created_at.asc";
 
   const rows = await supabaseRequest(TABLES.products, { query });
   return rows.map(productFromDb);
