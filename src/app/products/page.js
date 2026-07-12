@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/utils/supabase";
 import { useLanguage } from "../../context/LanguageContext";
 import { useCart } from "../../context/CartContext";
 
@@ -154,6 +155,8 @@ function ShopContent() {
   const [sortBy, setSortBy] = useState("default");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [wishlist, setWishlist] = useState([]);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
   // Sync state with url changes
   useEffect(() => {
@@ -173,10 +176,32 @@ function ShopContent() {
       })
       .catch(() => {});
 
-    try {
-      const saved = localStorage.getItem("coverup-wishlist");
-      if (saved) setWishlist(JSON.parse(saved));
-    } catch {}
+    const loadWishlist = async () => {
+      let localWish = [];
+      try {
+        const saved = localStorage.getItem("coverup-wishlist");
+        if (saved) {
+          localWish = JSON.parse(saved);
+          setWishlist(localWish);
+        }
+      } catch {}
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const res = await fetch("/api/favorites", {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && Array.isArray(data.products)) {
+            const dbIds = data.products.map(p => p.id);
+            setWishlist(dbIds);
+            localStorage.setItem("coverup-wishlist", JSON.stringify(dbIds));
+          }
+        }
+      } catch {}
+    };
+    loadWishlist();
   }, []);
 
   // Update query params helper
@@ -193,10 +218,32 @@ function ShopContent() {
   };
 
   // Toggle wishlist helper
-  const toggleWishlist = (id) => {
-    const next = wishlist.includes(id) ? wishlist.filter((x) => x !== id) : [...wishlist, id];
+  const toggleWishlist = async (id) => {
+    const isFav = wishlist.includes(id);
+    const next = isFav ? wishlist.filter((x) => x !== id) : [...wishlist, id];
     setWishlist(next);
     localStorage.setItem("coverup-wishlist", JSON.stringify(next));
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        if (isFav) {
+          await fetch(`/api/favorites?productId=${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+        } else {
+          await fetch("/api/favorites", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ productId: id })
+          });
+        }
+      }
+    } catch {}
   };
 
   // Collect unique categories dynamically
@@ -252,6 +299,22 @@ function ShopContent() {
       });
     }
 
+    // Min price filter
+    if (minPrice.trim() !== "") {
+      const minVal = parseFloat(minPrice);
+      if (!isNaN(minVal)) {
+        result = result.filter((p) => p.price >= minVal);
+      }
+    }
+
+    // Max price filter
+    if (maxPrice.trim() !== "") {
+      const maxVal = parseFloat(maxPrice);
+      if (!isNaN(maxVal)) {
+        result = result.filter((p) => p.price <= maxVal);
+      }
+    }
+
     // Sort by price
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.price - b.price);
@@ -260,7 +323,7 @@ function ShopContent() {
     }
 
     return result;
-  }, [products, searchQuery, selectedCategory, selectedModel, sortBy, locale]);
+  }, [products, searchQuery, selectedCategory, selectedModel, sortBy, locale, minPrice, maxPrice]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -333,27 +396,6 @@ function ShopContent() {
       <div className="amazon-layout-container">
         {/* Desktop Sidebar (Hidden on mobile) */}
         <aside className="amazon-sidebar">
-          {/* Search Field for Sidebar */}
-          <div className="sidebar-section">
-            <h3>{locale === "ar" ? "البحث في المتجر" : "Search Shop"}</h3>
-            <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: "8px" }}>
-              <input
-                type="search"
-                className="sidebar-select"
-                style={{ padding: "8px 12px", fontSize: "13.5px" }}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={locale === "ar" ? "اكتب للبحث..." : "Type here..."}
-              />
-              <button
-                type="submit"
-                className="button button-primary"
-                style={{ padding: "8px 12px", minHeight: "auto", borderRadius: "14px" }}
-              >
-                {locale === "ar" ? "بث" : "Go"}
-              </button>
-            </form>
-          </div>
 
           {/* Model Filter Section */}
           <div className="sidebar-section">
@@ -370,6 +412,30 @@ function ShopContent() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Price Range Filter Section */}
+          <div className="sidebar-section">
+            <h3>{locale === "ar" ? "نطاق السعر (ج.م)" : "Price Range (EGP)"}</h3>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <input
+                type="number"
+                className="sidebar-select"
+                style={{ padding: "8px 12px", fontSize: "13.5px", width: "100%", border: "1.5px solid #0070f3", outline: "none", background: "var(--input-bg)", color: "var(--text)" }}
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                placeholder={locale === "ar" ? "من" : "Min"}
+              />
+              <span style={{ color: "var(--muted)" }}>-</span>
+              <input
+                type="number"
+                className="sidebar-select"
+                style={{ padding: "8px 12px", fontSize: "13.5px", width: "100%", border: "1.5px solid #0070f3", outline: "none", background: "var(--input-bg)", color: "var(--text)" }}
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                placeholder={locale === "ar" ? "إلى" : "Max"}
+              />
+            </div>
           </div>
 
           {/* Category Filter Section */}
@@ -471,12 +537,11 @@ function ShopContent() {
                         <Link href={`/product?id=${p.id}`}>{displayName}</Link>
                       </h2>
 
-                      {/* Mock rating bar */}
-                      <div className="amazon-rating-row">
-                        <span className="rating-score">4.9</span>
-                        <span className="rating-stars">★★★★★</span>
-                        <span className="rating-chevron">›</span>
-                        <span className="rating-count">({Math.floor(p.price / 8) + 12})</span>
+                      {/* Quantity remaining */}
+                      <div style={{ fontSize: "12.5px", color: p.is_in_stock === false || (p.stock_quantity || 0) === 0 ? "#ff4d4d" : "#4caf50", fontWeight: "bold", margin: "4px 0" }}>
+                        {locale === "ar"
+                          ? (p.is_in_stock === false || (p.stock_quantity || 0) === 0 ? "نفد من المخزون" : `المتبقي في المخزون: ${p.stock_quantity || 0} قطع`)
+                          : (p.is_in_stock === false || (p.stock_quantity || 0) === 0 ? "Out of stock" : `Only ${p.stock_quantity || 0} left in stock`)}
                       </div>
 
                       {/* Pricing block */}
@@ -538,7 +603,7 @@ function ShopContent() {
           <line x1="9" y1="8" x2="15" y2="8"></line>
           <line x1="17" y1="16" x2="23" y2="16"></line>
         </svg>
-        <span>{locale === "ar" ? "تصفية وتحديد" : "Filters & Search"}</span>
+        <span>{locale === "ar" ? "تصفية" : "Filters"}</span>
       </button>
 
       {/* Mobile Full Screen Filter Sheet / Overlay */}
@@ -556,17 +621,6 @@ function ShopContent() {
           </div>
 
           <div className="mobile-filters-content">
-            {/* Search Input */}
-            <div className="filter-group">
-              <h3>{locale === "ar" ? "البحث بالاسم" : "Search Name"}</h3>
-              <input
-                type="search"
-                className="sidebar-select"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={locale === "ar" ? "اكتب اسم المنتج أو الموديل..." : "Search..."}
-              />
-            </div>
 
             {/* Model Filter Option */}
             <div className="filter-group">
@@ -608,6 +662,30 @@ function ShopContent() {
                 ))}
               </div>
             </div>
+
+             {/* Price Range Filter Section */}
+             <div className="filter-group">
+               <h3>{locale === "ar" ? "نطاق السعر (ج.م)" : "Price Range (EGP)"}</h3>
+               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                 <input
+                   type="number"
+                   className="sidebar-select"
+                   style={{ padding: "10px 14px", fontSize: "14px", width: "100%", border: "1.5px solid #0070f3", outline: "none", background: "var(--input-bg)", color: "var(--text)" }}
+                   value={minPrice}
+                   onChange={(e) => setMinPrice(e.target.value)}
+                   placeholder={locale === "ar" ? "من" : "Min"}
+                 />
+                 <span style={{ color: "var(--muted)" }}>-</span>
+                 <input
+                   type="number"
+                   className="sidebar-select"
+                   style={{ padding: "10px 14px", fontSize: "14px", width: "100%", border: "1.5px solid #0070f3", outline: "none", background: "var(--input-bg)", color: "var(--text)" }}
+                   value={maxPrice}
+                   onChange={(e) => setMaxPrice(e.target.value)}
+                   placeholder={locale === "ar" ? "إلى" : "Max"}
+                 />
+               </div>
+             </div>
 
             {/* Sorting selector inside mobile sheet */}
             <div className="filter-group">

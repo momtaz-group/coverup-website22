@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
@@ -73,6 +73,87 @@ export default function HomePage() {
   const [chatPhone, setChatPhone] = useState(null);
   const [isChatSelection, setIsChatSelection] = useState(false);
   const [messages, setMessages] = useState(() => [{ who: "ai", text: text("Hey, I’m Memo. Tell me your phone and I’ll help you find something that actually fits.", "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد.") }]);
+  const [inputText, setInputText] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const idleVideoRef = useRef(null);
+  const searchVideoRef = useRef(null);
+
+  const [activeVideo, setActiveVideo] = useState("idle");
+  const [targetVideoState, setTargetVideoState] = useState("idle");
+  
+  useEffect(() => {
+    setTargetVideoState((inputText.trim().length > 0 || aiBusy) ? "searching" : "idle");
+  }, [inputText, aiBusy]);
+
+  const handleVideoEnded = (type) => {
+    if (activeVideo !== type) return;
+
+    if (activeVideo !== targetVideoState) {
+      setActiveVideo(targetVideoState);
+      const nextRef = targetVideoState === "idle" ? idleVideoRef.current : searchVideoRef.current;
+      if (nextRef) {
+        nextRef.currentTime = 0;
+        nextRef.play().catch(()=>{});
+      }
+    } else {
+      const currentRef = activeVideo === "idle" ? idleVideoRef.current : searchVideoRef.current;
+      if (currentRef) {
+        currentRef.currentTime = 0;
+        currentRef.play().catch(()=>{});
+      }
+    }
+  };
+
+  const handleSendGpt = (e) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+
+    const userMessage = inputText.trim();
+    setInputText("");
+
+    setMessages((current) => [
+      ...current,
+      { who: "user", text: userMessage }
+    ]);
+    
+    setAiBusy(true);
+
+    setTimeout(() => {
+      const lower = userMessage.toLowerCase();
+      let matchedPhone = null;
+      for (const p of MODELS) {
+        if (lower.includes(p.name.toLowerCase()) || (lower.includes(p.brand.toLowerCase()) && lower.includes(p.name.split(" ")[1]?.toLowerCase()))) {
+          matchedPhone = p;
+          break;
+        }
+      }
+
+      if (matchedPhone) {
+        setChatPhone({ brand: matchedPhone.brand, model: matchedPhone.name });
+        setMessages((current) => [
+          ...current,
+          { 
+            who: "ai", 
+            text: ar 
+              ? `ممتاز! قمت باختيار ${matchedPhone.brand} ${matchedPhone.name} لك. لقد قمت بتحميل الكفرات وإسكرينات الحماية المتوافقة معه بالكامل.`
+              : `Perfect! I've set your phone to ${matchedPhone.brand} ${matchedPhone.name}. I've loaded the compatible cases and screen protectors for you.` 
+          }
+        ]);
+      } else {
+        setMessages((current) => [
+          ...current,
+          { 
+            who: "ai", 
+            text: ar
+              ? `فهمتك! حدد نوع هاتفك من زر "اختر هاتف محمول" في الأعلى أو اكتب اسم موديل هاتفك لأتمكن من إظهار الكفرات والحماية المتوافقة معه بالكامل.`
+              : `Got it! Please choose your phone using the "Choose Mobile Phone" button at the top-left or write your phone model so I can show compatible accessories.` 
+          }
+        ]);
+      }
+      setAiBusy(false);
+    }, 600);
+  };
   
   // Carousel State & Logic
   const [activeIndex, setActiveIndex] = useState(2);
@@ -151,10 +232,19 @@ export default function HomePage() {
     setMessages((current) => [
       ...current,
       ...(promptText ? [{ who: "user", text: promptText }] : []),
-      { who: "ai", text: text("Nice. Choose a phone model, and I’ll load the right shelf for you.", "تمام. حدد موديل موبايلك وهحملك الرف المناسب ليه.") }
     ]);
-    setIsChatSelection(true);
-    setModal(true);
+    
+    setAiBusy(true);
+    
+    setTimeout(() => {
+      setMessages((current) => [
+        ...current,
+        { who: "ai", text: text("Nice. Choose a phone model, and I’ll load the right shelf for you.", "تمام. حدد موديل موبايلك وهحملك الرف المناسب ليه.") }
+      ]);
+      setIsChatSelection(true);
+      setModal(true);
+      setAiBusy(false);
+    }, 800);
   };
 
   const savePhone = async (event) => {
@@ -181,74 +271,131 @@ export default function HomePage() {
     setCustom(false);
   };
   return <main className={styles.home} dir={ar ? "rtl" : "ltr"}>
-    <section className={styles.hero}>
-      <div className={styles.heroIntro}>
-        <span className={styles.eyebrow}>{text("SMART PROTECTION, SIMPLIFIED", "حماية ذكية، ببساطة")}</span>
-        <h1>{text("Ask Memo. Find the perfect fit.", "اسأل Memo واعثر على المقاس الصح.")}</h1>
+    <section className={styles.heroNew}>
+      <div className={styles.heroTitleContainer}>
+        <h1>{text("Ask Memo and he'll help you find what you're looking for", "اسأل Memo وسيساعدك في العثور على ما تبحث عنه")}</h1>
+      </div>
+
+      <div className={styles.heroContentRow}>
+        <div className={styles.heroMascotCol}>
+          <div className={styles.mascotVideoWrapper}>
+            <video 
+              ref={idleVideoRef}
+              src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/idle.webm"
+              onEnded={() => handleVideoEnded("idle")}
+              className={`${styles.mascotImage} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
+              muted 
+              playsInline
+              autoPlay
+            />
+            <video 
+              ref={searchVideoRef}
+              src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/Searching.webm"
+              onEnded={() => handleVideoEnded("searching")}
+              className={`${styles.mascotImage} ${styles.mascotImageAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
+              muted 
+              playsInline
+              autoPlay
+            />
+            <div 
+              className={styles.videoProtectionOverlay} 
+              onContextMenu={(e) => e.preventDefault()} 
+            />
+          </div>
+        </div>
+        
+        <div className={styles.heroChatCol}>
+          <div className={styles.chatCardGpt}>
+            <div className={styles.chatHeaderGpt}>
+              <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
+                <span>{chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "Choose Mobile Phone")}</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M7 10l5 5 5-5H7z" />
+                </svg>
+              </button>
+              
+              <div className={styles.headerRightGpt}>
+                <span className={styles.aiStatusLabel}>Memo</span>
+                <div className={styles.headerAvatarWrapper}>
+                  <img src="/assets/memo-profile.png" alt="Memo" className={styles.headerMemoImg} />
+                  <i className={styles.statusDotGpt} />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.messagesGpt}>
+              {messages.map((message, index) => (
+                <div key={index} className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>
+                  <div className={styles.avatarGpt}>
+                    {message.who === "ai" ? (
+                      <img src="/assets/memo-profile.png" alt="Memo" className={styles.memoProfileImg} />
+                    ) : (
+                      "U"
+                    )}
+                  </div>
+                  <div className={styles.msgBubbleGpt}>
+                    {message.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleSendGpt} className={styles.inputFormGpt}>
+              {/* Suggestion chips, only when no chat phone */}
+              {!chatPhone && (
+                <div className={styles.chipsGpt}>
+                  <button type="button" onClick={() => ask(text("I need a case", "أحتاج جراباً"))} className={styles.chipGpt}>
+                    {text("I need a case", "أحتاج جراباً")}
+                  </button>
+                  <button type="button" onClick={() => ask(text("I need a screen protector", "أحتاج اسكرينة"))} className={styles.chipGpt}>
+                    {text("Screen protector", "اسكرينة")}
+                  </button>
+                </div>
+              )}
+              {chatPhone && (
+                <div className={styles.chipsGpt}>
+                  <Link 
+                    href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "كفرات" : "Cases")}`}
+                    className={styles.chipGpt}
+                  >
+                    {text(`View cases`, `عرض الكفرات`)}
+                  </Link>
+                  <Link 
+                    href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "حماية الشاشة" : "Screen Protection")}`}
+                    className={styles.chipGpt}
+                  >
+                    {text(`View protectors`, `عرض الحماية`)}
+                  </Link>
+                  <button type="button" onClick={openChatPhoneSelection} className={styles.chipGpt}>
+                    {text("Change phone", "تغيير الموبايل")}
+                  </button>
+                </div>
+              )}
+              <div className={styles.inputRowGpt}>
+                <input 
+                  type="text" 
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder={text("Message Memo...", "اسأل Memo...")}
+                  className={styles.textInputGpt}
+                />
+                <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim()} aria-label="Send">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.heroDescriptionContainer}>
         <p>{text("A quick chat is all it takes to find accessories made for your exact phone.", "محادثة قصيرة تكفي لتجد الإكسسوارات المصممة لموبايلك بالضبط.")}</p>
         <div className={styles.trust}>
           <span>✓ {text("Exact model match", "مطابقة دقيقة للموديل")}</span>
           <span>✓ {text("Fast delivery", "توصيل سريع")}</span>
         </div>
-      </div>
-      <div className={styles.chatCard}>
-        <div className={styles.chatHeader}>
-          <span className={styles.aiMark}>M</span>
-          <div>
-            <strong>Memo</strong>
-            <small>{text("Knows the shelves · awake", "حافظ الرفوف · صاحي")}</small>
-          </div>
-          <i />
-        </div>
-        <div className={styles.messages}>
-          {messages.map((message, index) => (
-            <p key={index} className={message.who === "ai" ? styles.aiMessage : styles.userMessage}>
-              {message.text}
-            </p>
-          ))}
-        </div>
-        <div className={styles.chips}>
-          {chatPhone ? (
-            <>
-              <Link 
-                href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "كفرات" : "Cases")}`}
-                className={styles.chipLink}
-              >
-                {text(`View cases for ${chatPhone.model}`, `عرض جرابات لـ ${chatPhone.model}`)}
-              </Link>
-              <Link 
-                href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "حماية الشاشة" : "Screen Protection")}`}
-                className={styles.chipLink}
-              >
-                {text(`View screen protectors`, `عرض اسكرينات لـ ${chatPhone.model}`)}
-              </Link>
-              <Link 
-                href={`/family-visit?model=${encodeURIComponent(chatPhone.model)}`}
-                className={styles.chipLink}
-              >
-                {text("Order family installation visit", "اطلب تركيب على الباب")}
-              </Link>
-              <button 
-                type="button" 
-                onClick={openChatPhoneSelection}
-                style={{ background: "var(--panel-soft)", color: "var(--text)" }}
-              >
-                {text("Change phone", "تغيير الموبايل")}
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => ask(text("I need a case", "أحتاج جراباً"))}>{text("I need a case", "أحتاج جراباً")}</button>
-              <button onClick={() => ask(text("I need a screen protector", "أحتاج اسكرينة"))}>{text("Screen protector", "اسكرينة")}</button>
-            </>
-          )}
-        </div>
-        <button className={styles.chatButton} onClick={openChatPhoneSelection}>
-          {chatPhone 
-            ? text(`Active Phone: ${chatPhone.brand} ${chatPhone.model}`, `الهاتف الحالي: ${chatPhone.brand} ${chatPhone.model}`) 
-            : text("Choose my phone", "اختيار موبايلك")} 
-          <span>→</span>
-        </button>
       </div>
     </section>
 

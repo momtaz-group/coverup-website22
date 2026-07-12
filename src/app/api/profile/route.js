@@ -32,6 +32,7 @@ function normalizeLocations(value) {
   const locations = value.slice(0, 3).map((item, index) => ({
     id: cleanText(item?.id, 80) || `location-${index + 1}`,
     label: cleanText(item?.label, 60) || `Address ${index + 1}`,
+    recipientName: cleanText(item?.recipientName, 120),
     address1: cleanText(item?.address1, 180),
     address2: cleanText(item?.address2, 180),
     city: cleanText(item?.city, 100),

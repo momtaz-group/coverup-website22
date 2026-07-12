@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AccountTabIcon from "@/components/AccountTabIcon";
@@ -11,6 +12,124 @@ import styles from "./page.module.css";
 const CODE_LENGTH = 8;
 const emptyCode = () => Array(CODE_LENGTH).fill("");
 const MAX_LOCATIONS = 3;
+
+function FavoritesTabComponent({ locale, text }) {
+  const [favProducts, setFavProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  const loadFavorites = async () => {
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setErr(locale === "ar" ? "يرجى تسجيل الدخول أولاً." : "Please sign in first.");
+        setLoading(false);
+        return;
+      }
+      const res = await fetch("/api/favorites", {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load favorites");
+      }
+      setFavProducts(data.products || []);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  const handleRemove = async (productId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(`/api/favorites?productId=${encodeURIComponent(productId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (res.ok) {
+        setFavProducts(prev => prev.filter(p => p.id !== productId));
+        try {
+          const saved = localStorage.getItem("coverup-wishlist");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const next = parsed.filter(id => id !== productId);
+            localStorage.setItem("coverup-wishlist", JSON.stringify(next));
+          }
+        } catch {}
+      }
+    } catch {}
+  };
+
+  if (loading) {
+    return <p style={{ fontSize: '15px', color: 'var(--muted)', textAlign: 'start' }}>{locale === "ar" ? "جارٍ التحميل..." : "Loading..."}</p>;
+  }
+
+  if (err) {
+    return <p style={{ color: "#ff4d4d", textAlign: 'start' }}>{err}</p>;
+  }
+
+  if (favProducts.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "32px 0" }}>
+        <p style={{ color: "var(--muted)", fontSize: "15px", marginBottom: "16px" }}>
+          {locale === "ar" ? "قائمة المفضلة فارغة حالياً." : "Your favorites list is currently empty."}
+        </p>
+        <Link 
+          href="/products" 
+          style={{ display: "inline-block", background: "#0070f3", color: "#fff", padding: "10px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: "bold", fontSize: "14px" }}
+        >
+          {locale === "ar" ? "تصفح المنتجات" : "Browse Products"}
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+      <h3 style={{ margin: "0 0 20px", fontSize: "18px", textAlign: 'start' }}>{locale === "ar" ? "المنتجات المفضلة" : "My Favorites"}</h3>
+      <div style={{ display: "flex", gap: "20px", overflowX: "auto", paddingBottom: "16px", scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }}>
+        {favProducts.map(p => {
+          const pName = locale === "en" && p.name_en ? p.name_en : p.name;
+          const pCat = locale === "en" && p.category_en ? p.category_en : p.category;
+          return (
+            <article key={p.id} style={{ flexShrink: 0, width: "180px", background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)', padding: '16px', position: 'relative', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => handleRemove(p.id)}
+                style={{ position: 'absolute', top: '12px', left: locale === 'ar' ? '12px' : 'auto', right: locale === 'en' ? '12px' : 'auto', background: 'rgba(255, 77, 77, 0.1)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}
+                title={locale === "ar" ? "حذف من المفضلة" : "Remove from favorites"}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#ff4d4d" stroke="#ff4d4d" strokeWidth="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
+              <Link href={`/product?id=${p.id}`} style={{ display: 'block', height: '140px', borderRadius: '10px', overflow: 'hidden', background: 'var(--input-bg)' }}>
+                <img src={p.image} alt={pName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </Link>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'start' }}>
+                <span style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' }}>{pCat}</span>
+                <h4 style={{ fontSize: '13px', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }}>
+                  <Link href={`/product?id=${p.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{pName}</Link>
+                </h4>
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#0070f3', textAlign: 'start' }}>
+                {new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-US", { style: "currency", currency: "EGP", maximumFractionDigits: 0 }).format(p.price)}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function AccountPage() {
   const router = useRouter();
@@ -54,6 +173,7 @@ export default function AccountPage() {
     { id: "email", label: text("البريد الإلكتروني", "Email"), description: text("عنوان تسجيل الدخول", "Sign-in address"), icon: "email" },
     { id: "password", label: text("كلمة المرور", "Password"), description: text("تحديث بيانات الأمان", "Update security details"), icon: "password" },
     { id: "location", label: text("العناوين", "Addresses"), description: text("العناوين المحفوظة والافتراضية", "Saved and default addresses"), icon: "location" },
+    { id: "favorites", label: text("المفضلة", "My Favorites"), description: text("المنتجات التي نالت إعجابك", "Products you liked"), icon: "favorites" },
   ];
 
   useEffect(() => {
@@ -636,17 +756,17 @@ export default function AccountPage() {
   };
 
   const title = {
-    email: "تسجيل الدخول",
-    password: "أهلاً بعودتك",
-    name: "إنشاء حساب",
-    "signup-email": "البريد الإلكتروني",
-    "signup-password": "كلمة المرور",
-    verify: "تأكيد البريد",
-    "forgot-email": "استعادة كلمة المرور",
-    "forgot-verify": "رمز التحقق للاستعادة",
-    "reset-password": "كلمة المرور الجديدة",
-    "signed-in": "تم تسجيل الدخول",
-    "loading": "جارٍ التحميل...",
+    email: text("تسجيل الدخول", "Sign In"),
+    password: text("أهلاً بعودتك", "Welcome Back"),
+    name: text("إنشاء حساب", "Create Account"),
+    "signup-email": text("البريد الإلكتروني", "Email Address"),
+    "signup-password": text("كلمة المرور", "Password"),
+    verify: text("تأكيد البريد", "Verify Email"),
+    "forgot-email": text("استعادة كلمة المرور", "Restore Password"),
+    "forgot-verify": text("رمز التحقق للاستعادة", "Verification Code"),
+    "reset-password": text("كلمة المرور الجديدة", "New Password"),
+    "signed-in": text("تم تسجيل الدخول", "Signed In"),
+    "loading": text("جارٍ التحميل...", "Loading..."),
   }[step];
 
   const resendLabel = resendSeconds > 0
@@ -1206,6 +1326,10 @@ export default function AccountPage() {
                         </form>
                       )}
                     </div>
+                  )}
+
+                  {profileTab === "favorites" && (
+                    <FavoritesTabComponent locale={locale} text={text} />
                   )}
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
+import { supabase } from "@/utils/supabase";
 
 function ProductDetailContent() {
   const { t, locale } = useLanguage();
@@ -24,12 +25,32 @@ function ProductDetailContent() {
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    try {
-      const savedWishlist = localStorage.getItem("coverup-wishlist");
-      if (savedWishlist) {
-        setWishlist(JSON.parse(savedWishlist));
-      }
-    } catch {}
+    const loadWishlist = async () => {
+      let localWish = [];
+      try {
+        const savedWishlist = localStorage.getItem("coverup-wishlist");
+        if (savedWishlist) {
+          localWish = JSON.parse(savedWishlist);
+          setWishlist(localWish);
+        }
+      } catch {}
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const res = await fetch("/api/favorites", {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && Array.isArray(data.products)) {
+            const dbIds = data.products.map(p => p.id);
+            setWishlist(dbIds);
+            localStorage.setItem("coverup-wishlist", JSON.stringify(dbIds));
+          }
+        }
+      } catch {}
+    };
+    loadWishlist();
 
     if (!productId) {
       setError(locale === "ar" ? "المنتج غير محدد." : "Product ID not specified.");
@@ -75,10 +96,32 @@ function ProductDetailContent() {
       });
   }, [productId, locale]);
 
-  const toggleWishlist = (id) => {
-    const next = wishlist.includes(id) ? wishlist.filter((item) => item !== id) : [...wishlist, id];
+  const toggleWishlist = async (id) => {
+    const isFav = wishlist.includes(id);
+    const next = isFav ? wishlist.filter((item) => item !== id) : [...wishlist, id];
     setWishlist(next);
     localStorage.setItem("coverup-wishlist", JSON.stringify(next));
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        if (isFav) {
+          await fetch(`/api/favorites?productId=${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+        } else {
+          await fetch("/api/favorites", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ productId: id })
+          });
+        }
+      }
+    } catch {}
   };
 
   const formatMoney = (amount) => {
