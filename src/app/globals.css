@@ -3599,6 +3599,13 @@ body {
 
 .optimized-video-shell.is-safari-alpha-video {
   color-scheme: light dark;
+  background: transparent;
+  isolation: auto;
+}
+
+.optimized-video-shell.is-safari-alpha-video video {
+  mix-blend-mode: screen;
+  background: transparent;
 }
 
 .optimized-video-shell.is-video-loading video {

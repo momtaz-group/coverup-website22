@@ -23,7 +23,7 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
     forceLoad = false,
     warmOnIdle = true,
     warmDelay = 0,
-    hideUntilReadyOnSafari = true,
+    hideUntilReadyOnSafari = false,
     rootMargin = "420px 0px",
     autoPlay = false,
     muted = true,
@@ -95,6 +95,7 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
       setReady(false);
       video.src = src;
       video.dataset.optimizedSrc = src;
+      video.load();
     }
 
     if (!warmOnIdle || warmedRef.current) return undefined;
@@ -150,6 +151,7 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
 
   const markCanPlay = (event) => {
     setReady(true);
+    if (active && autoPlay) event.currentTarget.play().catch(() => {});
     onCanPlay?.(event);
   };
 
@@ -188,6 +190,12 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
         onError={markErrored}
         onLoadedData={markReady}
         onPlaying={markPlaying}
+        onPause={(event) => {
+          if (active && autoPlay && nearViewport && !event.currentTarget.ended) {
+            event.currentTarget.play().catch(() => {});
+          }
+          props.onPause?.(event);
+        }}
       />
     </span>
   );
