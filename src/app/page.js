@@ -278,7 +278,7 @@ export default function HomePage() {
           <div className={styles.mascotVideoWrapper}>
             <OptimizedVideo 
               ref={idleVideoRef}
-              src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/idle.webm"
+              src="/media/memo/idle.webm"
               onEnded={() => handleVideoEnded("idle")}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
@@ -294,7 +294,7 @@ export default function HomePage() {
             />
             <OptimizedVideo 
               ref={searchVideoRef}
-              src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/Searching.webm"
+              src="/media/memo/Searching.webm"
               onEnded={() => handleVideoEnded("searching")}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}

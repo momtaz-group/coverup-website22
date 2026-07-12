@@ -13,11 +13,12 @@ export function isSafariLike() {
 
   const ua = navigator.userAgent;
   const vendor = navigator.vendor || "";
-  const isAppleDevice = /iPad|iPhone|iPod|Macintosh/.test(ua);
+  const isIOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAppleDevice = isIOSDevice || /Macintosh/.test(ua);
   const isWebKit = /WebKit/.test(ua);
   const isChromium = /CriOS|Chrome|Chromium|Edg|OPR|Android/.test(ua);
 
-  cachedSafariResult = isAppleDevice && isWebKit && !isChromium && /Apple/.test(vendor);
+  cachedSafariResult = isIOSDevice ? isWebKit : isAppleDevice && isWebKit && !isChromium && /Apple/.test(vendor);
   return cachedSafariResult;
 }
 

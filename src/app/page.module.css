@@ -231,14 +231,17 @@
 
 .mascotVideoWrapper {
   position: relative;
-  width: 100%;
+  width: min(100%, 247.5px);
+  aspect-ratio: 9 / 16;
+  max-height: 440px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .mascotVideoLayer {
-  position: relative;
+  position: absolute;
+  inset: 0;
   display: flex;
   width: 100%;
   justify-content: center;
@@ -253,8 +256,7 @@
 
 .mascotImage {
   width: 100%;
-  height: auto;
-  max-height: 440px;
+  height: 100%;
   object-fit: contain;
   transition: opacity 0s;
 }
