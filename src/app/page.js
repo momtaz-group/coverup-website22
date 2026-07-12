@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import OptimizedVideo from "@/components/OptimizedVideo";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
+import { isIOSBrowser } from "@/utils/ios-media";
 import styles from "./page.module.css";
 
 const MODELS = [
@@ -66,6 +67,10 @@ const FEATURED_PRODUCTS = [
   }
 ];
 
+const subscribeToDeviceSnapshot = () => () => {};
+const getIOSBrowserSnapshot = () => isIOSBrowser();
+const getServerIOSBrowserSnapshot = () => false;
+
 export default function HomePage() {
   const { locale } = useLanguage(); const ar = locale === "ar";
   const text = (en, arabic) => ar ? arabic : en;
@@ -79,9 +84,15 @@ export default function HomePage() {
 
   const idleVideoRef = useRef(null);
   const searchVideoRef = useRef(null);
+  const useIosIdleMov = useSyncExternalStore(
+    subscribeToDeviceSnapshot,
+    getIOSBrowserSnapshot,
+    getServerIOSBrowserSnapshot
+  );
 
   const [activeVideo, setActiveVideo] = useState("idle");
   const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
+  const idleVideoSrc = useIosIdleMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "/media/memo/idle.webm";
 
   const handleVideoEnded = (type) => {
     if (activeVideo !== type) return;
@@ -278,14 +289,14 @@ export default function HomePage() {
           <div className={styles.mascotVideoWrapper}>
             <OptimizedVideo 
               ref={idleVideoRef}
-              src="/media/memo/idle.webm"
+              src={idleVideoSrc}
               onEnded={() => handleVideoEnded("idle")}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "idle"}
               transparent
-              disposeOnExit
-              preload="metadata"
+              forceLoad
+              preload="auto"
               rootMargin="520px 0px"
               warmDelay={0}
               muted 
@@ -300,10 +311,10 @@ export default function HomePage() {
               wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "searching"}
               transparent
-              disposeOnExit
-              preload="metadata"
+              forceLoad
+              preload="auto"
               rootMargin="520px 0px"
-              warmDelay={450}
+              warmDelay={180}
               muted 
               playsInline
               autoPlay

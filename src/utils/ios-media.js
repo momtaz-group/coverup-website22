@@ -13,13 +13,19 @@ export function isSafariLike() {
 
   const ua = navigator.userAgent;
   const vendor = navigator.vendor || "";
-  const isIOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isIOSDevice = isIOSBrowser();
   const isAppleDevice = isIOSDevice || /Macintosh/.test(ua);
   const isWebKit = /WebKit/.test(ua);
   const isChromium = /CriOS|Chrome|Chromium|Edg|OPR|Android/.test(ua);
 
   cachedSafariResult = isIOSDevice ? isWebKit : isAppleDevice && isWebKit && !isChromium && /Apple/.test(vendor);
   return cachedSafariResult;
+}
+
+export function isIOSBrowser() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 export function runWhenIdle(callback, timeout = 1800) {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { isSafariLike, queueIdleMediaWarmup } from "@/utils/ios-media";
+import { queueIdleMediaWarmup } from "@/utils/ios-media";
 
 function disposeVideo(video) {
   if (!video) return;
@@ -38,89 +38,13 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
   forwardedRef
 ) {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const canvasReadyRef = useRef(false);
   const wrapperRef = useRef(null);
   const warmedRef = useRef(false);
   const [nearViewport, setNearViewport] = useState(false);
   const [ready, setReady] = useState(false);
-  const [safariAlphaFallback, setSafariAlphaFallback] = useState(false);
-  const [canvasReady, setCanvasReady] = useState(false);
-  const hideUntilReady = hideUntilReadyOnSafari && safariAlphaFallback && !ready;
+  const hideUntilReady = hideUntilReadyOnSafari && !ready;
 
   useImperativeHandle(forwardedRef, () => videoRef.current);
-
-  useEffect(() => {
-    setSafariAlphaFallback(transparent && isSafariLike());
-    canvasReadyRef.current = false;
-    setCanvasReady(false);
-  }, [transparent]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!safariAlphaFallback || !nearViewport || !video || !canvas) return undefined;
-
-    let cancelled = false;
-    let animationFrame = 0;
-    let videoFrame = 0;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return undefined;
-
-    const draw = () => {
-      if (cancelled || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
-      const bounds = canvas.getBoundingClientRect();
-      const scale = Math.min(window.devicePixelRatio || 1, 1.5);
-      const width = Math.max(1, Math.round(bounds.width * scale));
-      const height = Math.max(1, Math.round(bounds.height * scale));
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-
-      const sourceRatio = video.videoWidth / video.videoHeight;
-      const targetRatio = width / height;
-      const drawWidth = sourceRatio > targetRatio ? width : height * sourceRatio;
-      const drawHeight = sourceRatio > targetRatio ? width / sourceRatio : height;
-      const x = (width - drawWidth) / 2;
-      const y = (height - drawHeight) / 2;
-      context.clearRect(0, 0, width, height);
-
-      try {
-        context.drawImage(video, x, y, drawWidth, drawHeight);
-        const frame = context.getImageData(0, 0, width, height);
-        const pixels = frame.data;
-        for (let index = 0; index < pixels.length; index += 4) {
-          const brightness = Math.max(pixels[index], pixels[index + 1], pixels[index + 2]);
-          if (brightness <= 12) pixels[index + 3] = 0;
-          else if (brightness <= 42) pixels[index + 3] = Math.min(pixels[index + 3], Math.round(((brightness - 12) / 30) * 255));
-        }
-        context.putImageData(frame, 0, 0);
-        if (!canvasReadyRef.current) {
-          canvasReadyRef.current = true;
-          setCanvasReady(true);
-        }
-      } catch {
-        cancelled = true;
-        canvasReadyRef.current = false;
-        setCanvasReady(false);
-      }
-    };
-
-    const next = () => {
-      if (cancelled) return;
-      draw();
-      if ("requestVideoFrameCallback" in video) videoFrame = video.requestVideoFrameCallback(next);
-      else animationFrame = window.requestAnimationFrame(next);
-    };
-
-    next();
-    return () => {
-      cancelled = true;
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      if (videoFrame && "cancelVideoFrameCallback" in video) video.cancelVideoFrameCallback(videoFrame);
-    };
-  }, [nearViewport, safariAlphaFallback, src]);
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -242,17 +166,15 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
       className={[
         "optimized-video-shell",
         wrapperClassName,
-        safariAlphaFallback ? "safari-alpha-video-bg is-safari-alpha-video" : "",
         hideUntilReady ? "is-video-loading" : "is-video-ready",
       ].filter(Boolean).join(" ")}
-      data-safari-alpha-fallback={safariAlphaFallback ? "true" : undefined}
+      data-transparent-video={transparent ? "true" : undefined}
       data-video-ready={ready ? "true" : "false"}
     >
       <video
         {...props}
         ref={videoRef}
-        className={`${className} ${safariAlphaFallback && canvasReady ? "transparent-source-hidden" : ""}`}
-        crossOrigin={safariAlphaFallback ? "anonymous" : props.crossOrigin}
+        className={className}
         muted={muted}
         playsInline={playsInline}
         webkit-playsinline="true"
@@ -269,13 +191,6 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
           props.onPause?.(event);
         }}
       />
-      {safariAlphaFallback && (
-        <canvas
-          ref={canvasRef}
-          className={`transparent-video-canvas ${canvasReady ? "is-ready" : ""}`}
-          aria-hidden="true"
-        />
-      )}
     </span>
   );
 });
