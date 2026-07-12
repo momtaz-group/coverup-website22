@@ -4,6 +4,7 @@ import { CartProvider } from "@/context/CartContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import IOSMediaUnlocker from "@/components/IOSMediaUnlocker";
 
 export const metadata = {
   title: "Cover Up",
@@ -28,6 +29,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <LanguageProvider>
             <CartProvider>
+              <IOSMediaUnlocker />
               <Header />
               {children}
               <Footer />

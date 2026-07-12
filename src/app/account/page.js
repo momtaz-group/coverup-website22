@@ -112,7 +112,7 @@ function FavoritesTabComponent({ locale, text }) {
                 </svg>
               </button>
               <Link href={`/product?id=${p.id}`} style={{ display: 'block', height: '140px', borderRadius: '10px', overflow: 'hidden', background: 'var(--input-bg)' }}>
-                <img src={p.image} alt={pName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={p.image} alt={pName} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </Link>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'start' }}>
                 <span style={{ fontSize: '10px', color: 'var(--muted)', textTransform: 'uppercase' }}>{pCat}</span>

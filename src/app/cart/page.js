@@ -198,7 +198,7 @@ function CartContent() {
                 const displayName = locale === "en" && item.product.name_en ? item.product.name_en : item.product.name;
                 return (
                   <article key={item.id} className="cart-page-item" style={{ background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)', padding: '16px', marginBottom: '16px' }}>
-                    <div className="cart-page-media"><img src={item.product.image} alt={displayName} style={{ borderRadius: '12px' }}/></div>
+                    <div className="cart-page-media"><img src={item.product.image} alt={displayName} loading="lazy" decoding="async" style={{ borderRadius: '12px' }}/></div>
                     <div className="cart-page-info">
                       <div className="cart-page-item-head">
                         <h2 style={{ fontSize: '18px', margin: '0 0 8px 0' }}><Link href={`/product?id=${item.id}`}>{displayName}</Link></h2>

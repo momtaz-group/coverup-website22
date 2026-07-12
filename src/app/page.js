@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
+import OptimizedVideo from "@/components/OptimizedVideo";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/utils/supabase";
 import styles from "./page.module.css";
@@ -80,11 +81,7 @@ export default function HomePage() {
   const searchVideoRef = useRef(null);
 
   const [activeVideo, setActiveVideo] = useState("idle");
-  const [targetVideoState, setTargetVideoState] = useState("idle");
-  
-  useEffect(() => {
-    setTargetVideoState((inputText.trim().length > 0 || aiBusy) ? "searching" : "idle");
-  }, [inputText, aiBusy]);
+  const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
 
   const handleVideoEnded = (type) => {
     if (activeVideo !== type) return;
@@ -279,20 +276,34 @@ export default function HomePage() {
       <div className={styles.heroContentRow}>
         <div className={styles.heroMascotCol}>
           <div className={styles.mascotVideoWrapper}>
-            <video 
+            <OptimizedVideo 
               ref={idleVideoRef}
               src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/idle.webm"
               onEnded={() => handleVideoEnded("idle")}
-              className={`${styles.mascotImage} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
+              className={styles.mascotImage}
+              wrapperClassName={`${styles.mascotVideoLayer} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
+              active={activeVideo === "idle"}
+              transparent
+              disposeOnExit
+              preload="metadata"
+              rootMargin="520px 0px"
+              warmDelay={0}
               muted 
               playsInline
               autoPlay
             />
-            <video 
+            <OptimizedVideo 
               ref={searchVideoRef}
               src="https://pub-a0488275d6334ef69e85bc2da063ea1b.r2.dev/Memo_The_Mascoot/Searching.webm"
               onEnded={() => handleVideoEnded("searching")}
-              className={`${styles.mascotImage} ${styles.mascotImageAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
+              className={styles.mascotImage}
+              wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
+              active={activeVideo === "searching"}
+              transparent
+              disposeOnExit
+              preload="metadata"
+              rootMargin="520px 0px"
+              warmDelay={450}
               muted 
               playsInline
               autoPlay
@@ -317,7 +328,7 @@ export default function HomePage() {
               <div className={styles.headerRightGpt}>
                 <span className={styles.aiStatusLabel}>Memo</span>
                 <div className={styles.headerAvatarWrapper}>
-                  <img src="/assets/memo-profile.png" alt="Memo" className={styles.headerMemoImg} />
+                  <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="32" height="32" decoding="async" />
                   <i className={styles.statusDotGpt} />
                 </div>
               </div>
@@ -328,7 +339,7 @@ export default function HomePage() {
                 <div key={index} className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>
                   <div className={styles.avatarGpt}>
                     {message.who === "ai" ? (
-                      <img src="/assets/memo-profile.png" alt="Memo" className={styles.memoProfileImg} />
+                      <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.memoProfileImg} width="32" height="32" decoding="async" />
                     ) : (
                       "U"
                     )}
@@ -474,6 +485,8 @@ export default function HomePage() {
                     src={product.image}
                     alt={ar ? product.name : product.name_en}
                     className={styles.cardImage}
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>

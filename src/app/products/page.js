@@ -527,7 +527,7 @@ function ShopContent() {
 
                     {/* Product Image Link */}
                     <Link href={`/product?id=${p.id}`} className="amazon-image-container">
-                      <img src={p.image} alt={displayName} />
+                      <img src={p.image} alt={displayName} loading="lazy" decoding="async" />
                     </Link>
 
                     {/* Product details */}

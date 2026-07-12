@@ -3578,6 +3578,38 @@ body {
   overflow-x: hidden;
 }
 
+.safari-alpha-video-bg {
+  background: #fff;
+}
+
+[data-theme="dark"] .safari-alpha-video-bg {
+  background: #000;
+}
+
+.optimized-video-shell {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.optimized-video-shell video {
+  display: block;
+}
+
+.optimized-video-shell.is-safari-alpha-video {
+  color-scheme: light dark;
+}
+
+.optimized-video-shell.is-video-loading video {
+  opacity: 0;
+}
+
+.optimized-video-shell.is-video-ready video {
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
 .mobile-search-trigger,
 .mobile-bottom-nav,
 .mobile-search-page {

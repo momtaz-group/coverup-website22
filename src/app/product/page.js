@@ -226,7 +226,7 @@ function ProductDetailContent() {
         {/* Gallery Column (Right typically, order 2 in standard DOM, or order 1 in AR if we want it on the right) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', order: locale === "ar" ? 1 : 2 }}>
           <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-             {mainImage ? <img src={mainImage} alt={displayName} style={{ width: '100%', height: 'auto', maxHeight: '500px', objectFit: 'contain', borderRadius: '16px' }} /> : <span style={{ color: 'var(--muted)' }}>No Image</span>}
+             {mainImage ? <img src={mainImage} alt={displayName} decoding="async" style={{ width: '100%', height: 'auto', maxHeight: '500px', objectFit: 'contain', borderRadius: '16px' }} /> : <span style={{ color: 'var(--muted)' }}>No Image</span>}
           </div>
           
           {galleryImages.length > 1 && (
@@ -238,7 +238,7 @@ function ProductDetailContent() {
                   onClick={() => setMainImage(img)}
                   style={{ width: '80px', height: '80px', flexShrink: 0, borderRadius: '12px', border: mainImage === img ? '2px solid #0070f3' : '1px solid var(--line)', background: 'var(--panel)', padding: '4px', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
-                  <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+                  <img src={img} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
                 </button>
               ))}
             </div>
@@ -277,7 +277,7 @@ function ProductDetailContent() {
                       </svg>
                     </button>
                     <Link href={`/product?id=${p.id}`} style={{ display: 'block', height: '180px', borderRadius: '12px', overflow: 'hidden', background: 'var(--input-bg)' }}>
-                      <img src={p.image} alt={pName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <img src={p.image} alt={pName} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </Link>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                        <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase' }}>{pCat}</span>

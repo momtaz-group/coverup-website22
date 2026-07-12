@@ -237,6 +237,20 @@
   align-items: center;
 }
 
+.mascotVideoLayer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.mascotVideoLayerAbsolute {
+  position: absolute;
+  inset: 0;
+}
+
 .mascotImage {
   width: 100%;
   height: auto;
