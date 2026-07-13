@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
+import { loadInitialMessages, storeMessages } from "@/utils/chatStore";
 import styles from "./page.module.css";
 
 const MODELS = [
@@ -97,19 +98,14 @@ export default function ChatPage() {
   const [isChatSelection, setIsChatSelection] = useState(false);
 
   const [messages, setMessages] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("coverup-chat-messages");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
+    // Module store is the most reliable source — set synchronously on navigation
+    const stored = loadInitialMessages();
+    if (stored && stored.length > 0) return stored;
     return [
       {
         who: "ai",
         text: text(
-          "Hey, I’m Memo. Tell me your phone and I’ll help you find something that actually fits.",
+          "Hey, I'm Memo. Tell me your phone and I'll help you find something that actually fits.",
           "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد."
         ),
       },
@@ -121,14 +117,9 @@ export default function ChatPage() {
 
   const messagesContainerRef = useRef(null);
 
-  // Sync messages to session storage — strip isNew so they don't re-typewrite on remount
+  // Scroll to bottom + sync store on every messages change
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(
-        "coverup-chat-messages",
-        JSON.stringify(messages.map((m) => ({ ...m, isNew: false })))
-      );
-    }
+    storeMessages(messages);
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
@@ -236,6 +227,7 @@ export default function ChatPage() {
     ];
 
     setMessages(updatedMessages);
+    storeMessages(updatedMessages); // synchronous — no race condition
 
     const apiMessages = updatedMessages.map((m) => ({
       role: m.who === "user" ? "user" : "assistant",
@@ -258,15 +250,17 @@ export default function ChatPage() {
 
       const data = await response.json();
       if (response.ok) {
-        setMessages((current) => [
-          ...current,
+        const withAi = [
+          ...updatedMessages,
           {
             who: "ai",
             text: data.message,
             products: data.products || [],
             isNew: true,
           },
-        ]);
+        ];
+        setMessages(withAi);
+        storeMessages(withAi); // storeMessages strips isNew
       } else {
         setMessages((current) => [
           ...current,

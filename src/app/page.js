@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
 import { isIOSBrowser } from "@/utils/ios-media";
+import { loadInitialMessages, storeMessages, loadInitialChatPhone, storeChatPhone } from "@/utils/chatStore";
 import styles from "./page.module.css";
 
 const MODELS = [
@@ -123,14 +124,8 @@ export default function HomePage() {
   const [isChatSelection, setIsChatSelection] = useState(false);
   
   const [messages, setMessages] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("coverup-chat-messages");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
+    const stored = loadInitialMessages();
+    if (stored && stored.length > 0) return stored;
     return [{ who: "ai", text: text("Hey, I’m Memo. Tell me your phone and I’ll help you find something that actually fits.", "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد.") }];
   });
   
@@ -139,11 +134,9 @@ export default function HomePage() {
   
   const messagesContainerRef = useRef(null);
 
-  // Sync messages to session storage
+  // Sync messages to module store + sessionStorage on every change
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("coverup-chat-messages", JSON.stringify(messages));
-    }
+    storeMessages(messages);
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
@@ -205,10 +198,8 @@ export default function HomePage() {
     ];
 
     setMessages(updatedMessages);
-    // Save synchronously so navigating to /chat immediately reads the latest messages
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("coverup-chat-messages", JSON.stringify(updatedMessages));
-    }
+    // Synchronously persist to module store so /chat page reads this immediately on navigation
+    storeMessages(updatedMessages);
 
     const apiMessages = updatedMessages.map(m => ({
       role: m.who === "user" ? "user" : "assistant",
@@ -241,12 +232,7 @@ export default function HomePage() {
           }
         ];
         setMessages(withAi);
-        if (typeof window !== "undefined") {
-          // Mark isNew: false before saving so /chat page doesn't re-typewrite
-          sessionStorage.setItem("coverup-chat-messages", JSON.stringify(
-            withAi.map(m => ({ ...m, isNew: false }))
-          ));
-        }
+        storeMessages(withAi); // storeMessages strips isNew before saving
       } else {
         setMessages((current) => [
           ...current,
