@@ -120,6 +120,22 @@ export default function ChatPage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   const messagesContainerRef = useRef(null);
+  const [headerHidden, setHeaderHiddenState] = useState(false);
+  const lastScrollTopRef = useRef(0);
+
+  const handleMessagesScroll = (e) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    const isScrollingDown = scrollTop > lastScrollTopRef.current;
+    
+    if (Math.abs(scrollTop - lastScrollTopRef.current) > 15) {
+      if (isScrollingDown && scrollTop > 50) {
+        setHeaderHiddenState(true);
+      } else {
+        setHeaderHiddenState(false);
+      }
+      lastScrollTopRef.current = scrollTop;
+    }
+  };
 
   // Sync messages to session storage
   useEffect(() => {
@@ -323,7 +339,9 @@ export default function ChatPage() {
 
   return (
     <div className={styles.chatPageContainer} dir={ar ? "rtl" : "ltr"}>
-      <Header />
+      <div className={`${styles.siteHeaderWrapper} ${headerHidden ? styles.headerHidden : ""}`}>
+        <Header />
+      </div>
 
       <main className={styles.chatMainArea}>
         <div className={styles.chatCardGpt}>
@@ -356,7 +374,11 @@ export default function ChatPage() {
           </div>
 
           {/* Messages block */}
-          <div ref={messagesContainerRef} className={styles.messagesGpt}>
+          <div 
+            ref={messagesContainerRef} 
+            className={styles.messagesGpt}
+            onScroll={handleMessagesScroll}
+          >
             {messages.map((message, index) => (
               <div key={index} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
                 <div className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>

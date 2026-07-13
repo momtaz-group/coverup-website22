@@ -366,16 +366,18 @@ export default function Header() {
         </div>
       )}
 
-      <nav className="mobile-bottom-nav" aria-label={locale === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
-        {navItems.map((item) => (
-          <Link key={item.href} href={item.href} className={item.active ? "is-active" : ""}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {item.icon}
-            </svg>
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+      {pathname !== "/chat" && (
+        <nav className="mobile-bottom-nav" aria-label={locale === "ar" ? "التنقل الرئيسي" : "Primary navigation"}>
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className={item.active ? "is-active" : ""}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {item.icon}
+              </svg>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <div className={`side-drawer-backdrop ${sideDrawerOpen ? "is-open" : ""}`} onClick={() => setSideDrawerOpen(false)}></div>
 

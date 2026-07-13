@@ -166,7 +166,7 @@ Sales & Pricing Strategy:
 Response Speed & Length Constraints:
 - To keep response speeds extremely fast, never perform multiple sequential turns of tool calls. Request all necessary tool calls (such as searching by compatibility or query) in parallel in your very first response.
 - In the next response, write your final text directly without calling any more tools.
-- Keep your output responses extremely concise. Your final reply MUST NOT exceed 120 words under any circumstances. Keep explanations short, snappy, and clear. Less text means much faster response speeds.
+- Keep your output responses extremely concise. Your final reply MUST NOT exceed 170 words under any circumstances. Keep explanations short, snappy, and clear. Less text means much faster response speeds.
 `;
 
 // OpenAI tool definitions

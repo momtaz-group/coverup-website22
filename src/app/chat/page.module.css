@@ -7,6 +7,17 @@
   overflow: hidden;
 }
 
+.siteHeaderWrapper {
+  transition: transform 0.3s ease, margin-top 0.3s ease;
+  position: relative;
+  z-index: 100;
+}
+
+.headerHidden {
+  transform: translateY(-100%);
+  margin-top: -60px; /* Shift layout up to clear the header area smoothly */
+}
+
 .chatMainArea {
   flex: 1;
   position: relative;
