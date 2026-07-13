@@ -162,7 +162,7 @@
 
 .modelSelectorGpt:hover {
   background: var(--panel-soft);
-  border-color: var(--blue);
+  border-color: var(--gold);
 }
 
 .messagesGpt {
@@ -219,14 +219,16 @@
   object-fit: cover;
   background: var(--panel);
   border: 1px solid var(--line);
+  display: block;
 }
 
 .msgRowAi .avatarGpt {
-  background: transparent;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
 }
 
 .msgRowUser .avatarGpt {
-  background: var(--blue);
+  background: var(--gold);
   color: #fff;
 }
 
@@ -242,11 +244,12 @@
 .msgRowAi .msgBubbleGpt {
   background: var(--panel-soft);
   color: var(--text);
+  border: 1px solid var(--line);
   border-top-left-radius: 2px;
 }
 
 .msgRowUser .msgBubbleGpt {
-  background: var(--blue);
+  background: var(--gold);
   color: #fff;
   border-top-right-radius: 2px;
 }
@@ -268,13 +271,12 @@
 .chatProductCard {
   background: var(--panel-soft);
   border: 1px solid var(--line);
-  borderRadius: 12px;
+  border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   position: relative;
-  border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
@@ -304,7 +306,7 @@
 .productCardPrice {
   font-size: 0.85rem;
   font-weight: bold;
-  color: var(--blue);
+  color: var(--gold);
   margin-top: 2px;
 }
 
@@ -364,8 +366,8 @@
 }
 
 .chipGpt:hover {
-  border-color: var(--blue);
-  color: var(--blue);
+  border-color: var(--gold);
+  color: var(--gold);
   background: rgba(18,103,232,0.05);
 }
 
@@ -400,7 +402,7 @@
 }
 
 .floatingProductCard:hover {
-  border-color: var(--blue);
+  border-color: var(--gold);
 }
 
 .floatingProductCard img {
@@ -432,7 +434,7 @@
 }
 
 .inputRowGpt:focus-within {
-  border-color: var(--blue);
+  border-color: var(--gold);
   box-shadow: 0 0 0 3px rgba(18,103,232,0.08);
 }
 
@@ -469,7 +471,7 @@
 }
 
 .sendBtnGpt:not(:disabled) {
-  background: var(--blue);
+  background: var(--gold);
   color: #fff;
 }
 
@@ -683,7 +685,7 @@
 }
 
 .deviceResultBtn.selectedDevice {
-  background: var(--blue);
+  background: var(--gold);
   color: #fff;
 }
 
@@ -717,13 +719,13 @@
 }
 
 .savedPhoneBtn:hover {
-  border-color: var(--blue);
+  border-color: var(--gold);
 }
 
 .modalLinkBtn {
   background: transparent;
   border: none;
-  color: var(--blue);
+  color: var(--gold);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -749,7 +751,7 @@
 }
 
 .modalSubmitBtn {
-  background: var(--blue);
+  background: var(--gold);
   border: none;
   border-radius: 10px;
   padding: 10px 18px;
@@ -761,6 +763,19 @@
 
 .modalSubmitBtn:disabled {
   opacity: 0.5;
+}
+
+.searchDevicesSec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchDevicesSec h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
 }
 
 @media (max-width: 600px) {
