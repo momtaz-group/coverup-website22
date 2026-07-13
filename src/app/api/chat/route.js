@@ -72,7 +72,8 @@ export async function POST(request) {
 
       // Check if the assistant wants to execute tool calls
       if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-        for (const toolCall of assistantMessage.tool_calls) {
+        const batchProducts = [];
+        const toolPromises = assistantMessage.tool_calls.map(async (toolCall) => {
           const { id: toolCallId } = toolCall;
           const { name, arguments: argsString } = toolCall.function || {};
           const args = JSON.parse(argsString || "{}");
@@ -95,9 +96,8 @@ export async function POST(request) {
                 toolResult = await memoDbTools.get_new_arrivals();
               }
 
-              // Update last retrieved products
               if (Array.isArray(toolResult) && toolResult.length > 0) {
-                lastRetrievedProducts = toolResult;
+                batchProducts.push(...toolResult);
               }
             } else {
               toolResult = { error: `Tool ${name} not found.` };
@@ -106,13 +106,28 @@ export async function POST(request) {
             toolResult = { error: toolError.message };
           }
 
-          // Push tool response to the history
-          conversationHistory.push({
+          return {
             role: "tool",
             tool_call_id: toolCallId,
             name: name,
             content: JSON.stringify(toolResult)
-          });
+          };
+        });
+
+        const toolResponses = await Promise.all(toolPromises);
+        conversationHistory.push(...toolResponses);
+
+        if (batchProducts.length > 0) {
+          // Remove duplicates
+          const seen = new Set();
+          const uniqueProducts = [];
+          for (const p of batchProducts) {
+            if (!seen.has(p.id)) {
+              seen.add(p.id);
+              uniqueProducts.push(p);
+            }
+          }
+          lastRetrievedProducts = uniqueProducts;
         }
       } else {
         // No tool calls, assistant returned final text

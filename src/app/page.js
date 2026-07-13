@@ -138,6 +138,7 @@ export default function HomePage() {
   const [aiBusy, setAiBusy] = useState(false);
   
   const messagesContainerRef = useRef(null);
+  const [isEnlarged, setIsEnlarged] = useState(false);
 
   // Sync messages to session storage
   useEffect(() => {
@@ -371,6 +372,7 @@ export default function HomePage() {
   }, [messages]);
 
   const recommendedProducts = useMemo(() => {
+    if (latestAiMessage?.isNew) return [];
     return latestAiMessage?.products || [];
   }, [latestAiMessage]);
 
@@ -438,7 +440,7 @@ export default function HomePage() {
         </div>
         
         <div className={styles.heroChatCol}>
-          <div className={styles.chatCardGpt}>
+          <div className={`${styles.chatCardGpt} ${isEnlarged ? styles.enlargedChat : ""}`}>
             <div className={styles.chatHeaderGpt}>
               <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
                 <span>{chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}</span>
@@ -448,6 +450,23 @@ export default function HomePage() {
               </button>
               
               <div className={styles.headerRightGpt}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsEnlarged(!isEnlarged)} 
+                  className={styles.enlargeBtnGpt}
+                  aria-label="Toggle Enlarge Chat"
+                  title={isEnlarged ? text("Shrink", "تصغير") : text("Enlarge", "تكبير")}
+                >
+                  {isEnlarged ? (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                    </svg>
+                  )}
+                </button>
                 <span className={styles.aiStatusLabel}>Memo</span>
                 <div className={styles.headerAvatarWrapper}>
                   <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="32" height="32" decoding="async" />
@@ -480,7 +499,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   
-                  {message.who === "ai" && message.products && message.products.length > 0 && (
+                  {message.who === "ai" && !message.isNew && message.products && message.products.length > 0 && (
                     <div className={styles.chatProductsGrid} style={{
                       display: "grid",
                       gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
