@@ -172,12 +172,16 @@ function productFromDb(row) {
   return {
     id: row.id,
     name: row.name,
+    name_en: row.name_en || "",
     category: row.category,
+    category_en: row.category_en || "",
     price: Number(row.price || 0),
     image: publicProductImage(row.id, row.image),
     images: publicProductImages(row.id, row.images),
     badge: row.badge,
+    badge_en: row.badge_en || "",
     description: row.description,
+    description_en: row.description_en || "",
     seo_title: row.seo_title || "",
     seo_description: row.seo_description || "",
     sku: row.sku || "",
@@ -198,12 +202,16 @@ function productToDb(product) {
   return {
     id: String(product.id || "").trim(),
     name: String(product.name || "").trim(),
+    name_en: String(product.name_en || product.nameEn || "").trim(),
     category: String(product.category || "منتجات").trim(),
+    category_en: String(product.category_en || product.categoryEn || "").trim(),
     price: Number(product.price) || 0,
     image: String(product.image || "").trim(),
     images: cleanArray(product.images),
     badge: String(product.badge || "متوفر").trim(),
+    badge_en: String(product.badge_en || product.badgeEn || "").trim(),
     description: String(product.description || "").trim(),
+    description_en: String(product.description_en || product.descriptionEn || "").trim(),
     seo_title: String(product.seo_title || product.seoTitle || "").trim(),
     seo_description: String(product.seo_description || product.seoDescription || "").trim(),
     sku: String(product.sku || "").trim(),
@@ -312,6 +320,8 @@ function reviewFromDb(row) {
 
 async function getProducts(ids = []) {
   const query = ids.length
+    ? `?id=in.(${ids.map(encodeURIComponent).join(",")})`
+    : "";
 
   const rows = await supabaseRequest(TABLES.products, { query });
   return rows.map(productFromDb);

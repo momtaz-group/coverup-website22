@@ -568,3 +568,23 @@
   transform: scale(1.06);
   filter: brightness(1.1);
 }
+
+.loadingDot {
+  width: 7px;
+  height: 7px;
+  background-color: var(--text);
+  border-radius: 50%;
+  display: inline-block;
+  animation: loadingBounce 1.4s infinite ease-in-out both;
+}
+
+@keyframes loadingBounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

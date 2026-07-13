@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef, useSyncExternalStore } from "reac
 import Link from "next/link";
 import OptimizedVideo from "@/components/OptimizedVideo";
 import { useLanguage } from "@/context/LanguageContext";
+import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
 import { isIOSBrowser } from "@/utils/ios-media";
 import styles from "./page.module.css";
@@ -71,20 +72,99 @@ const subscribeToDeviceSnapshot = () => () => {};
 const getIOSBrowserSnapshot = () => isIOSBrowser();
 const getServerIOSBrowserSnapshot = () => false;
 
+function TypewriterText({ text, speed = 10, onComplete, scrollContainerRef }) {
+  const [displayText, setDisplayText] = useState("");
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    let index = 0;
+    setDisplayText("");
+    const interval = setInterval(() => {
+      setDisplayText((current) => {
+        if (index >= text.length) {
+          clearInterval(interval);
+          return current;
+        }
+        return current + text.charAt(index);
+      });
+      index++;
+
+      if (scrollContainerRef && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const isNearBottom = container.scrollHeight - container.clientHeight - container.scrollTop < 80;
+        if (isNearBottom) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+
+      if (index >= text.length) {
+        clearInterval(interval);
+        if (onCompleteRef.current) onCompleteRef.current();
+      }
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [text, speed, scrollContainerRef]);
+
+  return <>{displayText}</>;
+}
+
 export default function HomePage() {
   const { locale } = useLanguage(); const ar = locale === "ar";
+  const { addToCart } = useCart();
   const text = (en, arabic) => ar ? arabic : en;
   const [phones, setPhones] = useState([]); const [modal, setModal] = useState(false); const [query, setQuery] = useState(""); const [custom, setCustom] = useState(false);
   const [phoneName, setPhoneName] = useState(""); const [selected, setSelected] = useState(null); const [customBrand, setCustomBrand] = useState(""); const [customModel, setCustomModel] = useState(""); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState("");
   const [chatPhone, setChatPhone] = useState(null);
   const [isChatSelection, setIsChatSelection] = useState(false);
-  const [messages, setMessages] = useState(() => [{ who: "ai", text: text("Hey, I’m Memo. Tell me your phone and I’ll help you find something that actually fits.", "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد.") }]);
+  
+  const [messages, setMessages] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("coverup-chat-messages");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return [{ who: "ai", text: text("Hey, I’m Memo. Tell me your phone and I’ll help you find something that actually fits.", "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد.") }];
+  });
+  
   const [inputText, setInputText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  
+  const messagesContainerRef = useRef(null);
+
+  // Sync messages to session storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("coverup-chat-messages", JSON.stringify(messages));
+    }
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Also scroll when loading state changes
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [aiBusy]);
+
+  const handleTypewriterComplete = (index) => {
+    setMessages((current) =>
+      current.map((msg, i) => (i === index ? { ...msg, isNew: false } : msg))
+    );
+  };
 
   const idleVideoRef = useRef(null);
   const searchVideoRef = useRef(null);
-  const useIosIdleMov = useSyncExternalStore(
+  const useIosMemoMov = useSyncExternalStore(
     subscribeToDeviceSnapshot,
     getIOSBrowserSnapshot,
     getServerIOSBrowserSnapshot
@@ -92,7 +172,8 @@ export default function HomePage() {
 
   const [activeVideo, setActiveVideo] = useState("idle");
   const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
-  const idleVideoSrc = useIosIdleMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "/media/memo/idle.webm";
+  const idleVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "/media/memo/idle.webm";
+  const searchingVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/Searching.mov" : "/media/memo/Searching.webm";
 
   const handleVideoEnded = (type) => {
     if (activeVideo !== type) return;
@@ -113,39 +194,46 @@ export default function HomePage() {
     }
   };
 
-  const handleSendGpt = (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const submitMessage = async (messageText, activePhone = chatPhone) => {
+    if (!messageText.trim()) return;
 
-    const userMessage = inputText.trim();
-    setInputText("");
-
-    setMessages((current) => [
-      ...current,
-      { who: "user", text: userMessage }
-    ]);
-    
     setAiBusy(true);
 
-    setTimeout(() => {
-      const lower = userMessage.toLowerCase();
-      let matchedPhone = null;
-      for (const p of MODELS) {
-        if (lower.includes(p.name.toLowerCase()) || (lower.includes(p.brand.toLowerCase()) && lower.includes(p.name.split(" ")[1]?.toLowerCase()))) {
-          matchedPhone = p;
-          break;
-        }
-      }
+    const updatedMessages = [
+      ...messages,
+      { who: "user", text: messageText }
+    ];
 
-      if (matchedPhone) {
-        setChatPhone({ brand: matchedPhone.brand, model: matchedPhone.name });
+    setMessages(updatedMessages);
+
+    const apiMessages = updatedMessages.map(m => ({
+      role: m.who === "user" ? "user" : "assistant",
+      content: m.text
+    }));
+
+    if (activePhone) {
+      apiMessages.unshift({
+        role: "system",
+        content: `The customer has selected their phone model: ${activePhone.brand} ${activePhone.model}. Keep this model in mind for recommendations.`
+      });
+    }
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages, phone: activePhone })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
         setMessages((current) => [
           ...current,
           { 
             who: "ai", 
-            text: ar 
-              ? `ممتاز! قمت باختيار ${matchedPhone.brand} ${matchedPhone.name} لك. لقد قمت بتحميل الكفرات وإسكرينات الحماية المتوافقة معه بالكامل.`
-              : `Perfect! I've set your phone to ${matchedPhone.brand} ${matchedPhone.name}. I've loaded the compatible cases and screen protectors for you.` 
+            text: data.message, 
+            products: data.products || [],
+            isNew: true
           }
         ]);
       } else {
@@ -153,14 +241,32 @@ export default function HomePage() {
           ...current,
           { 
             who: "ai", 
-            text: ar
-              ? `فهمتك! حدد نوع هاتفك من زر "اختر هاتف محمول" في الأعلى أو اكتب اسم موديل هاتفك لأتمكن من إظهار الكفرات والحماية المتوافقة معه بالكامل.`
-              : `Got it! Please choose your phone using the "Choose Mobile Phone" button at the top-left or write your phone model so I can show compatible accessories.` 
+            text: data.message || (ar ? "عذراً، حدث خطأ ما." : "Sorry, an error occurred.") 
           }
         ]);
       }
+    } catch (err) {
+      console.error(err);
+      setMessages((current) => [
+        ...current,
+        { 
+          who: "ai", 
+          text: ar 
+            ? "ثانية واحدة، واضح إن ميمو اتخانق مع السيرفر. جرّب تاني كمان لحظة." 
+            : "Memo lost the argument with the server for a second. Please try again." 
+        }
+      ]);
+    } finally {
       setAiBusy(false);
-    }, 600);
+    }
+  };
+
+  const handleSendGpt = async (e) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+    const userMessage = inputText.trim();
+    setInputText("");
+    await submitMessage(userMessage);
   };
   
   // Carousel State & Logic
@@ -213,15 +319,10 @@ export default function HomePage() {
   useEffect(() => { let active = true; supabase.auth.getUser().then(async ({ data: { user } }) => { if (!user) return; const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false }); if (active) setPhones(data || []); }); return () => { active = false; }; }, []);
   
   const handleSelectChatPhone = (brand, model) => {
-    setChatPhone({ brand, model });
+    const nextPhone = { brand, model };
+    setChatPhone(nextPhone);
     setModal(false);
-    setMessages((current) => [
-      ...current,
-      { who: "user", text: ar ? `موبايلي هو ${brand} ${model}` : `My phone is ${brand} ${model}` },
-      { who: "ai", text: ar 
-        ? `ممتاز! لقيت إكسسوارات وكفرات متوافقة مع موبايلك ${brand} ${model}. تقدر تتصفحها مباشرة من الخيارات تحت.`
-        : `Awesome! I found compatible cases and screen protectors for your ${brand} ${model}. You can browse them directly from the options below.` }
-    ]);
+    submitMessage(ar ? `موبايلي هو ${brand} ${model}` : `My phone is ${brand} ${model}`, nextPhone);
   };
 
   const openChatPhoneSelection = () => {
@@ -235,24 +336,10 @@ export default function HomePage() {
   };
 
   const ask = (prompt) => {
-    // Check if prompt is a string to avoid click event objects
     const promptText = typeof prompt === "string" ? prompt : "";
-    setMessages((current) => [
-      ...current,
-      ...(promptText ? [{ who: "user", text: promptText }] : []),
-    ]);
-    
-    setAiBusy(true);
-    
-    setTimeout(() => {
-      setMessages((current) => [
-        ...current,
-        { who: "ai", text: text("Nice. Choose a phone model, and I’ll load the right shelf for you.", "تمام. حدد موديل موبايلك وهحملك الرف المناسب ليه.") }
-      ]);
-      setIsChatSelection(true);
-      setModal(true);
-      setAiBusy(false);
-    }, 800);
+    if (promptText) {
+      submitMessage(promptText);
+    }
   };
 
   const savePhone = async (event) => {
@@ -278,6 +365,30 @@ export default function HomePage() {
     setSelected(null);
     setCustom(false);
   };
+
+  const latestAiMessage = useMemo(() => {
+    return [...messages].reverse().find((m) => m.who === "ai");
+  }, [messages]);
+
+  const recommendedProducts = useMemo(() => {
+    return latestAiMessage?.products || [];
+  }, [latestAiMessage]);
+
+  const wordCount = useMemo(() => {
+    return inputText.trim() ? inputText.trim().split(/\s+/).filter(Boolean).length : 0;
+  }, [inputText]);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    const words = value.trim().split(/\s+/).filter(Boolean);
+    if (words.length > 400) {
+      const truncated = value.split(/\s+/).slice(0, 400).join(" ");
+      setInputText(truncated);
+    } else {
+      setInputText(value);
+    }
+  };
+
   return <main className={styles.home} dir={ar ? "rtl" : "ltr"}>
     <section className={styles.heroNew}>
       <div className={styles.heroTitleContainer}>
@@ -305,7 +416,7 @@ export default function HomePage() {
             />
             <OptimizedVideo 
               ref={searchVideoRef}
-              src="/media/memo/Searching.webm"
+              src={searchingVideoSrc}
               onEnded={() => handleVideoEnded("searching")}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
@@ -330,7 +441,7 @@ export default function HomePage() {
           <div className={styles.chatCardGpt}>
             <div className={styles.chatHeaderGpt}>
               <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
-                <span>{chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "Choose Mobile Phone")}</span>
+                <span>{chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}</span>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                   <path d="M7 10l5 5 5-5H7z" />
                 </svg>
@@ -345,68 +456,250 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className={styles.messagesGpt}>
+            <div ref={messagesContainerRef} className={styles.messagesGpt}>
               {messages.map((message, index) => (
-                <div key={index} className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>
-                  <div className={styles.avatarGpt}>
-                    {message.who === "ai" ? (
-                      <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.memoProfileImg} width="32" height="32" decoding="async" />
-                    ) : (
-                      "U"
-                    )}
+                <div key={index} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+                  <div className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>
+                    <div className={styles.avatarGpt}>
+                      {message.who === "ai" ? (
+                        <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.memoProfileImg} width="32" height="32" decoding="async" />
+                      ) : (
+                        "U"
+                      )}
+                    </div>
+                    <div className={styles.msgBubbleGpt}>
+                      {message.who === "ai" && message.isNew ? (
+                        <TypewriterText 
+                          text={message.text}
+                          scrollContainerRef={messagesContainerRef}
+                          onComplete={() => handleTypewriterComplete(index)}
+                        />
+                      ) : (
+                        message.text
+                      )}
+                    </div>
                   </div>
-                  <div className={styles.msgBubbleGpt}>
-                    {message.text}
-                  </div>
+                  
+                  {message.who === "ai" && message.products && message.products.length > 0 && (
+                    <div className={styles.chatProductsGrid} style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                      gap: "10px",
+                      padding: ar ? "4px 44px 12px 0" : "4px 0 12px 44px",
+                      width: "100%"
+                    }}>
+                      {message.products.map((product) => (
+                        <div key={product.id} className={styles.chatProductCard} style={{
+                          background: "var(--panel-soft)",
+                          border: "1px solid var(--line)",
+                          borderRadius: "12px",
+                          padding: "10px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                          position: "relative"
+                        }}>
+                          {product.image && (
+                            <div style={{
+                              width: "100%",
+                              height: "100px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              background: "#fff",
+                              borderRadius: "8px",
+                              overflow: "hidden"
+                            }}>
+                              <img src={product.image} alt={product.name} style={{
+                                maxWidth: "100%",
+                                maxHeight: "100%",
+                                objectFit: "contain"
+                              }} />
+                            </div>
+                          )}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", flexGrow: 1 }}>
+                            <strong style={{ fontSize: "0.8rem", color: "var(--text)", lineHeight: "1.3" }}>
+                              {ar ? product.name : (product.name_en || product.name)}
+                            </strong>
+                            <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+                              {product.category}
+                            </span>
+                            <span style={{ fontSize: "0.82rem", fontWeight: "bold", color: "var(--blue)", marginTop: "2px" }}>
+                              {product.price} EGP
+                            </span>
+                          </div>
+                          
+                          <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
+                            <Link href={`/product/${product.id}`} className={styles.chipGpt} style={{
+                              flex: 1,
+                              justifyContent: "center",
+                              padding: "4px 0",
+                              fontSize: "0.7rem",
+                              borderRadius: "6px",
+                              textAlign: "center"
+                            }}>
+                              {ar ? "عرض" : "View"}
+                            </Link>
+                            {product.stockStatus === "in_stock" ? (
+                              <button
+                                type="button"
+                                onClick={() => addToCart(product)}
+                                className={styles.chipGpt}
+                                style={{
+                                  flex: 1,
+                                  justifyContent: "center",
+                                  padding: "4px 0",
+                                  fontSize: "0.7rem",
+                                  borderRadius: "6px",
+                                  background: "var(--blue)",
+                                  color: "#fff",
+                                  border: "none",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                {ar ? "شراء" : "Buy"}
+                              </button>
+                            ) : (
+                              <span style={{
+                                fontSize: "0.7rem",
+                                color: "var(--muted)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flex: 1
+                              }}>
+                                {ar ? "نفذ" : "Out"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
+              
+              {aiBusy && (
+                <div className={styles.msgRowAi}>
+                  <div className={styles.avatarGpt}>
+                    <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.memoProfileImg} width="32" height="32" decoding="async" />
+                  </div>
+                  <div className={styles.msgBubbleGpt} style={{ display: "flex", gap: "5px", padding: "12px 16px", alignItems: "center" }}>
+                    <span className={styles.loadingDot} />
+                    <span className={styles.loadingDot} style={{ animationDelay: "0.2s" }} />
+                    <span className={styles.loadingDot} style={{ animationDelay: "0.4s" }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSendGpt} className={styles.inputFormGpt}>
-              {/* Suggestion chips, only when no chat phone */}
-              {!chatPhone && (
-                <div className={styles.chipsGpt}>
-                  <button type="button" onClick={() => ask(text("I need a case", "أحتاج جراباً"))} className={styles.chipGpt}>
-                    {text("I need a case", "أحتاج جراباً")}
-                  </button>
-                  <button type="button" onClick={() => ask(text("I need a screen protector", "أحتاج اسكرينة"))} className={styles.chipGpt}>
-                    {text("Screen protector", "اسكرينة")}
-                  </button>
+              <div className={styles.chipsGpt}>
+                <button type="button" onClick={() => ask(text("I need a case", "أحتاج جراباً"))} className={styles.chipGpt}>
+                  {text("I need a case", "أحتاج جراباً")}
+                </button>
+                <button type="button" onClick={() => ask(text("I need a screen protector", "أحتاج اسكرينة"))} className={styles.chipGpt}>
+                  {text("Screen protector", "اسكرينة")}
+                </button>
+                {chatPhone && (
+                  <>
+                    <Link 
+                      href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "كفرات" : "Cases")}`}
+                      className={styles.chipGpt}
+                    >
+                      {text(`View cases`, `عرض الكفرات`)}
+                    </Link>
+                    <Link 
+                      href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "حماية الشاشة" : "Screen Protection")}`}
+                      className={styles.chipGpt}
+                    >
+                      {text(`View protectors`, `عرض الحماية`)}
+                    </Link>
+                    <button type="button" onClick={openChatPhoneSelection} className={styles.chipGpt}>
+                      {text("Change phone", "تغيير الموبايل")}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {recommendedProducts.length > 0 && (
+                <div className={styles.chatFloatingProducts} style={{
+                  display: "flex",
+                  gap: "10px",
+                  padding: "10px 16px",
+                  background: "var(--panel-soft)",
+                  borderTop: "1px solid var(--line)",
+                  borderBottom: "1px solid var(--line)",
+                  overflowX: "auto",
+                  width: "100%",
+                  boxSizing: "border-box"
+                }}>
+                  {recommendedProducts.map((product) => (
+                    <Link 
+                      key={product.id} 
+                      href={`/product/${product.id}`}
+                      className={styles.floatingProductCard}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        background: "var(--panel)",
+                        border: "1px solid var(--line)",
+                        borderRadius: "10px",
+                        padding: "6px 12px",
+                        minWidth: "200px",
+                        flexShrink: 0,
+                        textDecoration: "none",
+                        color: "inherit",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {product.image && (
+                        <img src={product.image} alt={product.name} style={{
+                          width: "36px",
+                          height: "36px",
+                          objectFit: "contain",
+                          background: "#fff",
+                          borderRadius: "4px"
+                        }} />
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden", flexGrow: 1 }}>
+                        <span style={{ fontSize: "0.78rem", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--text)" }}>
+                          {ar ? product.name : (product.name_en || product.name)}
+                        </span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--blue)" }}>
+                          {product.price} EGP
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
-              {chatPhone && (
-                <div className={styles.chipsGpt}>
-                  <Link 
-                    href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "كفرات" : "Cases")}`}
-                    className={styles.chipGpt}
-                  >
-                    {text(`View cases`, `عرض الكفرات`)}
-                  </Link>
-                  <Link 
-                    href={`/products?model=${encodeURIComponent(chatPhone.model)}&category=${encodeURIComponent(ar ? "حماية الشاشة" : "Screen Protection")}`}
-                    className={styles.chipGpt}
-                  >
-                    {text(`View protectors`, `عرض الحماية`)}
-                  </Link>
-                  <button type="button" onClick={openChatPhoneSelection} className={styles.chipGpt}>
-                    {text("Change phone", "تغيير الموبايل")}
-                  </button>
-                </div>
-              )}
+
               <div className={styles.inputRowGpt}>
                 <input 
                   type="text" 
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder={text("Message Memo...", "اسأل Memo...")}
                   className={styles.textInputGpt}
                 />
-                <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim()} aria-label="Send">
+                <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim() || wordCount > 400} aria-label="Send">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                   </svg>
                 </button>
               </div>
+              {wordCount > 300 && (
+                <div style={{
+                  fontSize: "0.72rem",
+                  color: wordCount >= 400 ? "#f44336" : "var(--muted)",
+                  padding: "4px 12px 0 12px",
+                  textAlign: ar ? "left" : "right"
+                }}>
+                  {wordCount}/400 {ar ? "كلمة" : "words"}
+                </div>
+              )}
             </form>
           </div>
         </div>

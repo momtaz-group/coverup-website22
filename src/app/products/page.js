@@ -171,7 +171,15 @@ function ShopContent() {
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
+          const defaultOrder = defaultProducts.map((p) => p.id);
+          const sorted = [...data.products].sort((a, b) => {
+            const indexA = defaultOrder.indexOf(a.id);
+            const indexB = defaultOrder.indexOf(b.id);
+            const valA = indexA === -1 ? 999 : indexA;
+            const valB = indexB === -1 ? 999 : indexB;
+            return valA - valB;
+          });
+          setProducts(sorted);
         }
       })
       .catch(() => {});
@@ -390,6 +398,73 @@ function ShopContent() {
             </button>
           )}
         </form>
+      </section>
+
+      {/* Category Tabs under Search Bar */}
+      <section className="category-tabs-container" style={{
+        margin: "12px auto 24px auto",
+        maxWidth: "1200px",
+        padding: "0 16px",
+        width: "100%",
+        boxSizing: "border-box"
+      }}>
+        <div className="category-tabs-scroll" style={{
+          display: "flex",
+          gap: "10px",
+          overflowX: "auto",
+          paddingBottom: "8px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          webkitOverflowScrolling: "touch"
+        }}>
+          <style jsx global>{`
+            .category-tabs-scroll::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          <button
+            type="button"
+            className={`tab-btn ${selectedCategory === "All" ? "is-active" : ""}`}
+            onClick={() => handleCategoryChange("All")}
+            style={{
+              padding: "10px 20px",
+              borderRadius: "30px",
+              border: "1px solid var(--line)",
+              background: selectedCategory === "All" ? "var(--blue)" : "var(--panel)",
+              color: selectedCategory === "All" ? "#fff" : "var(--text)",
+              fontSize: "0.88rem",
+              fontWeight: "600",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            {locale === "ar" ? "جميع المنتجات" : "All Products"}
+          </button>
+
+          {uniqueCategories.map((cat) => (
+            <button
+              type="button"
+              key={cat}
+              className={`tab-btn ${selectedCategory === cat ? "is-active" : ""}`}
+              onClick={() => handleCategoryChange(cat)}
+              style={{
+                padding: "10px 20px",
+                borderRadius: "30px",
+                border: "1px solid var(--line)",
+                background: selectedCategory === cat ? "var(--blue)" : "var(--panel)",
+                color: selectedCategory === cat ? "#fff" : "var(--text)",
+                fontSize: "0.88rem",
+                fontWeight: "600",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              {locale === "en" ? (cat === "كفرات" ? "Cases" : cat === "كفرات MagSafe" ? "MagSafe Cases" : cat === "حماية الشاشة" ? "Screen Protection" : cat) : cat}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Main Grid split layout */}

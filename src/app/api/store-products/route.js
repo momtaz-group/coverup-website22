@@ -6,7 +6,9 @@ function cleanProduct(product) {
   return {
     id: String(product.id || randomUUID()).trim(),
     name: String(product.name || "").trim(),
+    name_en: String(product.name_en || product.nameEn || "").trim(),
     category: String(product.category || "منتجات").trim(),
+    category_en: String(product.category_en || product.categoryEn || "").trim(),
     price: Number(product.price) || 0,
     image: String(product.image || "").trim(),
     images: Array.isArray(product.images)
@@ -16,7 +18,9 @@ function cleanProduct(product) {
           .map((item) => item.trim())
           .filter(Boolean),
     badge: String(product.badge || "متوفر").trim(),
+    badge_en: String(product.badge_en || product.badgeEn || "").trim(),
     description: String(product.description || "").trim(),
+    description_en: String(product.description_en || product.descriptionEn || "").trim(),
     seo_title: String(product.seo_title || product.seoTitle || "").trim(),
     seo_description: String(product.seo_description || product.seoDescription || "").trim(),
     sku: String(product.sku || "").trim(),
