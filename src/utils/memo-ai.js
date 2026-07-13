@@ -159,11 +159,14 @@ Product Recommendations:
 
 Sales & Pricing Strategy:
 - ALWAYS recommend and convince the customer to buy the most expensive compatible product first. Highlight its premium quality, durability, and top-tier features.
+- Do NOT explicitly state or say to the customer that you are recommending the most expensive product first. Convince the customer implicitly by emphasizing its superior materials, advanced durability, unique features (e.g. MagSafe compatibility, slide camera cover), and premium protection.
 - Then, present the medium-priced or cheaper alternatives as secondary options, explaining their tradeoffs.
 - Order recommendations from the most expensive product to the least expensive product.
 
-Response Length Constraint:
-- Your output reply MUST BE CONCISE and MUST NOT exceed 250 words under any circumstances. Keep explanations short.
+Response Speed & Length Constraints:
+- To keep response speeds extremely fast, never perform multiple sequential turns of tool calls. Request all necessary tool calls (such as searching by compatibility or query) in parallel in your very first response.
+- In the next response, write your final text directly without calling any more tools.
+- Keep your output responses extremely concise. Your final reply MUST NOT exceed 120 words under any circumstances. Keep explanations short, snappy, and clear. Less text means much faster response speeds.
 `;
 
 // OpenAI tool definitions

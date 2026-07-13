@@ -1,0 +1,734 @@
+.chatPageContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.chatMainArea {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flex scrolling */
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.chatCardGpt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  background: transparent;
+}
+
+.chatHeaderGpt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+  z-index: 10;
+}
+
+.headerLeftPage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.closeBtnPage {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.closeBtnPage:hover {
+  background: var(--panel);
+  color: var(--text);
+  transform: scale(1.05);
+}
+
+.headerAvatarWrapper {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.headerMemoImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.statusDotGpt {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #25d366;
+  border: 2px solid var(--bg);
+}
+
+.headerTitleStatus {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.aiStatusLabel {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.aiOnlineSub {
+  font-size: 0.72rem;
+  color: #25d366;
+  font-weight: 600;
+}
+
+.modelSelectorGpt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  max-width: 150px; /* Decreased width of the phone dropdown */
+}
+
+.modelSelectedText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.modelSelectorGpt:hover {
+  background: var(--panel-soft);
+  border-color: var(--blue);
+}
+
+.messagesGpt {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 260px; /* Big padding-bottom to clear the fixed bottom text box and suggestions */
+}
+
+.messagesGpt::-webkit-scrollbar {
+  width: 6px;
+}
+.messagesGpt::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+  border-radius: 4px;
+}
+
+.msgRowAi {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  align-self: flex-start;
+  width: 100%;
+}
+
+.msgRowUser {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-direction: row-reverse;
+  align-self: flex-end;
+  width: 100%;
+}
+
+.avatarGpt {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.76rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.memoProfileImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.msgRowAi .avatarGpt {
+  background: transparent;
+}
+
+.msgRowUser .avatarGpt {
+  background: var(--blue);
+  color: #fff;
+}
+
+.msgBubbleGpt {
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.msgRowAi .msgBubbleGpt {
+  background: var(--panel-soft);
+  color: var(--text);
+  border-top-left-radius: 2px;
+}
+
+.msgRowUser .msgBubbleGpt {
+  background: var(--blue);
+  color: #fff;
+  border-top-right-radius: 2px;
+}
+
+/* Products Recommendation Grids */
+.chatProductsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 4px 0 12px 44px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+:global([dir="rtl"]) .chatProductsGrid {
+  padding: 4px 44px 12px 0;
+}
+
+.chatProductCard {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  borderRadius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.productCardImgContainer {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.productCardImgContainer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.productCardTitle {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.productCardPrice {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--blue);
+  margin-top: 2px;
+}
+
+/* Fixed Bottom Area for inputs and chips */
+.fixedBottomArea {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding: 16px 24px;
+  z-index: 50;
+  box-sizing: border-box;
+}
+
+:global(.dark) .fixedBottomArea {
+  background: rgba(18, 18, 18, 0.85);
+}
+
+.inputFormGpt {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.chipsGpt {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px 12px 4px;
+  flex-wrap: wrap;
+}
+
+.chipGpt {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.chipGpt:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: rgba(18,103,232,0.05);
+}
+
+/* Floating recommended cards */
+.chatFloatingProducts {
+  display: flex;
+  gap: 10px;
+  padding: 0 4px 12px 4px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+.chatFloatingProducts::-webkit-scrollbar {
+  display: none;
+}
+
+.floatingProductCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-width: 220px;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.floatingProductCard:hover {
+  border-color: var(--blue);
+}
+
+.floatingProductCard img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.floatingProductTitle {
+  font-size: 0.8rem;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.inputRowGpt {
+  display: flex;
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inputRowGpt:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(18,103,232,0.08);
+}
+
+.textInputGpt {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  font-size: 0.95rem;
+  padding: 14px 18px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.sendBtnGpt {
+  width: 40px;
+  height: 40px;
+  margin: 4px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.sendBtnGpt:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sendBtnGpt:not(:disabled) {
+  background: var(--blue);
+  color: #fff;
+}
+
+.sendBtnGpt:not(:disabled):hover {
+  transform: scale(1.05);
+}
+
+.wordCounter {
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 6px 12px 0;
+  text-align: right;
+}
+
+:global([dir="rtl"]) .wordCounter {
+  text-align: left;
+}
+
+.loadingDot {
+  width: 7px;
+  height: 7px;
+  background-color: var(--text);
+  border-radius: 50%;
+  display: inline-block;
+  animation: loadingBounce 1.4s infinite ease-in-out both;
+}
+
+@keyframes loadingBounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Modals styles */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalCard {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.modalHeader h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.modalNotice {
+  background: rgba(244, 67, 54, 0.08);
+  color: #f44336;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.modalBody {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.modalLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.modalInput {
+  background: var(--panel-soft);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.choiceTabs {
+  display: flex;
+  background: var(--panel-soft);
+  border-radius: 10px;
+  padding: 3px;
+  border: 1px solid var(--line);
+}
+
+.choiceTabs button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.choiceTabs button.activeChoice {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modalSearchInput {
+  background: var(--panel-soft);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  outline: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+.devicesResultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  padding: 4px;
+}
+
+.deviceResultBtn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+}
+
+:global([dir="rtl"]) .deviceResultBtn {
+  text-align: right;
+  flex-direction: row-reverse;
+}
+
+.deviceResultBtn:hover {
+  background: var(--panel);
+}
+
+.deviceResultBtn.selectedDevice {
+  background: var(--blue);
+  color: #fff;
+}
+
+.savedPhonesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.savedPhonesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.savedPhoneBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+}
+
+:global([dir="rtl"]) .savedPhoneBtn {
+  align-items: flex-start;
+}
+
+.savedPhoneBtn:hover {
+  border-color: var(--blue);
+}
+
+.modalLinkBtn {
+  background: transparent;
+  border: none;
+  color: var(--blue);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.modalCancelBtn {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 18px;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.modalSubmitBtn {
+  background: var(--blue);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  cursor: pointer;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.modalSubmitBtn:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 600px) {
+  .chatHeaderGpt {
+    padding: 12px 16px;
+  }
+  .fixedBottomArea {
+    padding: 12px 16px;
+  }
+  .messagesGpt {
+    padding: 16px;
+    padding-bottom: 240px;
+  }
+}

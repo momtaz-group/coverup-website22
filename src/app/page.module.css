@@ -367,6 +367,14 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  max-width: 150px;
+}
+
+.modelSelectorGpt span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .modelSelectorGpt:hover {
