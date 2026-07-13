@@ -147,6 +147,8 @@ export default function Header() {
     },
   ];
 
+  if (pathname === "/chat") return null;
+
   return (
     <>
       <header className={`site-header ${headerHidden ? "mobile-hidden" : ""}`} id="top">

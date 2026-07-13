@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import Header from "@/components/Header";
+
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
@@ -120,22 +120,6 @@ export default function ChatPage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   const messagesContainerRef = useRef(null);
-  const [headerHidden, setHeaderHiddenState] = useState(false);
-  const lastScrollTopRef = useRef(0);
-
-  const handleMessagesScroll = (e) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    const isScrollingDown = scrollTop > lastScrollTopRef.current;
-    
-    if (Math.abs(scrollTop - lastScrollTopRef.current) > 15) {
-      if (isScrollingDown && scrollTop > 50) {
-        setHeaderHiddenState(true);
-      } else {
-        setHeaderHiddenState(false);
-      }
-      lastScrollTopRef.current = scrollTop;
-    }
-  };
 
   // Sync messages to session storage
   useEffect(() => {
@@ -339,45 +323,43 @@ export default function ChatPage() {
 
   return (
     <div className={styles.chatPageContainer} dir={ar ? "rtl" : "ltr"}>
-      <div className={`${styles.siteHeaderWrapper} ${headerHidden ? styles.headerHidden : ""}`}>
-        <Header />
+
+      {/* Full-width chat header — sits at page level, not inside max-width container */}
+      <div className={styles.chatHeaderGpt}>
+        <div className={styles.chatHeaderInner}>
+          <div className={styles.headerLeftPage}>
+            <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+              </svg>
+            </Link>
+            <div className={styles.headerAvatarWrapper}>
+              <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="36" height="36" decoding="async" />
+              <i className={styles.statusDotGpt} />
+            </div>
+            <div className={styles.headerTitleStatus}>
+              <span className={styles.aiStatusLabel}>Memo</span>
+              <span className={styles.aiOnlineSub}>{text("Online", "متصل")}</span>
+            </div>
+          </div>
+
+          <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
+            <span className={styles.modelSelectedText}>
+              {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}
+            </span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path d="M7 10l5 5 5-5H7z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <main className={styles.chatMainArea}>
         <div className={styles.chatCardGpt}>
-          {/* Chat Header with Close Icon on Left and phone dropdown on Right */}
-          <div className={styles.chatHeaderGpt}>
-            <div className={styles.headerLeftPage}>
-              <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                </svg>
-              </Link>
-              <div className={styles.headerAvatarWrapper}>
-                <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="36" height="36" decoding="async" />
-                <i className={styles.statusDotGpt} />
-              </div>
-              <div className={styles.headerTitleStatus}>
-                <span className={styles.aiStatusLabel}>Memo</span>
-                <span className={styles.aiOnlineSub}>{text("Online", "متصل")}</span>
-              </div>
-            </div>
-
-            <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
-              <span className={styles.modelSelectedText}>
-                {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}
-              </span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M7 10l5 5 5-5H7z" />
-              </svg>
-            </button>
-          </div>
-
           {/* Messages block */}
           <div 
             ref={messagesContainerRef} 
             className={styles.messagesGpt}
-            onScroll={handleMessagesScroll}
           >
             {messages.map((message, index) => (
               <div key={index} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>

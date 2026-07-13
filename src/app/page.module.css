@@ -367,7 +367,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
-  max-width: 150px;
+  max-width: 120px;
 }
 
 .modelSelectorGpt span {
@@ -593,6 +593,17 @@
 .sendBtnGpt:not(:disabled) {
   background: var(--blue);
   color: #fff;
+}
+
+:global([data-theme="light"]) .sendBtnGpt:not(:disabled) {
+  color: #000000 !important;
+  background: transparent !important;
+}
+
+:global([data-theme="light"]) .sendBtnGpt:disabled {
+  color: rgba(0, 0, 0, 0.25) !important;
+  background: transparent !important;
+  opacity: 1 !important;
 }
 
 .sendBtnGpt:not(:disabled):hover {
