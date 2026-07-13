@@ -1,10 +1,14 @@
 .chatPageContainer {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh; /* dvh handles iOS address bar correctly */
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  /* Prevent any outer scroll leaking in */
+  position: fixed;
+  inset: 0;
+  width: 100%;
 }
 
 /* Full-width sticky chat header */
@@ -23,11 +27,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 24px;
+  padding: 12px 20px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  gap: 10px;
+}
+
+.headerRightPage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .chatMainArea {
@@ -137,7 +149,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
-  max-width: 120px; /* Decreased width of the phone dropdown */
+  max-width: 150px;
+  flex-shrink: 0;
 }
 
 .modelSelectedText {
@@ -304,6 +317,8 @@
   background: var(--bg);
   border-top: 1px solid var(--line);
   padding: 16px 24px;
+  /* iOS safe area — prevents bar from being hidden under home indicator */
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 50;
   box-sizing: border-box;
 }
@@ -749,14 +764,21 @@
 }
 
 @media (max-width: 600px) {
-  .chatHeaderGpt {
-    padding: 12px 16px;
+  .chatHeaderInner {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .modelSelectorGpt {
+    max-width: 110px;
+    font-size: 0.75rem;
+    padding: 5px 10px;
   }
   .fixedBottomArea {
-    padding: 12px 16px;
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   }
   .messagesGpt {
-    padding: 16px;
+    padding: 14px;
     padding-bottom: 240px;
   }
 }

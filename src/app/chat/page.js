@@ -327,12 +327,8 @@ export default function ChatPage() {
       {/* Full-width chat header — sits at page level, not inside max-width container */}
       <div className={styles.chatHeaderGpt}>
         <div className={styles.chatHeaderInner}>
+          {/* Left: Avatar + name */}
           <div className={styles.headerLeftPage}>
-            <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-              </svg>
-            </Link>
             <div className={styles.headerAvatarWrapper}>
               <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="36" height="36" decoding="async" />
               <i className={styles.statusDotGpt} />
@@ -343,16 +339,25 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
-            <span className={styles.modelSelectedText}>
-              {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}
-            </span>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ flexShrink: 0 }}>
-              <path d="M7 10l5 5 5-5H7z" />
-            </svg>
-          </button>
+          {/* Right: phone dropdown + close button */}
+          <div className={styles.headerRightPage}>
+            <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
+              <span className={styles.modelSelectedText}>
+                {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose phone", "اختر الهاتف")}
+              </span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ flexShrink: 0 }}>
+                <path d="M7 10l5 5 5-5H7z" />
+              </svg>
+            </button>
+            <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
+
 
       <main className={styles.chatMainArea}>
         <div className={styles.chatCardGpt}>

@@ -21,6 +21,7 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl">
       <head>
         <title>Cover Up</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="icon" href="/assets/brand/cover-up-symbol.png" type="image/png" />
         <link rel="shortcut icon" href="/assets/brand/cover-up-symbol.png" type="image/png" />
         <link rel="apple-touch-icon" href="/assets/brand/cover-up-symbol.png" />

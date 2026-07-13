@@ -2,11 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "../context/LanguageContext";
 
 export default function Footer() {
   const { t, locale } = useLanguage();
+  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+
+  if (pathname === "/chat") return null;
 
   return (
     <footer className="site-footer">
