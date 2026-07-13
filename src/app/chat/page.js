@@ -121,10 +121,13 @@ export default function ChatPage() {
 
   const messagesContainerRef = useRef(null);
 
-  // Sync messages to session storage
+  // Sync messages to session storage — strip isNew so they don't re-typewrite on remount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("coverup-chat-messages", JSON.stringify(messages));
+      sessionStorage.setItem(
+        "coverup-chat-messages",
+        JSON.stringify(messages.map((m) => ({ ...m, isNew: false })))
+      );
     }
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;

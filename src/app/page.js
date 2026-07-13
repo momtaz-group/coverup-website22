@@ -205,6 +205,10 @@ export default function HomePage() {
     ];
 
     setMessages(updatedMessages);
+    // Save synchronously so navigating to /chat immediately reads the latest messages
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("coverup-chat-messages", JSON.stringify(updatedMessages));
+    }
 
     const apiMessages = updatedMessages.map(m => ({
       role: m.who === "user" ? "user" : "assistant",
@@ -227,15 +231,22 @@ export default function HomePage() {
 
       const data = await response.json();
       if (response.ok) {
-        setMessages((current) => [
-          ...current,
+        const withAi = [
+          ...updatedMessages,
           { 
             who: "ai", 
             text: data.message, 
             products: data.products || [],
             isNew: true
           }
-        ]);
+        ];
+        setMessages(withAi);
+        if (typeof window !== "undefined") {
+          // Mark isNew: false before saving so /chat page doesn't re-typewrite
+          sessionStorage.setItem("coverup-chat-messages", JSON.stringify(
+            withAi.map(m => ({ ...m, isNew: false }))
+          ));
+        }
       } else {
         setMessages((current) => [
           ...current,
