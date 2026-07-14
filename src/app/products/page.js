@@ -170,7 +170,7 @@ function ShopContent() {
     fetch("/api/store-products")
       .then((res) => res.json())
       .then((data) => {
-        if (data && Array.isArray(data.products) && data.products.length > 0) {
+        if (data && Array.isArray(data.products)) {
           const defaultOrder = defaultProducts.map((p) => p.id);
           const visibleProducts = data.products.filter(p => p.status !== 'hidden');
           const sorted = [...visibleProducts].sort((a, b) => {

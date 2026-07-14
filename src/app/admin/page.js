@@ -800,7 +800,7 @@ export default function AdminPage() {
                   setProductForm(initialProductForm);
                   setImageFile(null);
                   setGalleryFiles([]);
-                  setIsProductModalOpen(true);
+                  setActiveTab("product_editor");
                 }}>
                   + إضافة منتج جديد
                 </button>
