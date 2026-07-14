@@ -116,7 +116,7 @@ function TypewriterText({ text, speed = 10, onComplete, scrollContainerRef }) {
 
 export default function HomePage() {
   const { locale } = useLanguage(); const ar = locale === "ar";
-  const { addToCart } = useCart();
+  const { addToCart, showToast } = useCart();
   const text = (en, arabic) => ar ? arabic : en;
   const [phones, setPhones] = useState([]); const [modal, setModal] = useState(false); const [query, setQuery] = useState(""); const [custom, setCustom] = useState(false);
   const [phoneName, setPhoneName] = useState(""); const [selected, setSelected] = useState(null); const [customBrand, setCustomBrand] = useState(""); const [customModel, setCustomModel] = useState(""); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState("");
@@ -559,7 +559,10 @@ export default function HomePage() {
                             {product.stockStatus === "in_stock" ? (
                               <button
                                 type="button"
-                                onClick={() => addToCart(product)}
+                                onClick={() => {
+                                  addToCart(product);
+                                  showToast(locale === "ar" ? "تمت الإضافة للسلة!" : "Added to cart!");
+                                }}
                                 className={styles.chipGpt}
                                 style={{
                                   flex: 1,

@@ -138,7 +138,7 @@ const defaultProducts = [
 
 function ShopContent() {
   const { locale, t } = useLanguage();
-  const { addToCart } = useCart();
+  const { addToCart, showToast } = useCart();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -148,7 +148,7 @@ function ShopContent() {
   const urlModel = searchParams.get("model") || "All";
 
   // State
-  const [products, setProducts] = useState(defaultProducts);
+  const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [selectedModel, setSelectedModel] = useState(urlModel);
@@ -180,7 +180,11 @@ function ShopContent() {
             const valB = indexB === -1 ? 999 : indexB;
             return valA - valB;
           });
-          setProducts(sorted);
+          if (data.configured === false && sorted.length === 0) {
+            setProducts(defaultProducts);
+          } else {
+            setProducts(sorted);
+          }
         }
       })
       .catch(() => {});
@@ -644,7 +648,7 @@ function ShopContent() {
                         className="amazon-add-to-cart-btn"
                         onClick={() => {
                           addToCart(p);
-                          alert(locale === "ar" ? "تمت الإضافة للسلة!" : "Added to cart!");
+                          showToast(locale === "ar" ? "تمت الإضافة للسلة!" : "Added to cart!");
                         }}
                       >
                         {locale === "ar" ? "إضافة إلى السلة" : "Add to Cart"}

@@ -8,6 +8,7 @@ import {
   reserveInventoryForOrder,
   supabaseConfigured,
   updateOrderStatus,
+  deleteOrder,
 } from "@/utils/store-db";
 
 function cleanText(value, limit = 200) {
@@ -67,6 +68,8 @@ export async function PATCH(request) {
     const extra = {};
     if (status === "paid") {
       extra.payment_status = "paid";
+    } else if (status === "payment_failed") {
+      extra.payment_status = "failed";
     } else if (status === "cancelled") {
       extra.payment_status = order.payment_method === "cash" ? "cancelled" : order.payment_status;
     }
@@ -89,5 +92,59 @@ export async function PATCH(request) {
     return NextResponse.json({ order: updated });
   } catch (error) {
     return NextResponse.json({ message: error.message || "Order update failed" }, { status: 500 });
+  }
+}
+
+export async function GET(request) {
+  try {
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized) {
+      return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
+    }
+
+    if (!supabaseConfigured(true)) {
+      return NextResponse.json({ message: "Supabase service role is not configured." }, { status: 501 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const orderId = cleanText(searchParams.get("orderId"), 120);
+
+    if (!orderId) {
+      return NextResponse.json({ message: "رقم الطلب مطلوب." }, { status: 400 });
+    }
+
+    const order = await findOrderById(orderId);
+    if (!order) {
+      return NextResponse.json({ message: "الطلب غير موجود." }, { status: 404 });
+    }
+
+    return NextResponse.json({ order });
+  } catch (error) {
+    return NextResponse.json({ message: error.message || "Failed to fetch order" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized) {
+      return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
+    }
+
+    if (!supabaseConfigured(true)) {
+      return NextResponse.json({ message: "Supabase service role is not configured." }, { status: 501 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = String(searchParams.get("id") || "").trim();
+
+    if (!id) {
+      return NextResponse.json({ message: "الرجاء تحديد الطلب أولاً." }, { status: 400 });
+    }
+
+    await deleteOrder(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ message: error.message || "Failed to delete order" }, { status: 500 });
   }
 }

@@ -145,7 +145,7 @@ export async function POST(request) {
       return NextResponse.json({ message: "السلة فاضية." }, { status: 400 });
     }
 
-    const products = await getProducts(items.map((item) => cleanText(item.id, 120)));
+    const products = await getProducts(items.map((item) => cleanText(item.id, 120).split("::")[0]));
     const normalizedItems = normalizeItems(items, products);
     const subtotal = normalizedItems.reduce((sum, item) => sum + item.line_total, 0);
     const discount = applyCoupon(subtotal, body.discountCode);

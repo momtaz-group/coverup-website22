@@ -103,7 +103,7 @@ function template(type, data = {}) {
       };
     case "order_confirmation":
       return {
-        subject: `تم استلام طلبك${orderId ? ` #${orderId.slice(0, 8)}` : ""}`,
+        subject: `تم استلام طلبك${orderId ? ` #${orderId.startsWith("CU") ? orderId : orderId.slice(0, 8)}` : ""}`,
         html: renderLayout({
           title: "طلبك وصلنا",
           intro: `إجمالي الطلب الحالي ${total}، وفريق Cover Up بدأ مراجعته.`,

@@ -84,6 +84,57 @@ export async function POST(request) {
       }
     }
 
+    if (kind === "payment") {
+      const orderId = cleanText(body.orderId, 60).replace(/[^a-z0-9_-]/gi, "");
+      const method = cleanText(body.method, 40).replace(/[^a-z0-9_-]/gi, "") || "generic";
+
+      if (!orderId) {
+        return NextResponse.json({ message: "رقم الطلب مطلوب لرفع صورة التحويل." }, { status: 400 });
+      }
+
+      // Convert Base64 to Buffer
+      const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      // Process with sharp (convert to WebP, 80% quality)
+      const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
+
+      const fileName = `${Date.now()}-${randomUUID().slice(0, 8)}.webp`;
+      const path = `payments/${method}/${orderId}/${fileName}`;
+      const bucketName = R2_BUCKET_NAME || "coverup";
+
+      try {
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: bucketName,
+            Key: path,
+            Body: webpBuffer,
+            ContentType: "image/webp",
+          })
+        );
+
+        const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/$/, "")}/${path}` : `https://pub-${R2_ACCOUNT_ID}.r2.dev/${path}`;
+        return NextResponse.json({ url: publicUrl, path });
+      } catch (r2Error) {
+        console.warn("R2 payment upload failed, falling back to local storage:", r2Error);
+        
+        const fs = require("node:fs");
+        const pathModule = require("node:path");
+        
+        // Save locally to public/uploads/payments/{method}/{orderId}
+        const uploadsDir = pathModule.join(process.cwd(), "public", "uploads", "payments", method, orderId);
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        const localFilePath = pathModule.join(uploadsDir, fileName);
+        fs.writeFileSync(localFilePath, webpBuffer);
+        
+        const localUrl = `/uploads/payments/${method}/${orderId}/${fileName}`;
+        return NextResponse.json({ url: localUrl, path: `local/${path}`, note: "Fallback to local storage due to R2 upload failure." });
+      }
+    }
+
     return NextResponse.json({ message: "نوع الرفع غير مدعوم." }, { status: 400 });
   } catch (error) {
     console.error("R2 Upload Error:", error);

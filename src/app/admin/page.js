@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AdminOrdersTab from "./AdminOrdersTab";
 import { supabase } from "@/utils/supabase";
 import chatStyles from "@/app/chat/page.module.css";
 import { brandsData, FAMOUS_COLORS } from "@/utils/brandsData";
@@ -53,6 +54,7 @@ export default function AdminPage() {
   const [productFilterSection, setProductFilterSection] = useState("");
   const [productSort, setProductSort] = useState("newest");
   const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [productPage, setProductPage] = useState(1);
   
   // Feedback states
   const [statusMessage, setStatusMessage] = useState("");
@@ -112,8 +114,10 @@ export default function AdminPage() {
       // 2. Fetch products
       const prodRes = await fetch("/api/store-products");
       const prodData = await prodRes.json().catch(() => ({}));
+      let uniqueCategories = [];
       if (prodRes.ok && prodData.products) {
         setProducts(prodData.products);
+        uniqueCategories = Array.from(new Set(prodData.products.map(p => p.category).filter(Boolean)));
         if (prodData.products.length > 0 && !posForm.productId) {
           setPosForm((prev) => ({ ...prev, productId: prodData.products[0].id }));
         }
@@ -121,9 +125,8 @@ export default function AdminPage() {
 
       // 2.5 Fetch Product Sections
       const { data: secData } = await supabase.from("product_sections").select("name");
-      if (secData) {
-        setSections(secData.map(s => s.name));
-      }
+      const dbCategories = secData ? secData.map(s => s.name) : [];
+      setSections(Array.from(new Set([...dbCategories, ...uniqueCategories])));
 
       // 3. Fetch registered profiles and roles
       const usersRes = await fetch("/api/admin/users");
@@ -154,6 +157,10 @@ export default function AdminPage() {
     return () => clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    setProductPage(1);
+  }, [productSearch, productFilterSection, productSort]);
+
   const handleSignOut = () => {
     // Delete admin cookie
     document.cookie = "coverup_admin_token=; path=/; max-age=0;";
@@ -173,7 +180,7 @@ export default function AdminPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to update order status");
 
-      setStatusMessage(`تم تحديث الطلب #${orderId.slice(0, 8)} إلى: ${newStatus}`);
+      setStatusMessage(`تم تحديث الطلب #${orderId.startsWith("CU") ? orderId : orderId.slice(0, 8)} إلى: ${newStatus}`);
       loadDashboardData(true);
     } catch (err) {
       setStatusMessage(err.message);
@@ -233,7 +240,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to submit POS order");
 
-      setStatusMessage(`تم البيع بنجاح. رقم الفاتورة: ${String(data.order.id).slice(0, 8)}`);
+      setStatusMessage(`تم البيع بنجاح. رقم الفاتورة: ${String(data.order.id).startsWith("CU") ? data.order.id : String(data.order.id).slice(0, 8)}`);
       setPosForm({
         productId: products[0]?.id || "",
         quantity: 1,
@@ -493,6 +500,52 @@ export default function AdminPage() {
      return new Date(b.created_at) - new Date(a.created_at);
   });
 
+  const ITEMS_PER_PAGE = 30;
+  const totalProductPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE) || 1;
+  const paginatedProducts = sortedProducts.slice((productPage - 1) * ITEMS_PER_PAGE, productPage * ITEMS_PER_PAGE);
+
+  const renderPagination = (currentPage, totalPages, onPageChange) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="pagination-controls" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", margin: "16px 0", direction: "ltr" }}>
+        <button 
+          type="button" 
+          disabled={currentPage === 1} 
+          onClick={() => { onPageChange(currentPage - 1); }}
+          style={{ padding: "6px 12px", border: "1px solid var(--line)", background: "var(--panel)", borderRadius: "8px", color: "var(--text)", cursor: currentPage === 1 ? "not-allowed" : "pointer", opacity: currentPage === 1 ? 0.5 : 1 }}
+        >
+          &lt;
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+          <button
+            key={pg}
+            type="button"
+            onClick={() => { onPageChange(pg); }}
+            style={{ 
+              padding: "6px 12px", 
+              border: "1px solid " + (pg === currentPage ? "#0052ff" : "var(--line)"), 
+              background: pg === currentPage ? "#0052ff" : "var(--panel)", 
+              color: pg === currentPage ? "#fff" : "var(--text)", 
+              borderRadius: "8px", 
+              fontWeight: pg === currentPage ? "bold" : "normal",
+              cursor: "pointer" 
+            }}
+          >
+            {pg}
+          </button>
+        ))}
+        <button 
+          type="button" 
+          disabled={currentPage === totalPages} 
+          onClick={() => { onPageChange(currentPage + 1); }}
+          style={{ padding: "6px 12px", border: "1px solid var(--line)", background: "var(--panel)", borderRadius: "8px", color: "var(--text)", cursor: currentPage === totalPages ? "not-allowed" : "pointer", opacity: currentPage === totalPages ? 0.5 : 1 }}
+        >
+          &gt;
+        </button>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="admin-loading-screen">
@@ -694,7 +747,7 @@ export default function AdminPage() {
                     {ordersList.slice(0, 5).map((order) => (
                       <div key={order.id} className="list-item-flex">
                         <div>
-                          <strong>طلب #{order.id.slice(0, 8)}</strong>
+                          <strong>طلب #{order.id.startsWith("CU") ? order.id : order.id.slice(0, 8)}</strong>
                           <small>{order.customer?.name || "بدون اسم"} | {order.payment_method === "cash" ? "كاش" : "فيزا/محفظة"}</small>
                         </div>
                         <span className="item-price">{order.grand_total || order.total} EGP</span>
@@ -841,6 +894,8 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {renderPagination(productPage, totalProductPages, setProductPage)}
+
               <div className="card-panel">
                 <table className="admin-table">
                   <thead>
@@ -863,7 +918,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedProducts.map((prod) => (
+                    {paginatedProducts.map((prod) => (
                       <tr key={prod.id}>
                         <td style={{ textAlign: "center" }}>
                           <input 
@@ -926,6 +981,8 @@ export default function AdminPage() {
                 </table>
               </div>
 
+              {renderPagination(productPage, totalProductPages, setProductPage)}
+
             </div>
           )}
 
@@ -953,53 +1010,12 @@ export default function AdminPage() {
           {/* ======================================================================= */}
           {/* TAB: ORDERS */}
           {activeTab === "orders" && (
-            <div className="tab-pane">
-              <div className="pane-header">
-                <h2>قائمة الطلبات وفواتير البيع</h2>
-                <p>مراجعة فواتير الشراء، طلبات الشحن، وتعديل حالات الشحنات.</p>
-              </div>
-
-              <div className="panel-list">
-                {ordersList.length === 0 ? (
-                  <p style={{ textAlign: "center", padding: "32px 0", color: "#666" }}>لا توجد طلبات مسجلة بعد في النظام.</p>
-                ) : (
-                  ordersList.map((order) => (
-                    <div key={order.id} className="order-item-card">
-                      <div className="order-card-main">
-                        <div>
-                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                            <strong>طلب #{order.id.slice(0, 8)}</strong>
-                            <span className={`order-status-badge status-${order.status}`}>
-                              {order.status}
-                            </span>
-                          </div>
-                          <span className="order-details-line">العميل: {order.customer?.name || "بدون اسم"} | {order.customer?.phone}</span>
-                          <span className="order-details-line">العنوان: {order.customer?.address || "استلام من الفرع"} {order.customer?.city || ""}</span>
-                          <span className="order-details-line">
-                            العناصر: {order.items?.map((item) => `${item.name || item.id} × ${item.quantity || 1}`).join(", ")}
-                          </span>
-                        </div>
-
-                        <div className="order-card-financial">
-                          <strong>{Number(order.grand_total || order.total || 0).toLocaleString("ar-EG")} EGP</strong>
-                          <div className="status-update-row">
-                            <label style={{ fontSize: "11px", color: "#666" }}>تغيير الحالة:</label>
-                            <select 
-                              value={order.status}
-                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                            >
-                              {ORDER_STATUSES.map((st) => (
-                                <option key={st} value={st}>{st}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <AdminOrdersTab
+              ordersList={ordersList}
+              onUpdateOrder={handleUpdateOrderStatus}
+              ORDER_STATUSES={ORDER_STATUSES}
+              onRefresh={() => loadDashboardData(true)}
+            />
           )}
 
           {/* ======================================================================= */}

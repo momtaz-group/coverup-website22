@@ -46,6 +46,24 @@ function ProductDetailContent() {
     return [];
   }, [product]);
 
+  const defaultGalleryImages = useMemo(() => {
+    if (!product) return [];
+    const allImages = [
+      product.image,
+      ...(Array.isArray(product.images) ? product.images : [])
+    ];
+    const colorsList = Array.isArray(product.colors) ? product.colors : [];
+    colorsList.forEach(c => {
+      if (c.image) allImages.push(c.image);
+      if (Array.isArray(c.images)) {
+        c.images.forEach(img => { if (img) allImages.push(img); });
+      }
+    });
+    return Array.from(new Set(allImages.filter(Boolean)));
+  }, [product]);
+
+  const galleryImages = defaultGalleryImages;
+
 
   useEffect(() => {
     const loadWishlist = async () => {
@@ -99,6 +117,9 @@ function ProductDetailContent() {
           setProduct(productData.product);
           setReviews(reviewsData.reviews || []);
           setMainImage(productData.product.image);
+          if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
 
           // Find suggested products (exclude current, prefer same category)
           if (allProductsData.products) {
@@ -157,8 +178,33 @@ function ProductDetailContent() {
 
   if (loading) {
     return (
-      <main style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ fontSize: "18px", color: "var(--muted)", fontWeight: "bold" }}>{locale === "ar" ? "جارٍ التحميل..." : "Loading..."}</p>
+      <main className="product-loading-screen">
+        <div className="product-loader"></div>
+        <p style={{ fontWeight: "bold" }}>{locale === "ar" ? "جارٍ التحميل..." : "Loading..."}</p>
+        <style jsx>{`
+          .product-loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            background: transparent;
+            color: var(--text);
+          }
+          .product-loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--line);
+            border-top: 3px solid #0070f3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </main>
     );
   }
@@ -171,10 +217,7 @@ function ProductDetailContent() {
     );
   }
 
-  const defaultGalleryImages = [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean);
-  const galleryImages = activeColor && Array.isArray(activeColor.images) && activeColor.images.length > 0 
-    ? activeColor.images.filter(Boolean)
-    : defaultGalleryImages;
+
 
   const isFavorite = wishlist.includes(product.id);
 

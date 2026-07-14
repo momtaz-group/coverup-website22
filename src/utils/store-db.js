@@ -488,10 +488,14 @@ function nextStatusHistory(order, status, details = {}) {
 }
 
 async function createOrder(order) {
+  const randomDigits = Math.floor(10000000 + Math.random() * 90000000); // 8-digit random number
+  const orderId = `CU${randomDigits}`;
+
   const saved = await supabaseRequest(TABLES.orders, {
     service: true,
     method: "POST",
     body: {
+      id: orderId,
       customer_id: order.customer_id || null,
       customer: order.customer || {},
       items: Array.isArray(order.items) ? order.items : [],
@@ -778,7 +782,7 @@ async function getEvents() {
     supabaseRequest(TABLES.chats, { service: true, query: "?select=*&order=created_at.desc&limit=500" }),
     supabaseRequest(TABLES.profiles, {
       service: true,
-      query: "?select=id,full_name,phone,email,username,address,city,notes,email_confirmed_at,last_sign_in_at,created_at,updated_at&order=created_at.desc&limit=500",
+      query: "?select=id,full_name,phone,email,location,auth_provider,email_confirmed_at,last_sign_in_at,created_at,updated_at,roles&order=created_at.desc&limit=500",
     }),
   ]);
 
@@ -845,6 +849,19 @@ async function deleteProduct(id) {
   return result;
 }
 
+async function deleteOrder(id) {
+  const isBulk = id.includes(",");
+  const query = isBulk 
+    ? `?id=in.(${id.split(',').map(x => encodeURIComponent(x.trim())).join(',')})`
+    : `?id=eq.${encodeURIComponent(id)}`;
+  const result = await supabaseRequest(TABLES.orders, {
+    service: true,
+    method: "DELETE",
+    query,
+  });
+  return result;
+}
+
 export {
   ORDER_STATUSES,
   appendEvent,
@@ -879,4 +896,5 @@ export {
   uploadStorageObjectFromDataUrl,
   upsertProduct,
   deleteProduct,
+  deleteOrder,
 };

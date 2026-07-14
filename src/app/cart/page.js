@@ -27,6 +27,15 @@ function CartContent() {
   });
 
   const [profileData, setProfileData] = useState({ name: "", email: "" });
+  const [contactEmail, setContactEmail] = useState("");
+  const [guestDetails, setGuestDetails] = useState({
+    phone: "",
+    address1: "",
+    address2: "",
+    city: "",
+    state: "",
+  });
+  const [isGuest, setIsGuest] = useState(true);
   const [message, setMessage] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -40,6 +49,7 @@ function CartContent() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        setIsGuest(false);
         const response = await fetch("/api/profile", { headers: { Authorization: `Bearer ${session.access_token}` } });
         const data = await response.json().catch(() => ({}));
         const profile = data.profile || {};
@@ -50,6 +60,8 @@ function CartContent() {
         if (selected) {
           setFormData(prev => ({ ...prev, selectedLocationId: selected.id }));
         }
+      } else {
+        setIsGuest(true);
       }
     });
 
@@ -58,6 +70,35 @@ function CartContent() {
       setMessage(locale === "ar" ? "لو الدفع تم بنجاح، حالة الطلب هتتحدث تلقائيًا." : "If payment was successful, the order status will be updated automatically.");
     }
   }, [searchParams, locale]);
+
+  // Clean up any deleted items in cart on mount
+  useEffect(() => {
+    fetch("/api/store-products")
+      .then((res) => res.json())
+      .then((data) => {
+        // Only clean if the DB is configured and actually returned products
+        // (avoid false positives when api fails or returns empty during loading)
+        if (data && data.configured !== false && Array.isArray(data.products) && data.products.length > 0) {
+          const dbProductIds = new Set(data.products.map(p => String(p.id)));
+          let cleanedAny = false;
+          
+          Object.keys(cart).forEach((cartItemId) => {
+            const baseId = String(cartItemId.split("::")[0]);
+            if (!dbProductIds.has(baseId)) {
+              removeFromCart(cartItemId);
+              cleanedAny = true;
+            }
+          });
+          
+          if (cleanedAny) {
+            alert(locale === "ar" 
+              ? "تمت إزالة بعض المنتجات من السلة لأنها لم تعد متوفرة." 
+              : "Some products were removed from your cart because they are no longer available.");
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const saveNewAddress = async (e) => {
     e.preventDefault();
@@ -119,20 +160,38 @@ function CartContent() {
 
   const handleCheckout = async (payMethod) => {
     try {
-      if (formData.deliveryMethod === 'delivery' && !selectedLocation) {
-        throw new Error(locale === "ar" ? "اختر عنواناً أولاً." : "Please select an address.");
+      if (formData.deliveryMethod === 'delivery') {
+        if (isGuest) {
+          if (!profileData.name.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة الاسم بالكامل." : "Please enter your full name.");
+          if (!guestDetails.phone.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة رقم الهاتف." : "Please enter your phone number.");
+          if (!profileData.email.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة البريد الإلكتروني للتواصل." : "Please enter your contact email.");
+          if (!guestDetails.address1.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة العنوان بالتفصيل." : "Please enter your detailed address.");
+          if (!guestDetails.city.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة المدينة." : "Please enter your city.");
+          if (!guestDetails.state) throw new Error(locale === "ar" ? "الرجاء اختيار المحافظة." : "Please select your governorate.");
+        } else if (!selectedLocation) {
+          throw new Error(locale === "ar" ? "اختر عنواناً أولاً." : "Please select an address.");
+        }
+      } else {
+        if (isGuest) {
+          if (!profileData.name.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة الاسم بالكامل." : "Please enter your full name.");
+          if (!guestDetails.phone.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة رقم الهاتف." : "Please enter your phone number.");
+          if (!profileData.email.trim()) throw new Error(locale === "ar" ? "الرجاء كتابة البريد الإلكتروني للتواصل." : "Please enter your contact email.");
+        }
       }
       setLoading(true);
       setMessage(locale === "ar" ? "بنجهز طلبك..." : "Processing your order...");
 
+      const resolvedEmail = contactEmail.trim() || profileData.email.trim();
       const orderPayload = {
         channel: "website",
         customer: {
-          name: profileData.name || "Customer",
-          phone: selectedLocation?.phone || "",
-          email: profileData.email || "",
-          city: selectedLocation?.city || "",
-          address: selectedLocation ? [selectedLocation.address1, selectedLocation.address2].filter(Boolean).join(", ") : "",
+          name: profileData.name.trim(),
+          phone: isGuest ? guestDetails.phone.trim() : (selectedLocation?.phone || ""),
+          email: resolvedEmail,
+          city: isGuest ? guestDetails.city.trim() : (selectedLocation?.city || ""),
+          address: isGuest 
+            ? [guestDetails.address1.trim(), guestDetails.address2.trim(), guestDetails.state].filter(Boolean).join(", ") 
+            : (selectedLocation ? [selectedLocation.address1, selectedLocation.address2].filter(Boolean).join(", ") : ""),
           locationLink: "",
         },
         notes: formData.notes.trim(),
@@ -161,19 +220,11 @@ function CartContent() {
       const order = resData.order;
 
       if (payMethod === "online") {
-        setMessage(locale === "ar" ? "بنجهز رابط الدفع الآمن..." : "Redirecting to secure gateway...");
-        const payRes = await fetch("/api/create-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: order.id }),
-        });
-        const payData = await payRes.json().catch(() => ({}));
-        if (!payRes.ok) throw new Error(payData.message || "Failed to initiate online payment.");
-        clearCart();
-        window.location.href = payData.checkoutUrl;
+        // Don't clear cart yet — only clear after payment is confirmed on the payment page
+        window.location.href = `/checkout-payment?orderId=${order.id}`;
       } else {
         clearCart();
-        setMessage(locale === "ar" ? `تم تأكيد طلبك رقم ${String(order.id).slice(0, 8)} بنجاح. ` : `Order #${String(order.id).slice(0, 8)} placed successfully. `);
+        window.location.href = `/checkout-success?orderId=${order.id}`;
       }
     } catch (err) {
       setMessage(err.message);
@@ -246,35 +297,169 @@ function CartContent() {
             </div>
 
             <div className="cart-checkout-form" style={{ display: 'grid', gap: '24px' }}>
-              {formData.deliveryMethod !== "pickup" ? (
+              {isGuest ? (
                 <div style={{ display: 'grid', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "عنوان التوصيل" : "Delivery Address"}</label>
-                    <button type="button" onClick={() => setShowAddressModal(true)} style={{ background: 'none', border: 'none', color: '#0070f3', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      {locale === "ar" ? "+ إضافة أو تغيير عنوان" : "+ Change or Add Address"}
-                    </button>
-                  </div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>
+                    {locale === "ar" ? "بيانات إتمام الطلب (زائر)" : "Checkout Details (Guest)"}
+                  </h3>
                   
-                  {selectedLocation ? (
-                    <div style={{ padding: '16px', background: 'var(--input-bg)', border: '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
-                      <strong style={{ display: 'block', fontSize: '15px', color: 'var(--text)' }}>{selectedLocation.label}</strong>
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{selectedLocation.address1}, {selectedLocation.city}</p>
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{selectedLocation.phone}</p>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '24px', background: 'rgba(0,112,243,0.05)', border: '1px dashed #0070f3', borderRadius: '12px', textAlign: 'center', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
-                      <p style={{ margin: 0, color: '#0070f3', fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "لم يتم تحديد عنوان. انقر هنا للاختيار." : "No address selected. Click to choose."}</p>
-                    </div>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                    {locale === "ar" ? "الاسم بالكامل" : "Full Name"}
+                    <input 
+                      type="text" 
+                      style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                      value={profileData.name} 
+                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} 
+                      placeholder={locale === "ar" ? "اكتب اسمك بالكامل" : "Full Name"} 
+                      required 
+                    />
+                  </label>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                      {locale === "ar" ? "رقم الهاتف" : "Phone Number"}
+                      <input 
+                        type="tel" 
+                        style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                        value={guestDetails.phone} 
+                        onChange={(e) => setGuestDetails({ ...guestDetails, phone: e.target.value })} 
+                        placeholder="01xxxxxxxxx" 
+                        required 
+                      />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                      {locale === "ar" ? "البريد الإلكتروني للتواصل" : "Contact Email"}
+                      <input 
+                        type="email" 
+                        style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                        value={profileData.email} 
+                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} 
+                        placeholder="name@example.com" 
+                        required 
+                      />
+                    </label>
+                  </div>
+
+                  {formData.deliveryMethod !== "pickup" && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                          {locale === "ar" ? "المحافظة" : "Governorate"}
+                          <select 
+                            style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', cursor: 'pointer', fontSize: '14px' }}
+                            value={guestDetails.state} 
+                            onChange={(e) => setGuestDetails({ ...guestDetails, state: e.target.value })}
+                          >
+                            <option value="">{locale === "ar" ? "اختر المحافظة" : "Select Governorate"}</option>
+                            <option value="القاهرة">القاهرة (Cairo)</option>
+                            <option value="الجيزة">الجيزة (Giza)</option>
+                            <option value="الإسكندرية">الإسكندرية (Alexandria)</option>
+                            <option value="الدقهلية">الدقهلية (Dakahlia)</option>
+                            <option value="الشرقية">الشرقية (Al Sharqia)</option>
+                            <option value="المنوفية">المنوفية (Monufia)</option>
+                            <option value="القليوبية">القليوبية (Qalyubia)</option>
+                            <option value="البحيرة">البحيرة (Beheira)</option>
+                            <option value="الغربية">الغربية (Gharbia)</option>
+                            <option value="بورسعيد">بورسعيد (Port Said)</option>
+                            <option value="دمياط">دمياط (Damietta)</option>
+                            <option value="الإسماعيلية">الإسماعيلية (Ismailia)</option>
+                            <option value="السويس">السويس (Suez)</option>
+                            <option value="كفر الشيخ">كفر الشيخ (Kafr El Sheikh)</option>
+                            <option value="الفيوم">الفيوم (Faiyum)</option>
+                            <option value="بني سويف">بني سويف (Beni Suef)</option>
+                            <option value="مطروح">مطروح (Matrouh)</option>
+                            <option value="شمال سيناء">شمال سيناء (North Sinai)</option>
+                            <option value="جنوب سيناء">جنوب سيناء (South Sinai)</option>
+                            <option value="المنيا">المنيا (Minya)</option>
+                            <option value="أسيوط">أسيوط (Asyut)</option>
+                            <option value="سوهاج">سوهاج (Sohag)</option>
+                            <option value="قنا">قنا (Qena)</option>
+                            <option value="البحر الأحمر">البحر الأحمر (Red Sea)</option>
+                            <option value="الأقصر">الأقصر (Luxor)</option>
+                            <option value="أسوان">أسوان (Aswan)</option>
+                            <option value="الوادي الجديد">الوادي الجديد (New Valley)</option>
+                          </select>
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                          {locale === "ar" ? "المدينة / المنطقة" : "City / Area"}
+                          <input 
+                            type="text" 
+                            style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                            value={guestDetails.city} 
+                            onChange={(e) => setGuestDetails({ ...guestDetails, city: e.target.value })} 
+                            placeholder={locale === "ar" ? "الرحاب، الدقي..." : "City"} 
+                            required 
+                          />
+                        </label>
+                      </div>
+
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                        {locale === "ar" ? "العنوان بالتفصيل" : "Detailed Address"}
+                        <input 
+                          type="text" 
+                          style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                          value={guestDetails.address1} 
+                          onChange={(e) => setGuestDetails({ ...guestDetails, address1: e.target.value })} 
+                          placeholder={locale === "ar" ? "رقم المبنى، اسم الشارع، الشقة" : "Building name, street number, apartment"} 
+                          required 
+                        />
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                        {locale === "ar" ? "تفاصيل إضافية للعنوان (اختياري)" : "Address Line 2 (Optional)"}
+                        <input 
+                          type="text" 
+                          style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                          value={guestDetails.address2} 
+                          onChange={(e) => setGuestDetails({ ...guestDetails, address2: e.target.value })} 
+                          placeholder={locale === "ar" ? "الدور، علامة مميزة بجوار العنوان" : "Floor, landmark"} 
+                        />
+                      </label>
+                    </>
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: '16px' }}>
-                  <label style={{ fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "مكان الاستلام" : "Pickup Location"}</label>
-                  <div style={{ padding: '16px', background: 'var(--input-bg)', border: '1px solid var(--line)', borderRadius: '12px' }}>
-                     <strong style={{ display: 'block', fontSize: '15px' }}>Cover Up Main Branch</strong>
-                     <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>123 Main St, Cairo, Egypt</p>
-                  </div>
-                </div>
+                <>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                    {locale === "ar" ? "البريد الإلكتروني للتواصل (اختياري)" : "Contact Email (Optional)"}
+                    <input
+                      type="email"
+                      style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: '14px' }}
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      placeholder={profileData.email || "name@example.com"}
+                    />
+                  </label>
+                  {formData.deliveryMethod !== "pickup" ? (
+                    <div style={{ display: 'grid', gap: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "عنوان التوصيل" : "Delivery Address"}</label>
+                        <button type="button" onClick={() => setShowAddressModal(true)} style={{ background: 'none', border: 'none', color: '#0070f3', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+                          {locale === "ar" ? "+ إضافة أو تغيير عنوان" : "+ Change or Add Address"}
+                        </button>
+                      </div>
+                      
+                      {selectedLocation ? (
+                        <div style={{ padding: '16px', background: 'var(--input-bg)', border: '1px solid var(--line)', borderRadius: '12px', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
+                          <strong style={{ display: 'block', fontSize: '15px', color: 'var(--text)' }}>{selectedLocation.label}</strong>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{selectedLocation.address1}, {selectedLocation.city}</p>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>{selectedLocation.phone}</p>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '24px', background: 'rgba(0,112,243,0.05)', border: '1px dashed #0070f3', borderRadius: '12px', textAlign: 'center', cursor: 'pointer' }} onClick={() => setShowAddressModal(true)}>
+                          <p style={{ margin: 0, color: '#0070f3', fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "لم يتم تحديد عنوان. انقر هنا للاختيار." : "No address selected. Click to choose."}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '16px' }}>
+                      <label style={{ fontWeight: 'bold', fontSize: '14px' }}>{locale === "ar" ? "مكان الاستلام" : "Pickup Location"}</label>
+                      <div style={{ padding: '16px', background: 'var(--input-bg)', border: '1px solid var(--line)', borderRadius: '12px' }}>
+                         <strong style={{ display: 'block', fontSize: '15px' }}>Cover Up Main Branch</strong>
+                         <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--muted)' }}>123 Main St, Cairo, Egypt</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <div>

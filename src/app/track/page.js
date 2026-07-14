@@ -237,7 +237,7 @@ export default function TrackPage() {
               <div className={styles.resultCard}>
                 <div className={styles.resultHeader}>
                   <h3 className={styles.orderTitle}>
-                    {ar ? "أوردر رقم" : "Order #"}{trackingResult.id.slice(0, 8)}
+                    {ar ? "أوردر رقم" : "Order #"}{trackingResult.id.startsWith("CU") ? trackingResult.id : trackingResult.id.slice(0, 8)}
                   </h3>
                   <div className={styles.statusBadges}>
                     <span className={`${styles.badge} ${getStatusBadgeClass(trackingResult.status)}`}>
@@ -383,7 +383,7 @@ export default function TrackPage() {
                   <div className={styles.recentHeader}>
                     <div>
                       <div className={styles.recentId}>
-                        {ar ? "طلب #" : "Order #"}{String(order.id).slice(0, 8)}
+                        {ar ? "طلب #" : "Order #"}{String(order.id).startsWith("CU") ? order.id : String(order.id).slice(0, 8)}
                       </div>
                       <div className={styles.recentDate}>
                         {order.created_at ? new Date(order.created_at).toLocaleDateString(ar ? "ar-EG" : "en-US") : ""}

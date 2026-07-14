@@ -19,8 +19,7 @@ export async function proxy(request) {
 
   // 2. Guard admin API endpoints
   const adminApiRoutes = [
-    "/api/admin-orders",
-    "/api/storage-upload"
+    "/api/admin-orders"
   ];
   if (adminApiRoutes.some(route => pathname === route || pathname.startsWith(route + "/"))) {
     const adminToken = request.cookies.get("coverup_admin_token")?.value;
