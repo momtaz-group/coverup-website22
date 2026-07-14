@@ -59,6 +59,7 @@ function publicProfile(profile, user) {
     email: user.email || profile?.email || "",
     phone: profile?.phone || user.user_metadata?.phone || "",
     location: normalizeLocations(profile?.location),
+    roles: profile?.roles || "user",
   };
 }
 

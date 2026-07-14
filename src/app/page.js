@@ -122,7 +122,8 @@ export default function HomePage() {
   const [phoneName, setPhoneName] = useState(""); const [selected, setSelected] = useState(null); const [customBrand, setCustomBrand] = useState(""); const [customModel, setCustomModel] = useState(""); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState("");
   const [chatPhone, setChatPhone] = useState(null);
   const [isChatSelection, setIsChatSelection] = useState(false);
-  
+
+
   const [messages, setMessages] = useState(() => {
     const stored = loadInitialMessages();
     if (stored && stored.length > 0) return stored;
@@ -313,8 +314,16 @@ export default function HomePage() {
     };
   };
   const results = useMemo(() => MODELS.filter((model) => `${model.brand} ${model.name}`.toLowerCase().includes(query.toLowerCase())), [query]);
-  useEffect(() => { let active = true; supabase.auth.getUser().then(async ({ data: { user } }) => { if (!user) return; const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false }); if (active) setPhones(data || []); }); return () => { active = false; }; }, []);
   
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
+      if (active) setPhones(data || []);
+    });
+    return () => { active = false; };
+  }, []);
   const handleSelectChatPhone = (brand, model) => {
     const nextPhone = { brand, model };
     setChatPhone(nextPhone);
@@ -436,21 +445,14 @@ export default function HomePage() {
         </div>
         
         <div className={styles.heroChatCol}>
-          <div className={styles.chatCardGpt}>
+          <div className={styles.chatCardGpt} style={{ position: "relative", overflow: "hidden" }}>
             <div className={styles.chatHeaderGpt}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
-                  <span>{chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose Mobile Phone", "اختر هاتف محمول")}</span>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M7 10l5 5 5-5H7z" />
-                  </svg>
-                </button>
-                
                 <Link 
                   href="/chat" 
                   className={styles.enlargeBtnGpt}
                   aria-label="Enlarge Chat"
-                  title={text("Enlarge", "تكبير")}
+                  title={text("تكبير", "Enlarge")}
                 >
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="15 3 21 3 21 9" />
@@ -698,6 +700,31 @@ export default function HomePage() {
                   placeholder={text("Message Memo...", "اسأل Memo...")}
                   className={styles.textInputGpt}
                 />
+                <button 
+                  className={styles.modelSelectorGpt} 
+                  type="button" 
+                  onClick={openChatPhoneSelection}
+                  style={{
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "var(--panel-soft)",
+                    fontSize: "0.75rem",
+                    padding: "8px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: "var(--muted)",
+                    flexShrink: 0
+                  }}
+                  title={text("Choose phone", "اختر الهاتف")}
+                >
+                  <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Phone", "الهاتف")}
+                  </span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M7 10l5 5 5-5H7z" />
+                  </svg>
+                </button>
                 <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim() || wordCount > 400} aria-label="Send">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

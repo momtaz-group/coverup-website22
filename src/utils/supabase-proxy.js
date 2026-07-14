@@ -8,19 +8,33 @@ export async function updateSupabaseSession(request) {
 
   if (!url || !key) return response;
 
+  // Skip auth refresh entirely if no Supabase auth cookies exist
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.includes("auth-token") || c.name.includes("sb-")
+  );
+  if (!hasAuthCookie) return response;
+
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value, options }) => request.cookies.set({ name, value, ...options }));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set({ name, value, ...options }));
       },
     },
   });
 
-  await supabase.auth.getUser();
+  try {
+    await Promise.race([
+      supabase.auth.getUser(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 3000))
+    ]);
+  } catch {
+    // Silently ignore auth refresh failures — user will just be logged out
+  }
   return response;
 }

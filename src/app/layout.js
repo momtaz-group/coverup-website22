@@ -2,9 +2,11 @@ import "./globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { CartProvider } from "@/context/CartContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { LoadingProvider } from "@/context/LoadingContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import IOSMediaUnlocker from "@/components/IOSMediaUnlocker";
+import GlobalLoader from "@/components/GlobalLoader";
 
 export const metadata = {
   title: "Cover Up",
@@ -29,12 +31,15 @@ export default function RootLayout({ children }) {
       <body>
         <ThemeProvider>
           <LanguageProvider>
-            <CartProvider>
-              <IOSMediaUnlocker />
-              <Header />
-              {children}
-              <Footer />
-            </CartProvider>
+            <LoadingProvider>
+              <CartProvider>
+                <IOSMediaUnlocker />
+                <GlobalLoader />
+                <Header />
+                {children}
+                <Footer />
+              </CartProvider>
+            </LoadingProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

@@ -10,7 +10,7 @@ export default function Footer() {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
 
-  if (pathname === "/chat") return null;
+  if (pathname === "/chat" || pathname.startsWith("/admin")) return null;
 
   return (
     <footer className="site-footer">

@@ -1,11 +1,10 @@
 .chatPageContainer {
   display: flex;
   flex-direction: column;
-  height: 100dvh; /* dvh handles iOS address bar correctly */
+  height: 100dvh;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
-  /* Prevent any outer scroll leaking in */
   position: fixed;
   inset: 0;
   width: 100%;
@@ -797,3 +796,172 @@
     padding-bottom: 240px;
   }
 }
+
+/* Sidebar toggle and container styles */
+.sidebarToggleBtn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.sidebarToggleBtn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.sidebarOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sidebarOverlay.sidebarOpen {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebarDrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  max-width: 85vw;
+  height: 100dvh;
+  background: var(--panel-soft);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  z-index: 201;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+:global([dir="ltr"]) .sidebarDrawer {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 1px solid var(--line);
+  transform: translateX(-100%);
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+.sidebarDrawer.sidebarOpen {
+  transform: translateX(0);
+}
+
+.sidebarDrawer.sidebarClosedDesktop {
+  /* no-op — treat same as closed */
+}
+
+.sidebarHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.sidebarHeader h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.newChatBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px;
+  padding: 12px;
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+:global([data-theme="light"]) .newChatBtn {
+  color: #000 !important;
+}
+
+.newChatBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(18, 103, 232, 0.2);
+}
+
+.sidebarList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chatHistoryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: start;
+}
+
+.chatHistoryCard:hover, .chatHistoryCard.activeChat {
+  border-color: var(--gold);
+  background: rgba(18, 103, 232, 0.04);
+}
+
+.chatHistoryCard.activeChat {
+  border-width: 1.5px;
+}
+
+.chatCardTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chatCardSummary {
+  font-size: 0.76rem;
+  color: var(--muted);
+  display: -webkit-box;
+  WebkitLineClamp: 2;
+  WebkitBoxOrient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.chatCardMeta {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 4px;
+  align-self: flex-end;
+}
+

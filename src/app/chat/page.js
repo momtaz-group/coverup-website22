@@ -97,6 +97,8 @@ export default function ChatPage() {
   const [chatPhone, setChatPhone] = useState(null);
   const [isChatSelection, setIsChatSelection] = useState(false);
 
+  const [userLoaded, setUserLoaded] = useState(false);
+
   const [messages, setMessages] = useState(() => {
     // Module store is the most reliable source — set synchronously on navigation
     const stored = loadInitialMessages();
@@ -146,6 +148,7 @@ export default function ChatPage() {
   useEffect(() => {
     let active = true;
     supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (active) setUserLoaded(!!user);
       if (!user) return;
       const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
       if (active) setPhones(data || []);
@@ -245,7 +248,7 @@ export default function ChatPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, phone: activePhone }),
+        body: JSON.stringify({ messages: apiMessages, phone: activePhone, chatId: currentChatId }),
       });
 
       const data = await response.json();
@@ -261,6 +264,10 @@ export default function ChatPage() {
         ];
         setMessages(withAi);
         storeMessages(withAi); // storeMessages strips isNew
+        if (data.chatId) {
+          setCurrentChatId(data.chatId);
+          fetchChatHistory();
+        }
       } else {
         setMessages((current) => [
           ...current,
@@ -321,8 +328,8 @@ export default function ChatPage() {
   return (
     <div className={styles.chatPageContainer} dir={ar ? "rtl" : "ltr"}>
 
-      {/* Full-width chat header — sits at page level, not inside max-width container */}
-      <div className={styles.chatHeaderGpt}>
+        {/* Full-width chat header */}
+        <div className={styles.chatHeaderGpt}>
         <div className={styles.chatHeaderInner}>
           {/* Left: Avatar + name */}
           <div className={styles.headerLeftPage}>
@@ -336,16 +343,8 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Right: phone dropdown + close button */}
+          {/* Right: Close button */}
           <div className={styles.headerRightPage}>
-            <button className={styles.modelSelectorGpt} type="button" onClick={openChatPhoneSelection}>
-              <span className={styles.modelSelectedText}>
-                {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Choose phone", "اختر الهاتف")}
-              </span>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M7 10l5 5 5-5H7z" />
-              </svg>
-            </button>
             <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -492,6 +491,31 @@ export default function ChatPage() {
                   placeholder={text("Message Memo...", "اسأل Memo...")}
                   className={styles.textInputGpt}
                 />
+                <button 
+                  className={styles.modelSelectorGpt} 
+                  type="button" 
+                  onClick={openChatPhoneSelection}
+                  style={{
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "var(--panel-soft)",
+                    fontSize: "0.75rem",
+                    padding: "8px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: "var(--muted)",
+                    flexShrink: 0
+                  }}
+                  title={text("Choose phone", "اختر الهاتف")}
+                >
+                  <span className={styles.modelSelectedText} style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Phone", "الهاتف")}
+                  </span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M7 10l5 5 5-5H7z" />
+                  </svg>
+                </button>
                 <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim() || wordCount > 400} aria-label="Send">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

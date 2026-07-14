@@ -297,3 +297,64 @@ export async function runMemoConversationStep(messages) {
   const choice = data.choices?.[0];
   return choice?.message;
 }
+
+export async function generateChatBriefAndTitle(chatMessages) {
+  let endpoint = process.env.AZURE_OPENAI_ENDPOINT || "";
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-5-mini";
+  if (!endpoint || !apiKey) return { title: "محادثة جديدة", summary: "محادثة مع ميمو" };
+
+  if (endpoint.includes("/api/projects/")) {
+    endpoint = endpoint.split("/api/projects/")[0];
+  }
+  
+  const apiVersion = "2024-08-01-preview";
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+  const filteredMessages = chatMessages
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-10)
+    .map(m => `${m.role === 'user' ? 'User' : 'Memo'}: ${m.content}`)
+    .join("\n");
+
+  const systemPrompt = `You are a helpful assistant that summarizes chat conversations.
+Analyze the conversation below and generate:
+1. A short, catchy title in Egyptian Arabic (max 4 words)
+2. A brief summary/description in Egyptian Arabic (max 10 words)
+Return a strict JSON object with this exact structure:
+{
+  "title": "عنوان قصير بالعامية المصرية",
+  "summary": "ملخص قصير بالعامية المصرية"
+}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Conversation transcript:\n${filteredMessages}\n\nSummary and title:` }
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 300
+      })
+    });
+
+    if (!response.ok) return { title: "محادثة جديدة", summary: "محادثة مع ميمو" };
+
+    const data = await response.json();
+    const resultText = data.choices?.[0]?.message?.content;
+    const parsed = JSON.parse(resultText);
+    return {
+      title: parsed.title || "محادثة جديدة",
+      summary: parsed.summary || "محادثة مع ميمو"
+    };
+  } catch (e) {
+    console.error("Error generating brief/title:", e);
+    return { title: "محادثة جديدة", summary: "محادثة مع ميمو" };
+  }
+}

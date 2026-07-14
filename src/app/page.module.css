@@ -88,7 +88,6 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: all 180ms ease;
   z-index: 20;
 }
@@ -227,6 +226,9 @@
   justify-content: center;
   align-items: center;
   position: relative;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .mascotVideoWrapper {
@@ -237,6 +239,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .mascotVideoLayer {
@@ -247,6 +252,9 @@
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .mascotVideoLayerAbsolute {
@@ -259,6 +267,7 @@
   height: 100%;
   object-fit: contain;
   transition: opacity 0s;
+  background: transparent !important;
 }
 
 .mascotImageAbsolute {
@@ -308,15 +317,19 @@
 
 @media (max-width: 768px) {
   .heroContentRow {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    gap: 16px;
+    align-items: flex-end;
   }
   .heroMascotCol {
-    max-width: 200px;
+    max-width: 120px;
   }
 }
 
 .chatCardGpt {
-  background: transparent;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   display: flex;
   flex-direction: column;
   height: 480px;
@@ -550,7 +563,6 @@
 
 .inputRowGpt:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(18,103,232,0.08);
 }
 
 .textInputGpt {

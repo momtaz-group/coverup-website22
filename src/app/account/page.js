@@ -6,12 +6,91 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AccountTabIcon from "@/components/AccountTabIcon";
 import { useLanguage } from "@/context/LanguageContext";
+import { useLoading } from "@/context/LoadingContext";
 import { supabase } from "@/utils/supabase";
 import styles from "./page.module.css";
 
 const CODE_LENGTH = 8;
 const emptyCode = () => Array(CODE_LENGTH).fill("");
 const MAX_LOCATIONS = 3;
+
+function AdminLoginTabComponent({ locale, text }) {
+  const { setLoading } = useLoading();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const router = useRouter();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || "فشل تسجيل دخول المشرف.");
+      }
+      // Successful login! Wait 1.5 seconds to show the loader, then redirect
+      setTimeout(() => {
+        setLoading(false);
+        router.push("/admin");
+      }, 1500);
+    } catch (err) {
+      setLoading(false);
+      setErrorMsg(err.message);
+    }
+  };
+
+  return (
+    <form onSubmit={handleLogin} style={{ display: 'grid', gap: '16px' }}>
+      <h3 style={{ margin: 0, fontSize: '18px' }}>
+        {locale === "ar" ? "تسجيل دخول لوحة الإدارة" : "Administrator Dashboard Login"}
+      </h3>
+      <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)' }}>
+        {locale === "ar" 
+          ? "الرجاء إدخال اسم المستخدم وكلمة مرور المشرف الخاصة بالموقع." 
+          : "Please enter the admin username and password for this site."}
+      </p>
+
+      {errorMsg && (
+        <div style={{ color: '#ff4d4d', padding: '10px', borderRadius: '8px', background: 'rgba(255, 77, 77, 0.1)', fontSize: '14px' }}>
+          {errorMsg}
+        </div>
+      )}
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+        {locale === "ar" ? "اسم المستخدم" : "Username"}
+        <input 
+          type="text" 
+          value={username} 
+          onChange={(e) => setUsername(e.target.value)} 
+          required 
+          style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} 
+        />
+      </label>
+
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', fontWeight: 'bold', color: 'var(--muted)' }}>
+        {locale === "ar" ? "كلمة المرور" : "Password"}
+        <input 
+          type="password" 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+          required 
+          style={{ padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--panel)', outline: 'none', textAlign: 'start', fontSize: '15px', color: 'var(--text)', borderBottom: '2px solid var(--line)' }} 
+        />
+      </label>
+
+      <button type="submit" style={{ background: '#0070f3', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
+        {locale === "ar" ? "تسجيل الدخول" : "Login"}
+      </button>
+    </form>
+  );
+}
 
 function FavoritesTabComponent({ locale, text }) {
   const [favProducts, setFavProducts] = useState([]);
@@ -176,6 +255,15 @@ export default function AccountPage() {
     { id: "favorites", label: text("المفضلة", "My Favorites"), description: text("المنتجات التي نالت إعجابك", "Products you liked"), icon: "favorites" },
   ];
 
+  if (profile?.roles === "admin") {
+    profileTabs.push({
+      id: "admin_login",
+      label: text("دخول المشرف", "Admin Login"),
+      description: text("لوحة تحكم الإدارة", "Administrator dashboard"),
+      icon: "password"
+    });
+  }
+
   useEffect(() => {
     let active = true;
     const loadProfile = async () => {
@@ -224,6 +312,15 @@ export default function AccountPage() {
       subscription.unsubscribe();
     };
   }, [locale]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && profile?.roles === "admin") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("showAdminLogin") === "true") {
+        setProfileTab("admin_login");
+      }
+    }
+  }, [profile]);
 
   const profileRequest = async (body) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -453,13 +550,31 @@ export default function AccountPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    let signInResult;
+    try {
+      signInResult = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+    } catch (networkErr) {
+      setBusy(false);
+      setStatus(locale === "ar"
+        ? "تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى."
+        : "Could not connect to the server. Please check your internet and try again.");
+      return;
+    }
     setBusy(false);
 
+    const { error } = signInResult;
+
     if (error) {
+      if (error.status === 500 || error.message?.includes("500")) {
+        setStatus(locale === "ar"
+          ? "خادم المصادقة غير متاح حالياً. يرجى المحاولة بعد قليل."
+          : "Authentication server is temporarily unavailable. Please try again shortly.");
+        return;
+      }
+
       if (isUnconfirmedEmailError(error)) {
         openActivationModal();
         return;
@@ -1330,6 +1445,10 @@ export default function AccountPage() {
 
                   {profileTab === "favorites" && (
                     <FavoritesTabComponent locale={locale} text={text} />
+                  )}
+
+                  {profileTab === "admin_login" && (
+                    <AdminLoginTabComponent locale={locale} text={text} />
                   )}
                 </div>
               </div>

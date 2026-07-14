@@ -147,7 +147,7 @@ export default function Header() {
     },
   ];
 
-  if (pathname === "/chat") return null;
+  if (pathname === "/chat" || pathname.startsWith("/admin")) return null;
 
   return (
     <>

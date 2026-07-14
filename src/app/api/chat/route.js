@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { runMemoConversationStep, memoDbTools } from "@/utils/memo-ai";
+import { runMemoConversationStep, memoDbTools, generateChatBriefAndTitle } from "@/utils/memo-ai";
+import { getAuthenticatedUser } from "@/utils/server-auth";
+import { getSupabaseServerClient } from "@/utils/supabase";
 
 // Basic rate limiting/abuse prevention in-memory store
 const ipStore = new Map();
@@ -31,7 +33,7 @@ export async function POST(request) {
       }, { status: 429 });
     }
 
-    const { messages, phone } = await request.json().catch(() => ({}));
+    const { messages, phone, chatId } = await request.json().catch(() => ({}));
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ 
         message: "الرسالة فارغة أو غير صالحة.",
@@ -155,11 +157,70 @@ export async function POST(request) {
       badge: p.badge
     })).slice(0, 3); // Return max 3 matching products
 
+    // Sync chat to database if logged in
+    const user = await getAuthenticatedUser(request).catch(() => null);
+    let savedChatId = chatId;
+    let chatTitle = "محادثة جديدة";
+    let chatSummary = "محادثة مع ميمو";
+
+    if (user) {
+      try {
+        const supabaseClient = getSupabaseServerClient();
+        const finalChatMessages = [
+          ...messages,
+          { role: "assistant", content: finalMessage.content }
+        ];
+
+        const brief = await generateChatBriefAndTitle(finalChatMessages);
+        chatTitle = brief.title;
+        chatSummary = brief.summary;
+
+        if (chatId && chatId !== "new" && chatId !== "null" && chatId !== "undefined") {
+          const { error: updateError } = await supabaseClient
+            .from("memo_chats")
+            .update({
+              messages: finalChatMessages,
+              title: chatTitle,
+              summary: chatSummary,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", chatId)
+            .eq("user_id", user.id);
+          
+          if (updateError) {
+            console.error("Error updating chat:", updateError);
+          }
+        } else {
+          const { data: newChat, error: insertError } = await supabaseClient
+            .from("memo_chats")
+            .insert({
+              user_id: user.id,
+              messages: finalChatMessages,
+              title: chatTitle,
+              summary: chatSummary
+            })
+            .select("id")
+            .single();
+
+          if (insertError) {
+            console.error("Error inserting new chat:", insertError);
+          } else if (newChat) {
+            savedChatId = newChat.id;
+          }
+        }
+      } catch (dbErr) {
+        console.error("Database save error in chat route:", dbErr);
+      }
+    }
+
     // Return final output
     return NextResponse.json({
       message: finalMessage.content || "",
       products: formattedProducts,
-      suggestedActions: []
+      suggestedActions: [],
+      chatId: savedChatId || null,
+      title: chatTitle,
+      summary: chatSummary
     });
 
   } catch (error) {

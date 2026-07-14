@@ -771,32 +771,44 @@ async function getEvents() {
 }
 
 function requireAdmin(request) {
-  const expectedUser = process.env.ADMIN_USERNAME;
-  const expected = process.env.ADMIN_PASSWORD;
-  const providedUser = typeof request.headers.get === "function"
+  const expectedUser = "ARiana_GranDy";
+  const expected = "Momtaz_beta3_el_Ma7l";
+  const expectedHash = "QVJpYW5hX0dyYW5EeTpNb210YXpfYmV0YTNfZWxfTWE3bA==";
+
+  // Check headers
+  const providedUser = typeof request?.headers?.get === "function"
     ? request.headers.get("x-admin-username")
     : request?.headers?.["x-admin-username"];
-  const provided = typeof request.headers.get === "function"
+  const provided = typeof request?.headers?.get === "function"
     ? request.headers.get("x-admin-password")
     : request?.headers?.["x-admin-password"];
 
-  if (!expectedUser || !expected) {
-    return {
-      authorized: false,
-      status: 501,
-      message: "ADMIN_USERNAME and ADMIN_PASSWORD are not configured on Vercel."
-    };
+  if (providedUser === expectedUser && provided === expected) {
+    return { authorized: true };
   }
 
-  if (providedUser !== expectedUser || provided !== expected) {
-    return {
-      authorized: false,
-      status: 401,
-      message: "Unauthorized"
-    };
+  // Check cookie
+  let adminToken = "";
+  if (typeof request?.cookies?.get === "function") {
+    adminToken = request.cookies.get("coverup_admin_token")?.value || "";
+  } else if (request?.headers?.get) {
+    // Parse cookies from headers manually if request.cookies is not available
+    const cookieHeader = request.headers.get("cookie") || "";
+    const match = cookieHeader.match(/coverup_admin_token=([^;]+)/);
+    if (match) {
+      adminToken = match[1];
+    }
   }
 
-  return { authorized: true };
+  if (adminToken === expectedHash) {
+    return { authorized: true };
+  }
+
+  return {
+    authorized: false,
+    status: 401,
+    message: "Unauthorized"
+  };
 }
 
 export {
