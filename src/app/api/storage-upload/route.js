@@ -51,18 +51,37 @@ export async function POST(request) {
       const path = `${productName}/${fileName}`;
       const bucketName = R2_BUCKET_NAME || "coverup";
 
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucketName,
-          Key: path,
-          Body: webpBuffer,
-          ContentType: "image/webp",
-        })
-      );
+      try {
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: bucketName,
+            Key: path,
+            Body: webpBuffer,
+            ContentType: "image/webp",
+          })
+        );
 
-      const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/$/, "")}/${path}` : `https://pub-${R2_ACCOUNT_ID}.r2.dev/${path}`;
-
-      return NextResponse.json({ url: publicUrl, path });
+        const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/$/, "")}/${path}` : `https://pub-${R2_ACCOUNT_ID}.r2.dev/${path}`;
+        return NextResponse.json({ url: publicUrl, path });
+      } catch (r2Error) {
+        console.warn("R2 upload failed, falling back to local storage:", r2Error);
+        
+        const fs = require("node:fs");
+        const pathModule = require("node:path");
+        
+        const uploadsDir = pathModule.join(process.cwd(), "public", "uploads");
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        const localFileName = `${Date.now()}-${randomUUID().slice(0, 8)}.webp`;
+        const localFilePath = pathModule.join(uploadsDir, localFileName);
+        
+        fs.writeFileSync(localFilePath, webpBuffer);
+        
+        const localUrl = `/uploads/${localFileName}`;
+        return NextResponse.json({ url: localUrl, path: `local/${localFileName}`, note: "Fallback to local storage due to R2 upload failure." });
+      }
     }
 
     return NextResponse.json({ message: "نوع الرفع غير مدعوم." }, { status: 400 });

@@ -4,6 +4,7 @@ import { supabase } from "@/utils/supabase";
 
 export default function ProductEditor({ form, setForm, imageFile, setImageFile, galleryFiles, setGalleryFiles, sections, setSections, onSubmit, onDelete, onClose }) {
   const [customModelInput, setCustomModelInput] = useState("");
+  const [newSection, setNewSection] = useState("");
   const [newColorHex, setNewColorHex] = useState("#000000");
   const [newColorName, setNewColorName] = useState("");
 
@@ -18,6 +19,20 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
       setForm({ ...form, compatible_models: [...current, model] });
     }
     setCustomModelInput("");
+  };
+
+  const handleAddSection = async () => {
+    if (!newSection.trim()) return;
+    const name = newSection.trim();
+    if (sections.includes(name)) {
+      setForm({ ...form, category: name });
+      setNewSection("");
+      return;
+    }
+    await supabase.from("product_sections").insert([{ name }]);
+    setSections([...sections, name]);
+    setForm({ ...form, category: name });
+    setNewSection("");
   };
 
   const handleAddColor = (colorObj) => {
@@ -159,17 +174,32 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             القسم (Section / Type)
-            <input 
-              type="text"
-              list="sections-list"
-              value={form.category || ""} 
-              onChange={e => setForm({...form, category: e.target.value})} 
-              placeholder="اكتب القسم أو اختر من القائمة"
-              style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", color: "var(--text)" }} 
-            />
-            <datalist id="sections-list">
-              {sections.map(s => <option key={s} value={s} />)}
-            </datalist>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <select 
+                value={form.category || ""} 
+                onChange={e => setForm({...form, category: e.target.value})} 
+                style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", color: "var(--text)" }}
+              >
+                <option value="">-- اختر القسم --</option>
+                {sections.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: "4px" }}>
+                <input 
+                  type="text" 
+                  placeholder="قسم جديد" 
+                  value={newSection} 
+                  onChange={e => setNewSection(e.target.value)} 
+                  style={{ width: "100px", padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", color: "var(--text)" }} 
+                />
+                <button 
+                  type="button" 
+                  onClick={handleAddSection} 
+                  style={{ padding: "0 12px", borderRadius: "8px", border: "none", background: "#0070f3", color: "#fff", cursor: "pointer", fontWeight: "bold" }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             SKU
