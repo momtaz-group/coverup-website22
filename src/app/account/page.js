@@ -78,6 +78,7 @@ function AdminLoginTabComponent({ locale, text }) {
         {locale === "ar" ? "كلمة المرور" : "Password"}
         <input 
           type="password" 
+          autoComplete="current-password"
           value={password} 
           onChange={(e) => setPassword(e.target.value)} 
           required 
@@ -953,6 +954,7 @@ export default function AccountPage() {
               <form onSubmit={signIn}>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   placeholder="كلمة المرور"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -1059,6 +1061,7 @@ export default function AccountPage() {
               <p>الخطوة الثالثة: أنشئ كلمة مرور من 8 أحرف على الأقل.</p>
               <input
                 type="password"
+                autoComplete="new-password"
                 placeholder="كلمة المرور"
                 minLength="8"
                 value={password}
@@ -1231,6 +1234,7 @@ export default function AccountPage() {
               <form onSubmit={saveNewPassword}>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   placeholder="كلمة المرور الجديدة"
                   minLength="8"
                   value={password}

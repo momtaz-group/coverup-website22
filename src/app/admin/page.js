@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
 import chatStyles from "@/app/chat/page.module.css";
+import { brandsData, FAMOUS_COLORS } from "@/utils/brandsData";
+import ProductEditor from "./ProductEditor";
 
 const ORDER_STATUSES = [
   "new",
@@ -43,6 +45,14 @@ export default function AdminPage() {
   // Search inputs
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
+
+  // Product page states
+  const [sections, setSections] = useState([]);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [productFilterSection, setProductFilterSection] = useState("");
+  const [productSort, setProductSort] = useState("newest");
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
   
   // Feedback states
   const [statusMessage, setStatusMessage] = useState("");
@@ -57,21 +67,28 @@ export default function AdminPage() {
   });
 
   // Product Form state
-  const [productForm, setProductForm] = useState({
+  const initialProductForm = {
     id: "",
     name: "",
     category: "",
+    brand: "",
+    product_family: "",
+    compatible_models: [],
+    tags: "", 
     sku: "",
     price: "",
     stock_quantity: "",
     badge: "",
-    compatible_models: "",
-    colors: "",
     description: "",
+    colors: [],
     featured: "false",
+    status: "public",
     image: "",
-  });
+    images: [],
+  };
+  const [productForm, setProductForm] = useState(initialProductForm);
   const [imageFile, setImageFile] = useState(null);
+  const [galleryFiles, setGalleryFiles] = useState([]);
 
   // Check admin session and load initial data
   const loadDashboardData = async (isRefresh = false) => {
@@ -102,6 +119,12 @@ export default function AdminPage() {
         }
       }
 
+      // 2.5 Fetch Product Sections
+      const { data: secData } = await supabase.from("product_sections").select("name");
+      if (secData) {
+        setSections(secData.map(s => s.name));
+      }
+
       // 3. Fetch registered profiles and roles
       const usersRes = await fetch("/api/admin/users");
       const usersData = await usersRes.json().catch(() => ({}));
@@ -125,7 +148,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    loadDashboardData();
+    const t = setTimeout(() => {
+      loadDashboardData();
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const handleSignOut = () => {
@@ -231,7 +257,7 @@ export default function AdminPage() {
     });
   };
 
-  const uploadProductImage = async (file) => {
+  const uploadProductImage = async (file, productName) => {
     const dataUrl = await fileToDataUrl(file);
     if (!dataUrl) return "";
 
@@ -242,6 +268,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           kind: "product",
           fileName: file.name || "product.png",
+          productName: productName || "coverup",
           dataUrl,
         }),
       });
@@ -257,18 +284,57 @@ export default function AdminPage() {
     e.preventDefault();
     setStatusMessage("جارٍ حفظ المنتج...");
     try {
+      const fileToUrlMap = {};
       let uploadedUrl = productForm.image;
+      if (productForm.image) fileToUrlMap[productForm.image] = productForm.image;
+      
       if (imageFile) {
-        setStatusMessage("جارٍ رفع صورة المنتج...");
-        uploadedUrl = await uploadProductImage(imageFile);
+        setStatusMessage("جارٍ رفع صورة المنتج الأساسية...");
+        uploadedUrl = await uploadProductImage(imageFile, productForm.name);
         if (!uploadedUrl) {
-          throw new Error("فشل رفع صورة المنتج.");
+          throw new Error("فشل رفع صورة المنتج الأساسية.");
         }
+        fileToUrlMap[imageFile.name] = uploadedUrl;
+      }
+
+      // Upload gallery images
+      let uploadedGallery = [...(productForm.images || [])];
+      uploadedGallery.forEach(url => { fileToUrlMap[url] = url; });
+      
+      if (galleryFiles.length > 0) {
+        setStatusMessage("جارٍ رفع الصور الإضافية...");
+        for (const file of galleryFiles) {
+          const gUrl = await uploadProductImage(file, productForm.name);
+          if (gUrl) {
+            uploadedGallery.push(gUrl);
+            fileToUrlMap[file.name] = gUrl;
+          }
+        }
+      }
+
+      // Resolve color images
+      const resolvedColors = (productForm.colors || []).map(c => {
+        let finalImages = [];
+        if (Array.isArray(c.images)) {
+          finalImages = c.images.map(ref => fileToUrlMap[ref] || ref).filter(Boolean);
+        } else if (c.image) {
+          finalImages = [fileToUrlMap[c.image] || c.image].filter(Boolean);
+        }
+        return { ...c, image: finalImages[0] || null, images: finalImages };
+      });
+
+      // Convert comma-separated tags to array if it's a string
+      let parsedTags = productForm.tags;
+      if (typeof parsedTags === "string") {
+        parsedTags = parsedTags.split(",").map(t => t.trim()).filter(Boolean);
       }
 
       const cleanPayload = {
         ...productForm,
         image: uploadedUrl,
+        images: uploadedGallery,
+        colors: resolvedColors,
+        tags: parsedTags,
         price: Number(productForm.price),
         stock_quantity: Number(productForm.stock_quantity),
         featured: productForm.featured === "true",
@@ -283,23 +349,17 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save product");
 
+      // Auto-save category/section if new
+      if (cleanPayload.category && !sections.includes(cleanPayload.category)) {
+        await supabase.from("product_sections").insert([{ name: cleanPayload.category }]).catch(() => {});
+        setSections([...sections, cleanPayload.category]);
+      }
+
       setStatusMessage("تم حفظ المنتج بنجاح في قاعدة البيانات.");
       setImageFile(null);
-      setProductForm({
-        id: "",
-        name: "",
-        category: "",
-        sku: "",
-        price: "",
-        stock_quantity: "",
-        badge: "",
-        compatible_models: "",
-        colors: "",
-        description: "",
-        featured: "false",
-        image: "",
-      });
-      e.target.reset();
+      setGalleryFiles([]);
+      setProductForm(initialProductForm);
+      setActiveTab("products");
       loadDashboardData(true);
     } catch (err) {
       setStatusMessage(err.message);
@@ -312,18 +372,82 @@ export default function AdminPage() {
       id: product.id || "",
       name: product.name || "",
       category: product.category || "",
+      brand: product.brand || "",
+      product_family: product.product_family || "",
       sku: product.sku || "",
       price: product.price || "",
       stock_quantity: product.stock_quantity || "0",
       badge: product.badge || "",
-      compatible_models: Array.isArray(product.compatible_models) ? product.compatible_models.join(", ") : "",
-      colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
+      compatible_models: Array.isArray(product.compatible_models) ? product.compatible_models : [],
+      colors: Array.isArray(product.colors) ? product.colors : [],
+      tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       description: product.description || "",
       featured: product.featured ? "true" : "false",
+      status: product.status || "public",
       image: product.image || "",
+      images: Array.isArray(product.images) ? product.images : [],
     });
-    // Scroll form into view
-    document.getElementById("product-form-container")?.scrollIntoView({ behavior: "smooth" });
+    setImageFile(null);
+    setGalleryFiles([]);
+    setActiveTab("product_editor");
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (!confirm("هل أنت متأكد من رغبتك في حذف هذا المنتج نهائياً؟")) {
+      return;
+    }
+    setStatusMessage("جارٍ حذف المنتج...");
+    try {
+      const res = await fetch(`/api/store-product?id=${encodeURIComponent(id)}`, {
+        method: "DELETE"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to delete product");
+      
+      setStatusMessage("تم حذف المنتج بنجاح.");
+      // Unselect it if it was selected
+      setSelectedProductIds(prev => prev.filter(x => x !== id));
+      loadDashboardData(true);
+    } catch (err) {
+      setStatusMessage(err.message);
+    }
+  };
+
+  const handleToggleSelectProduct = (id) => {
+    setSelectedProductIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAllProducts = (visibleProducts) => {
+    const visibleIds = visibleProducts.map(p => p.id);
+    const allSelected = visibleIds.every(id => selectedProductIds.includes(id));
+    if (allSelected) {
+      setSelectedProductIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedProductIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const handleBulkDeleteProducts = async () => {
+    if (selectedProductIds.length === 0) return;
+    const msg = `هل أنت متأكد من رغبتك في حذف ${selectedProductIds.length} منتج نهائياً؟`;
+    if (!confirm(msg)) return;
+
+    setStatusMessage("جارٍ حذف المنتجات المحددة...");
+    try {
+      const res = await fetch(`/api/store-product?id=${encodeURIComponent(selectedProductIds.join(","))}`, {
+        method: "DELETE"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to delete products");
+
+      setStatusMessage("تم حذف المنتجات بنجاح.");
+      setSelectedProductIds([]);
+      loadDashboardData(true);
+    } catch (err) {
+      setStatusMessage(err.message);
+    }
   };
 
   // Calculate Metrics
@@ -356,6 +480,17 @@ export default function AdminPage() {
     const nameMatch = String(user.full_name || "").toLowerCase().includes(q);
     const phoneMatch = String(user.phone || "").toLowerCase().includes(q);
     return emailMatch || nameMatch || phoneMatch;
+  });
+
+  const filteredProducts = products
+    .filter(p => !productFilterSection || p.category === productFilterSection)
+    .filter(p => !productSearch || p.name?.toLowerCase().includes(productSearch.toLowerCase()) || p.sku?.toLowerCase().includes(productSearch.toLowerCase()) || p.brand?.toLowerCase().includes(productSearch.toLowerCase()) || p.product_family?.toLowerCase().includes(productSearch.toLowerCase()));
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+     if(productSort === "price_asc") return a.price - b.price;
+     if(productSort === "price_desc") return b.price - a.price;
+     if(productSort === "stock_asc") return a.stock_quantity - b.stock_quantity;
+     return new Date(b.created_at) - new Date(a.created_at);
   });
 
   if (loading) {
@@ -656,242 +791,162 @@ export default function AdminPage() {
           {/* TAB: PRODUCTS */}
           {activeTab === "products" && (
             <div className="tab-pane">
-              <div className="pane-header">
-                <h2>إدارة المنتجات والمبيعات الفرعية</h2>
-                <p>إضافة أو تعديل كفرات وحماية الشاشات، وبيع سريع من الفرع.</p>
+              <div className="pane-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h2>إدارة المنتجات والمخزون</h2>
+                  <p>إضافة، تعديل، والتحكم في المنتجات وأنواعها.</p>
+                </div>
+                <button type="button" className="primary-black-btn" onClick={() => {
+                  setProductForm(initialProductForm);
+                  setImageFile(null);
+                  setGalleryFiles([]);
+                  setIsProductModalOpen(true);
+                }}>
+                  + إضافة منتج جديد
+                </button>
               </div>
 
-              <div className="overview-row">
-                {/* POS branch checkout */}
-                <div className="card-panel" style={{ flex: 1 }}>
-                  <h3>POS مبيعات الفرع المباشرة</h3>
-                  <form onSubmit={handlePosSubmit} className="pos-form">
-                    <label>
-                      اختر المنتج المراد بيعه
-                      <select 
-                        value={posForm.productId}
-                        onChange={(e) => setPosForm((prev) => ({ ...prev, productId: e.target.value }))}
-                        required
-                      >
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.stock_quantity || 0} قطعة متاحة)
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <label>
-                        الكمية المباعة
-                        <input 
-                          type="number" 
-                          min="1" 
-                          value={posForm.quantity}
-                          onChange={(e) => setPosForm((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value)) }))}
-                          required
-                        />
-                      </label>
-                      
-                      <label>
-                        طريقة الدفع
-                        <select 
-                          value={posForm.paymentMethod}
-                          onChange={(e) => setPosForm((prev) => ({ ...prev, paymentMethod: e.target.value }))}
-                        >
-                          <option value="cash">كاش</option>
-                          <option value="card">فيزا كارت (في الفرع)</option>
-                          <option value="wallet">محفظة الكترونية</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <label>
-                        اسم العميل (اختياري)
-                        <input 
-                          type="text" 
-                          value={posForm.customerName}
-                          onChange={(e) => setPosForm((prev) => ({ ...prev, customerName: e.target.value }))}
-                          placeholder="عميل الفرع"
-                        />
-                      </label>
-                      
-                      <label>
-                        هاتف العميل (اختياري)
-                        <input 
-                          type="tel" 
-                          value={posForm.customerPhone}
-                          onChange={(e) => setPosForm((prev) => ({ ...prev, customerPhone: e.target.value }))}
-                          placeholder="010..."
-                        />
-                      </label>
-                    </div>
-
-                    <button type="submit" className="primary-black-btn">تسجيل عملية البيع</button>
-                  </form>
-                </div>
-
-                {/* Create/Edit Product Form */}
-                <div id="product-form-container" className="card-panel" style={{ flex: 1.2 }}>
-                  <h3>{productForm.id ? "تعديل المنتج المحدد" : "إضافة منتج جديد للمتجر"}</h3>
-                  <form onSubmit={handleProductSubmit} className="product-form">
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <label>
-                        اسم المنتج (بالعربية)
-                        <input 
-                          type="text" 
-                          value={productForm.name} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, name: e.target.value }))}
-                          required 
-                        />
-                      </label>
-                      <label>
-                        القسم
-                        <input 
-                          type="text" 
-                          placeholder="كفرات / حماية الشاشة"
-                          value={productForm.category} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, category: e.target.value }))}
-                          required 
-                        />
-                      </label>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-                      <label>
-                        السعر بالجنيه
-                        <input 
-                          type="number" 
-                          min="1" 
-                          value={productForm.price} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, price: e.target.value }))}
-                          required 
-                        />
-                      </label>
-                      <label>
-                        المخزون المتاح
-                        <input 
-                          type="number" 
-                          min="0" 
-                          value={productForm.stock_quantity} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, stock_quantity: e.target.value }))}
-                          required 
-                        />
-                      </label>
-                      <label>
-                        الموديل (SKU)
-                        <input 
-                          type="text" 
-                          placeholder="CU-IP16-01"
-                          value={productForm.sku} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, sku: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-
-                    <label>
-                      الموديلات المتوافقة (افصل بفاصلة)
-                      <input 
-                        type="text" 
-                        placeholder="iPhone 16 Pro Max, iPhone 16 Pro"
-                        value={productForm.compatible_models} 
-                        onChange={(e) => setProductForm((p) => ({ ...p, compatible_models: e.target.value }))}
-                      />
-                    </label>
-
-                    <label>
-                      وصف المنتج بالتفصيل
-                      <textarea 
-                        rows="3" 
-                        value={productForm.description} 
-                        onChange={(e) => setProductForm((p) => ({ ...p, description: e.target.value }))}
-                        required
-                      />
-                    </label>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <label>
-                        صورة المنتج (ملف)
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                        />
-                      </label>
-                      <label>
-                        أو رابط صورة مباشر
-                        <input 
-                          type="text" 
-                          value={productForm.image} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, image: e.target.value }))}
-                        />
-                      </label>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "center" }}>
-                      <label>
-                        شارة المنتج
-                        <input 
-                          type="text" 
-                          placeholder="Premium / New"
-                          value={productForm.badge} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, badge: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        مميز في المتجر
-                        <select 
-                          value={productForm.featured} 
-                          onChange={(e) => setProductForm((p) => ({ ...p, featured: e.target.value }))}
-                        >
-                          <option value="false">لا</option>
-                          <option value="true">نعم</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                      <button type="submit" className="primary-black-btn" style={{ flex: 1 }}>حفظ بيانات المنتج</button>
-                      {productForm.id && (
-                        <button 
-                          type="button" 
-                          className="cancel-form-btn" 
-                          onClick={() => setProductForm({
-                            id: "", name: "", category: "", sku: "", price: "", stock_quantity: "", badge: "", compatible_models: "", colors: "", description: "", featured: "false", image: ""
-                          })}
-                        >
-                          إلغاء التعديل
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                </div>
+              <div className="filter-bar" style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+                <input 
+                  type="text" 
+                  placeholder="بحث باسم المنتج، الماركة، الـ SKU..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  style={{ flex: 1, padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--line)", background: "var(--panel)", color: "var(--text)" }}
+                />
+                <select value={productFilterSection} onChange={(e) => setProductFilterSection(e.target.value)} style={{ padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--line)", background: "var(--panel)", color: "var(--text)" }}>
+                  <option value="">كل الأقسام</option>
+                  {sections.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={productSort} onChange={(e) => setProductSort(e.target.value)} style={{ padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--line)", background: "var(--panel)", color: "var(--text)" }}>
+                  <option value="newest">الأحدث</option>
+                  <option value="price_asc">السعر (أقل)</option>
+                  <option value="price_desc">السعر (أعلى)</option>
+                  <option value="stock_asc">المخزون (أقل)</option>
+                </select>
               </div>
 
-              {/* Products List Inventory */}
-              <div className="card-panel" style={{ marginTop: "24px" }}>
-                <h3>قائمة المنتجات والمخزون ({products.length} منتج)</h3>
-                <div className="products-inventory-list">
-                  {products.map((prod) => (
-                    <div key={prod.id} className="inventory-item">
-                      <div className="inventory-info">
-                        <img src={prod.image || "/assets/brand/cover-up-symbol.png"} alt="" className="inventory-img" />
-                        <div>
-                          <strong>{prod.name}</strong>
-                          <small>{prod.category} | {prod.price} EGP</small>
-                        </div>
-                      </div>
-                      <div className="inventory-actions">
-                        <span className={`stock-level-label ${prod.stock_quantity <= 5 ? "low-stock" : ""}`}>
-                          {prod.stock_quantity || 0} قطعة متاحة
-                        </span>
-                        <button type="button" className="edit-btn-inline" onClick={() => editProduct(prod)}>تعديل</button>
-                      </div>
-                    </div>
-                  ))}
+              {selectedProductIds.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255, 77, 77, 0.08)", border: "1px solid rgba(255, 77, 77, 0.2)", padding: "12px 18px", borderRadius: "12px", marginBottom: "16px" }}>
+                  <span style={{ fontWeight: "600", color: "#ff4d4d" }}>
+                    تم تحديد {selectedProductIds.length} منتج
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={handleBulkDeleteProducts} 
+                    style={{ padding: "8px 16px", background: "#ff4d4d", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.9rem" }}
+                  >
+                    حذف المنتجات المحددة
+                  </button>
                 </div>
+              )}
+
+              <div className="card-panel">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "40px", textAlign: "center" }}>
+                        <input 
+                          type="checkbox" 
+                          checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedProductIds.includes(p.id))} 
+                          onChange={() => handleToggleSelectAllProducts(filteredProducts)}
+                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        />
+                      </th>
+                      <th>صورة</th>
+                      <th>الاسم / القسم</th>
+                      <th>الماركة / الموديل</th>
+                      <th>الحالة</th>
+                      <th>السعر</th>
+                      <th>المخزون</th>
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedProducts.map((prod) => (
+                      <tr key={prod.id}>
+                        <td style={{ textAlign: "center" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedProductIds.includes(prod.id)} 
+                            onChange={() => handleToggleSelectProduct(prod.id)}
+                            style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                          />
+                        </td>
+                        <td>
+                          <img src={prod.image || "/assets/brand/cover-up-symbol.png"} alt="" style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "6px", background: "#fff", border: "1px solid var(--line)" }} />
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: "600", fontSize: "0.9rem" }}>{prod.name}</div>
+                          <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{prod.category}</div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: "600", fontSize: "0.88rem" }}>{prod.brand || "—"}</div>
+                          <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{prod.product_family || "—"}</div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--muted)", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={Array.isArray(prod.compatible_models) ? prod.compatible_models.join(", ") : ""}>
+                            {Array.isArray(prod.compatible_models) ? prod.compatible_models.join(", ") : "—"}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ 
+                            padding: "4px 8px", 
+                            borderRadius: "12px", 
+                            fontSize: "0.78rem", 
+                            fontWeight: "bold",
+                            background: prod.status === "public" ? "rgba(76, 175, 80, 0.1)" : prod.status === "hidden" ? "rgba(255, 152, 0, 0.1)" : "rgba(244, 67, 54, 0.1)",
+                            color: prod.status === "public" ? "#4caf50" : prod.status === "hidden" ? "#ff9800" : "#f44336",
+                            display: "inline-block"
+                          }}>
+                            {prod.status === "public" ? "عام" : prod.status === "hidden" ? "مخفي" : "غير متوفر"}
+                          </span>
+                        </td>
+                        <td>{prod.price} EGP</td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <button type="button" onClick={() => {
+                               const newQ = Math.max(0, (prod.stock_quantity || 0) - 1);
+                               setProducts(products.map(p => p.id === prod.id ? {...p, stock_quantity: newQ} : p));
+                               fetch("/api/store-product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({...prod, stock_quantity: newQ}) });
+                            }} style={{ width: "24px", height: "24px", display: "grid", placeItems: "center", cursor: "pointer", borderRadius: "6px", border: "1px solid var(--line)", background: "var(--panel)", color: "var(--text)" }}>-</button>
+                            <span style={{ minWidth: "20px", textAlign: "center" }}>{prod.stock_quantity || 0}</span>
+                            <button type="button" onClick={() => {
+                               const newQ = (prod.stock_quantity || 0) + 1;
+                               setProducts(products.map(p => p.id === prod.id ? {...p, stock_quantity: newQ} : p));
+                               fetch("/api/store-product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({...prod, stock_quantity: newQ}) });
+                            }} style={{ width: "24px", height: "24px", display: "grid", placeItems: "center", cursor: "pointer", borderRadius: "6px", border: "1px solid var(--line)", background: "var(--panel)", color: "var(--text)" }}>+</button>
+                          </div>
+                        </td>
+                        <td>
+                          <button type="button" className="action-btn-link" onClick={() => editProduct(prod)}>تعديل</button>
+                          <button type="button" className="action-btn-link" onClick={() => handleDeleteProduct(prod.id)} style={{ color: "#ff4d4d", marginRight: "8px" }}>حذف</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+
+            </div>
+          )}
+
+          {activeTab === "product_editor" && (
+            <div className="tab-pane">
+              <ProductEditor 
+                form={productForm} 
+                setForm={setProductForm} 
+                imageFile={imageFile} 
+                setImageFile={setImageFile}
+                galleryFiles={galleryFiles}
+                setGalleryFiles={setGalleryFiles}
+                sections={sections}
+                setSections={setSections}
+                onSubmit={handleProductSubmit}
+                onDelete={async (id) => {
+                  await handleDeleteProduct(id);
+                  setActiveTab("products");
+                }}
+                onClose={() => setActiveTab("products")}
+              />
             </div>
           )}
 

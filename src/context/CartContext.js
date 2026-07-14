@@ -13,6 +13,7 @@ function productSnapshot(product) {
     image: product.image || "",
     stock_quantity: Number(product.stock_quantity || 0),
     is_in_stock: product.is_in_stock !== false,
+    selectedColor: product.selectedColor || null,
   };
 }
 
@@ -46,11 +47,14 @@ export function CartProvider({ children }) {
       return;
     }
 
+    const color = product.selectedColor || null;
+    const cartKey = color ? `${product.id}::${color.hex}` : product.id;
+
     const nextCart = { ...cart };
-    const current = nextCart[product.id] || { quantity: 0, snapshot: productSnapshot(product) };
+    const current = nextCart[cartKey] || { quantity: 0, snapshot: productSnapshot(product) };
     current.quantity += 1;
     current.snapshot = productSnapshot(product);
-    nextCart[product.id] = current;
+    nextCart[cartKey] = current;
     saveCartState(nextCart);
   };
 

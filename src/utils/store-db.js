@@ -169,6 +169,15 @@ function publicProductImages(id, images) {
 }
 
 function productFromDb(row) {
+  const parsedColors = cleanArray(row.colors).map(c => {
+    try {
+      if (c.startsWith("{") || c.startsWith("[")) {
+        return JSON.parse(c);
+      }
+    } catch {}
+    return c;
+  });
+
   return {
     id: row.id,
     name: row.name,
@@ -188,9 +197,13 @@ function productFromDb(row) {
     stock_quantity: Number(row.stock_quantity || 0),
     is_in_stock: typeof row.is_in_stock === "boolean" ? row.is_in_stock : Number(row.stock_quantity || 0) > 0,
     compatible_models: cleanArray(row.compatible_models),
-    colors: cleanArray(row.colors),
+    colors: parsedColors,
     material: row.material || "",
     featured: Boolean(row.featured),
+    status: row.status || "public",
+    brand: row.brand || "",
+    product_family: row.product_family || "",
+    tags: cleanArray(row.tags),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -198,6 +211,10 @@ function productFromDb(row) {
 
 function productToDb(product) {
   const stockQuantity = Math.max(0, Number(product.stock_quantity ?? product.stockQuantity ?? 0));
+
+  const serializedColors = Array.isArray(product.colors)
+    ? product.colors.map(c => typeof c === 'object' ? JSON.stringify(c) : String(c))
+    : [];
 
   return {
     id: String(product.id || "").trim(),
@@ -218,9 +235,13 @@ function productToDb(product) {
     stock_quantity: stockQuantity,
     is_in_stock: toBoolean(product.is_in_stock ?? product.isInStock, stockQuantity > 0),
     compatible_models: cleanArray(product.compatible_models ?? product.compatibleModels),
-    colors: cleanArray(product.colors),
+    colors: serializedColors,
     material: String(product.material || "").trim(),
     featured: toBoolean(product.featured, false),
+    status: String(product.status || "public").trim(),
+    brand: String(product.brand || "").trim(),
+    product_family: String(product.product_family || "").trim(),
+    tags: cleanArray(product.tags),
     is_active: true,
   };
 }
@@ -811,6 +832,19 @@ function requireAdmin(request) {
   };
 }
 
+async function deleteProduct(id) {
+  const isBulk = id.includes(",");
+  const query = isBulk 
+    ? `?id=in.(${id.split(',').map(x => encodeURIComponent(x.trim())).join(',')})`
+    : `?id=eq.${encodeURIComponent(id)}`;
+  const result = await supabaseRequest(TABLES.products, {
+    service: true,
+    method: "DELETE",
+    query,
+  });
+  return result;
+}
+
 export {
   ORDER_STATUSES,
   appendEvent,
@@ -844,4 +878,5 @@ export {
   updateOrderStatus,
   uploadStorageObjectFromDataUrl,
   upsertProduct,
+  deleteProduct,
 };

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { requireAdmin, storageConfigured, uploadStorageObjectFromDataUrl } from "@/utils/store-db";
+import { requireAdmin } from "@/utils/store-db";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import sharp from "sharp";
 
 function cleanText(value, limit = 200) {
   return String(value || "").trim().slice(0, limit);
@@ -8,19 +10,27 @@ function cleanText(value, limit = 200) {
 
 export async function POST(request) {
   try {
-    if (!storageConfigured()) {
-      return NextResponse.json({ message: "Supabase storage is not configured." }, { status: 501 });
+    const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL } = process.env;
+    
+    if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+      return NextResponse.json({ message: "Cloudflare R2 is not configured in environment variables." }, { status: 501 });
     }
+
+    const s3Client = new S3Client({
+      region: "auto",
+      endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    });
 
     const body = await request.json().catch(() => ({}));
     const kind = cleanText(body.kind, 40);
-    const fileName = cleanText(body.fileName, 160)
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9._-]/gi, "")
-      .toLowerCase();
+    const productName = cleanText(body.productName, 100).replace(/\s+/g, "-").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "coverup";
     const dataUrl = body.dataUrl;
 
-    if (!dataUrl || !fileName) {
+    if (!dataUrl) {
       return NextResponse.json({ message: "الصورة غير مكتملة." }, { status: 400 });
     }
 
@@ -30,18 +40,34 @@ export async function POST(request) {
         return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
       }
 
-      const path = `products/${Date.now()}-${randomUUID()}-${fileName}`;
-      const uploaded = await uploadStorageObjectFromDataUrl({
-        bucket: "product-images",
-        path,
-        dataUrl,
-      });
+      // Convert Base64 to Buffer
+      const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
 
-      return NextResponse.json(uploaded);
+      // Process with sharp (convert to WebP, 80% quality)
+      const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
+
+      const fileName = `${Date.now()}-${randomUUID().slice(0, 8)}.webp`;
+      const path = `${productName}/${fileName}`;
+      const bucketName = R2_BUCKET_NAME || "coverup";
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Key: path,
+          Body: webpBuffer,
+          ContentType: "image/webp",
+        })
+      );
+
+      const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/$/, "")}/${path}` : `https://pub-${R2_ACCOUNT_ID}.r2.dev/${path}`;
+
+      return NextResponse.json({ url: publicUrl, path });
     }
 
     return NextResponse.json({ message: "نوع الرفع غير مدعوم." }, { status: 400 });
   } catch (error) {
+    console.error("R2 Upload Error:", error);
     return NextResponse.json({ message: error.message || "Upload error" }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runMemoConversationStep, memoDbTools, generateChatBriefAndTitle } from "@/utils/memo-ai";
+import { runMemoConversationStep, memoDbTools, generateChatBriefAndTitle, checkNeedsDatabaseSearch } from "@/utils/memo-ai";
 import { getAuthenticatedUser } from "@/utils/server-auth";
 import { getSupabaseServerClient } from "@/utils/supabase";
 
@@ -41,6 +41,39 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    const user = await getAuthenticatedUser(request).catch(() => null);
+
+    // Advanced Rate Limit: 10 messages from user each 3 hours
+    if (user) {
+      try {
+        const supabaseClient = getSupabaseServerClient();
+        const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+        const { data: recentChats } = await supabaseClient
+          .from("memo_chats")
+          .select("messages")
+          .eq("user_id", user.id)
+          .gte("updated_at", threeHoursAgo);
+
+        let userMsgCount = 0;
+        if (recentChats) {
+          recentChats.forEach(c => {
+            if (Array.isArray(c.messages)) {
+              userMsgCount += c.messages.filter(m => m.role === "user").length;
+            }
+          });
+        }
+        
+        if (userMsgCount >= 10) {
+          return NextResponse.json({ 
+            message: "لقد وصلت للحد الأقصى للمحادثات مع ميمو (10 رسائل كل 3 ساعات). يرجى المحاولة لاحقاً.",
+            products: []
+          }, { status: 429 });
+        }
+      } catch (err) {
+        console.error("Rate limit check error:", err);
+      }
+    }
+
     // Limit conversation history sent to the model to the last 10 messages
     const slicedMessages = messages.slice(-10);
 
@@ -61,10 +94,14 @@ export async function POST(request) {
     let loopLimit = 5;
     let finalMessage = null;
 
+    // Fast Pre-check to determine if we should allow database tools
+    const lastUserMsg = messages[messages.length - 1]?.content || "";
+    const needsDb = await checkNeedsDatabaseSearch(lastUserMsg);
+
     while (loopLimit > 0) {
       loopLimit--;
       
-      const assistantMessage = await runMemoConversationStep(conversationHistory);
+      const assistantMessage = await runMemoConversationStep(conversationHistory, needsDb);
       if (!assistantMessage) {
         throw new Error("لم يتم استلام رد من مساعد الذكاء الاصطناعي.");
       }
@@ -158,7 +195,6 @@ export async function POST(request) {
     })).slice(0, 3); // Return max 3 matching products
 
     // Sync chat to database if logged in
-    const user = await getAuthenticatedUser(request).catch(() => null);
     let savedChatId = chatId;
     let chatTitle = "محادثة جديدة";
     let chatSummary = "محادثة مع ميمو";
@@ -171,26 +207,14 @@ export async function POST(request) {
           { role: "assistant", content: finalMessage.content }
         ];
 
-        const brief = await generateChatBriefAndTitle(finalChatMessages);
-        chatTitle = brief.title;
-        chatSummary = brief.summary;
+        const isNewChat = !chatId || chatId === "new" || chatId === "null" || chatId === "undefined";
 
-        if (chatId && chatId !== "new" && chatId !== "null" && chatId !== "undefined") {
-          const { error: updateError } = await supabaseClient
-            .from("memo_chats")
-            .update({
-              messages: finalChatMessages,
-              title: chatTitle,
-              summary: chatSummary,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", chatId)
-            .eq("user_id", user.id);
-          
-          if (updateError) {
-            console.error("Error updating chat:", updateError);
-          }
-        } else {
+        if (isNewChat) {
+          // Only generate brief and title for NEW chats
+          const brief = await generateChatBriefAndTitle(finalChatMessages);
+          chatTitle = brief.title || chatTitle;
+          chatSummary = brief.summary || chatSummary;
+
           const { data: newChat, error: insertError } = await supabaseClient
             .from("memo_chats")
             .insert({
@@ -206,6 +230,20 @@ export async function POST(request) {
             console.error("Error inserting new chat:", insertError);
           } else if (newChat) {
             savedChatId = newChat.id;
+          }
+        } else {
+          // Update existing chat WITHOUT overwriting title and summary
+          const { error: updateError } = await supabaseClient
+            .from("memo_chats")
+            .update({
+              messages: finalChatMessages,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", chatId)
+            .eq("user_id", user.id);
+          
+          if (updateError) {
+            console.error("Error updating chat:", updateError);
           }
         }
       } catch (dbErr) {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { getProductById, upsertProduct, requireAdmin, supabaseConfigured } from "@/utils/store-db";
+import { getProductById, upsertProduct, deleteProduct, requireAdmin, supabaseConfigured } from "@/utils/store-db";
 import { randomUUID } from "node:crypto";
+
+export const dynamic = "force-dynamic";
 
 function cleanProduct(product = {}) {
   return {
@@ -36,6 +38,15 @@ function cleanProduct(product = {}) {
           .filter(Boolean),
     material: String(product.material || "").trim(),
     featured: Boolean(product.featured),
+    brand: String(product.brand || "").trim(),
+    product_family: String(product.product_family || "").trim(),
+    tags: Array.isArray(product.tags)
+      ? product.tags
+      : String(product.tags || "")
+          .split(/[,\n]/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+    status: String(product.status || "public").trim(),
   };
 }
 
@@ -55,6 +66,12 @@ export async function GET(request) {
     const product = await getProductById(id);
     if (!product) {
       return NextResponse.json({ message: "المنتج غير موجود." }, { status: 404 });
+    }
+
+    // Check if the request is from admin
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized && product.status === 'hidden') {
+      return NextResponse.json({ message: "المنتج غير متوفر حالياً." }, { status: 404 });
     }
 
     return NextResponse.json({ configured: true, product });
@@ -77,6 +94,31 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const product = await upsertProduct(cleanProduct(body.product || body || {}));
     return NextResponse.json({ product });
+  } catch (error) {
+    return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized) {
+      return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
+    }
+
+    if (!supabaseConfigured(true)) {
+      return NextResponse.json({ message: "Supabase service role is not configured." }, { status: 501 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = String(searchParams.get("id") || "").trim();
+
+    if (!id) {
+      return NextResponse.json({ message: "اختار المنتج أولاً." }, { status: 400 });
+    }
+
+    await deleteProduct(id);
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }

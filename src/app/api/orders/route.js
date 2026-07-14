@@ -97,7 +97,8 @@ function availableStock(product) {
 
 function normalizeItems(items, products) {
   return items.map((item) => {
-    const product = products.find((entry) => entry.id === item.id);
+    const baseId = item.id.split('::')[0];
+    const product = products.find((entry) => entry.id === baseId);
     if (!product) {
       throw new Error("في منتج داخل السلة لم يعد متاحًا.");
     }
@@ -115,6 +116,7 @@ function normalizeItems(items, products) {
       quantity,
       image: product.image || "",
       line_total: Number(product.price || 0) * quantity,
+      color: item.color || null,
     };
   });
 }

@@ -204,6 +204,7 @@ function CartContent() {
         items: cartEntries.map((item) => ({
           id: item.id,
           quantity: item.quantity,
+          color: item.product.selectedColor || null
         })),
       };
 

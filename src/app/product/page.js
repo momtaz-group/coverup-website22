@@ -23,6 +23,29 @@ function ProductDetailContent() {
   const [mainImage, setMainImage] = useState("");
   const [wishlist, setWishlist] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  const [activeColor, setActiveColor] = useState(null);
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [colorError, setColorError] = useState("");
+
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.pageX - left - window.scrollX) / width) * 100;
+    const y = ((e.pageY - top - window.scrollY) / height) * 100;
+    setZoomPos({ x, y });
+  };
+
+  const productColors = useMemo(() => {
+    if (!product || !product.colors) return [];
+    if (Array.isArray(product.colors)) {
+      return product.colors.map(c => typeof c === 'string' ? { name: c, hex: '#ccc' } : c);
+    }
+    if (typeof product.colors === 'string') {
+      return product.colors.split(/[,\n]/).map(c => ({ name: c.trim(), hex: '#ccc' }));
+    }
+    return [];
+  }, [product]);
+
 
   useEffect(() => {
     const loadWishlist = async () => {
@@ -148,7 +171,11 @@ function ProductDetailContent() {
     );
   }
 
-  const galleryImages = [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean);
+  const defaultGalleryImages = [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean);
+  const galleryImages = activeColor && Array.isArray(activeColor.images) && activeColor.images.length > 0 
+    ? activeColor.images.filter(Boolean)
+    : defaultGalleryImages;
+
   const isFavorite = wishlist.includes(product.id);
 
   const displayName = locale === "en" && product.name_en ? product.name_en : product.name;
@@ -157,8 +184,13 @@ function ProductDetailContent() {
   const displayCategory = locale === "en" && product.category_en ? product.category_en : product.category;
 
   const handleAddToCart = () => {
+    if (productColors.length > 1 && !activeColor) {
+      setColorError(locale === "ar" ? "الرجاء اختيار اللون أولاً" : "Please select a color first");
+      return;
+    }
+
     for (let i = 0; i < quantity; i++) {
-      addToCart(product);
+      addToCart({ ...product, selectedColor: activeColor });
     }
     router.push("/cart");
   };
@@ -174,6 +206,20 @@ function ProductDetailContent() {
             {displayBadge && <span style={{ background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px', display: 'inline-block' }}>{displayBadge}</span>}
             <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{displayName}</h1>
             <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
+            {product.compatible_models && product.compatible_models.length > 1 && (
+              <div style={{ marginTop: '16px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--muted)', display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  {locale === "ar" ? "متوافق مع:" : "Compatible with:"}
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {product.compatible_models.map((model, idx) => (
+                    <span key={idx} style={{ padding: '6px 12px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0070f3' }}>
@@ -192,6 +238,46 @@ function ProductDetailContent() {
               <strong style={{ fontSize: '14px' }}>{product.sku || (locale === "ar" ? "بدون" : "None")}</strong>
             </div>
           </div>
+
+          {productColors.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "الألوان المتاحة:" : "Available Colors:"}</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {productColors.map((color, idx) => {
+                  const isSelected = activeColor?.hex === color.hex;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      title={color.name}
+                      onClick={() => {
+                        if (color.image) setMainImage(color.image);
+                        setActiveColor(color);
+                        setColorError("");
+                      }}
+                      style={{
+                        width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
+                        background: color.hex, 
+                        border: isSelected ? '3px solid #0070f3' : '1px solid rgba(0,0,0,0.15)',
+                        outline: isSelected ? '2px solid rgba(0, 112, 243, 0.3)' : 'none',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        display: 'flex', justifyContent: 'center', alignItems: 'center'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.15)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
             {/* Quantity Selector */}
@@ -213,6 +299,12 @@ function ProductDetailContent() {
             </button>
           </div>
 
+          {colorError && (
+            <div style={{ color: '#ff4d4d', fontSize: '14px', fontWeight: 'bold', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⚠️</span> {colorError}
+            </div>
+          )}
+
           <button
             type="button"
             disabled={product.is_in_stock === false}
@@ -225,8 +317,43 @@ function ProductDetailContent() {
 
         {/* Gallery Column (Right typically, order 2 in standard DOM, or order 1 in AR if we want it on the right) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', order: locale === "ar" ? 1 : 2 }}>
-          <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-             {mainImage ? <img src={mainImage} alt={displayName} decoding="async" style={{ width: '100%', height: 'auto', maxHeight: '500px', objectFit: 'contain', borderRadius: '16px' }} /> : <span style={{ color: 'var(--muted)' }}>No Image</span>}
+          <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px', overflow: 'hidden' }}>
+             {mainImage ? (
+               <div 
+                 onMouseMove={handleMouseMove}
+                 onMouseEnter={() => setIsZoomed(true)}
+                 onMouseLeave={() => setIsZoomed(false)}
+                 style={{ 
+                   position: 'relative', 
+                   width: '100%', 
+                   height: '100%', 
+                   overflow: 'hidden', 
+                   cursor: 'zoom-in',
+                   borderRadius: '16px',
+                   display: 'flex',
+                   justifyContent: 'center',
+                   alignItems: 'center'
+                 }}
+               >
+                 <img 
+                   src={mainImage} 
+                   alt={displayName} 
+                   decoding="async" 
+                   style={{ 
+                     width: '100%', 
+                     height: 'auto', 
+                     maxHeight: '500px', 
+                     objectFit: 'contain', 
+                     transform: isZoomed ? 'scale(2.2)' : 'scale(1)',
+                     transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                     transition: isZoomed ? 'none' : 'transform 0.3s ease',
+                     borderRadius: '16px'
+                   }} 
+                 />
+               </div>
+             ) : (
+               <span style={{ color: 'var(--muted)' }}>No Image</span>
+             )}
           </div>
           
           {galleryImages.length > 1 && (

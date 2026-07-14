@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getProducts, setProducts, requireAdmin, supabaseConfigured } from "@/utils/store-db";
 import { randomUUID } from "node:crypto";
 
+export const dynamic = "force-dynamic";
+
 function cleanProduct(product) {
   return {
     id: String(product.id || randomUUID()).trim(),
@@ -40,15 +42,32 @@ function cleanProduct(product) {
           .filter(Boolean),
     material: String(product.material || "").trim(),
     featured: Boolean(product.featured),
+    status: String(product.status || "public").trim(),
+    brand: String(product.brand || "").trim(),
+    product_family: String(product.product_family || "").trim(),
+    tags: Array.isArray(product.tags)
+      ? product.tags
+      : String(product.tags || "")
+          .split(/[,\n]/)
+          .map((item) => item.trim())
+          .filter(Boolean),
   };
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
     if (!supabaseConfigured(false)) {
       return NextResponse.json({ configured: false, products: [] });
     }
-    const products = await getProducts();
+    let products = await getProducts();
+    
+    // Check if the request is from admin
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized) {
+      // If not admin, filter out hidden products
+      products = products.filter(p => p.status !== 'hidden');
+    }
+
     return NextResponse.json({ configured: true, products });
   } catch (error) {
     return NextResponse.json({ message: error.message }, { status: 500 });

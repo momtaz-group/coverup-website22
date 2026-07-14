@@ -172,7 +172,8 @@ function ShopContent() {
       .then((data) => {
         if (data && Array.isArray(data.products) && data.products.length > 0) {
           const defaultOrder = defaultProducts.map((p) => p.id);
-          const sorted = [...data.products].sort((a, b) => {
+          const visibleProducts = data.products.filter(p => p.status !== 'hidden');
+          const sorted = [...visibleProducts].sort((a, b) => {
             const indexA = defaultOrder.indexOf(a.id);
             const indexB = defaultOrder.indexOf(b.id);
             const valA = indexA === -1 ? 999 : indexA;
@@ -415,7 +416,7 @@ function ShopContent() {
           paddingBottom: "8px",
           scrollbarWidth: "none",
           msOverflowStyle: "none",
-          webkitOverflowScrolling: "touch"
+          WebkitOverflowScrolling: "touch"
         }}>
           <style jsx global>{`
             .category-tabs-scroll::-webkit-scrollbar {
@@ -430,7 +431,7 @@ function ShopContent() {
               padding: "10px 20px",
               borderRadius: "30px",
               border: "1px solid var(--line)",
-              background: selectedCategory === "All" ? "var(--blue)" : "var(--panel)",
+              background: selectedCategory === "All" ? "var(--gold)" : "var(--panel)",
               color: selectedCategory === "All" ? "#fff" : "var(--text)",
               fontSize: "0.88rem",
               fontWeight: "600",
@@ -452,7 +453,7 @@ function ShopContent() {
                 padding: "10px 20px",
                 borderRadius: "30px",
                 border: "1px solid var(--line)",
-                background: selectedCategory === cat ? "var(--blue)" : "var(--panel)",
+                background: selectedCategory === cat ? "var(--gold)" : "var(--panel)",
                 color: selectedCategory === cat ? "#fff" : "var(--text)",
                 fontSize: "0.88rem",
                 fontWeight: "600",

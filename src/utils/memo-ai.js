@@ -252,8 +252,46 @@ export const OPENAI_TOOLS = [
   }
 ];
 
+// Fast pre-check to determine if the user's message needs a database lookup
+export async function checkNeedsDatabaseSearch(userMessage) {
+  let endpoint = process.env.AZURE_OPENAI_ENDPOINT || "";
+  if (!endpoint) return true; // Default to true if configured incorrectly
+  if (endpoint.includes("/api/projects/")) {
+    endpoint = endpoint.split("/api/projects/")[0];
+  }
+
+  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  if (!apiKey) return true;
+
+  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-5-mini";
+  const apiVersion = "2024-08-01-preview";
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
+
+  const prompt = `You are a router. Does the following user message require searching a store's product database for physical items, accessories, prices, or compatibility? 
+Reply strictly with "YES" or "NO".
+User message: "${userMessage}"`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "api-key": apiKey },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: 5,
+        temperature: 0
+      })
+    });
+    if (!response.ok) return true;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim().toUpperCase();
+    return content === "YES";
+  } catch (e) {
+    return true; // Fallback to using tools if error
+  }
+}
+
 // Execute a single model conversation step on the server
-export async function runMemoConversationStep(messages) {
+export async function runMemoConversationStep(messages, allowTools = true) {
   let endpoint = process.env.AZURE_OPENAI_ENDPOINT || "";
   if (!endpoint) {
     throw new Error("Missing Azure OpenAI Endpoint");
@@ -271,6 +309,18 @@ export async function runMemoConversationStep(messages) {
   const apiVersion = "2024-08-01-preview";
   const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
 
+  const body = {
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...messages
+    ],
+    max_completion_tokens: 2000
+  };
+
+  if (allowTools) {
+    body.tools = OPENAI_TOOLS;
+  }
+
   // Call Azure OpenAI
   const response = await fetch(url, {
     method: "POST",
@@ -278,14 +328,7 @@ export async function runMemoConversationStep(messages) {
       "Content-Type": "application/json",
       "api-key": apiKey
     },
-    body: JSON.stringify({
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages
-      ],
-      tools: OPENAI_TOOLS,
-      max_completion_tokens: 2000
-    })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {

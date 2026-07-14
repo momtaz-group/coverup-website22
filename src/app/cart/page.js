@@ -141,7 +141,11 @@ function CartContent() {
         discountCode: couponCode.trim().toUpperCase(),
         tipAmount: formData.tipAmount,
         branchLocation: formData.deliveryMethod === 'pickup' ? "Cover Up Main Branch, Cairo" : "",
-        items: cartEntries.map((item) => ({ id: item.id, quantity: item.quantity })),
+        items: cartEntries.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          color: item.product.selectedColor || null
+        })),
       };
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -201,7 +205,13 @@ function CartContent() {
                     <div className="cart-page-media"><img src={item.product.image} alt={displayName} loading="lazy" decoding="async" style={{ borderRadius: '12px' }}/></div>
                     <div className="cart-page-info">
                       <div className="cart-page-item-head">
-                        <h2 style={{ fontSize: '18px', margin: '0 0 8px 0' }}><Link href={`/product?id=${item.id}`}>{displayName}</Link></h2>
+                        <h2 style={{ fontSize: '18px', margin: '0 0 8px 0' }}><Link href={`/product?id=${item.id.split('::')[0]}`}>{displayName}</Link></h2>
+                        {item.product.selectedColor && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                            <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: item.product.selectedColor.hex, border: '1px solid rgba(0,0,0,0.1)' }} />
+                            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{item.product.selectedColor.name}</span>
+                          </div>
+                        )}
                         <strong style={{ fontSize: '18px', color: '#0070f3' }}>{formatMoney(item.product.price * item.quantity)}</strong>
                       </div>
                       <div className="cart-page-actions" style={{ marginTop: '16px', background: 'var(--input-bg)', padding: '4px', borderRadius: '8px', display: 'inline-flex' }}>
