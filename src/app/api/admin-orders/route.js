@@ -18,7 +18,7 @@ function cleanText(value, limit = 200) {
 function emailTypeForStatus(status) {
   switch (status) {
     case "confirmed":
-      return "order_confirmation";
+      return "order_confirmed";
     case "preparing":
       return "order_preparing";
     case "with_courier":
@@ -27,6 +27,10 @@ function emailTypeForStatus(status) {
       return "order_delivered";
     case "cancelled":
       return "order_cancelled";
+    case "refunded":
+      return "order_refunded";
+    case "paid":
+      return "payment_success";
     default:
       return "";
   }
