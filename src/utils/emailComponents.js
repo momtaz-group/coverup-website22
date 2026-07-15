@@ -485,6 +485,63 @@ function OrderRefundedEmail({ order }) {
   );
 }
 
+function PaymentSuccessEmail({ order }) {
+  return (
+    <EmailLayout
+      lang="ar"
+      dir="rtl"
+      previewText="تم تأكيد الدفع بنجاح"
+      title="تم تأكيد الدفع بنجاح"
+      intro={`استلمنا دفعتك بنجاح لطلب رقم #${order.id} وتم تحديث حالة الطلب في نظامنا.`}
+    >
+      <div style={{
+        backgroundColor: "#f3fff7",
+        border: "1px solid #bbf7d0",
+        borderRadius: "10px",
+        padding: "16px",
+        marginBottom: "18px",
+        color: "#166534",
+      }}>
+        <p style={{ margin: "0", fontSize: "14px", fontWeight: "bold" }}>
+          تم سداد قيمة الطلب بنجاح.
+        </p>
+      </div>
+      <OrderSummaryCard order={order} lang="ar" />
+      <PrimaryButton href={`${siteUrl}/track?orderId=${order.id}&phone=${encodeURIComponent(order.customer?.phone || "")}`} label="تتبع طلبك" />
+    </EmailLayout>
+  );
+}
+
+function PaymentFailedEmail({ order }) {
+  return (
+    <EmailLayout
+      lang="ar"
+      dir="rtl"
+      previewText="تعذر تأكيد الدفع"
+      title="تعذر تأكيد الدفع"
+      intro={`لم تكتمل عملية الدفع لطلب رقم #${order.id}. يمكنك المحاولة مرة أخرى أو التواصل معنا للمساعدة.`}
+    >
+      <div style={{
+        backgroundColor: "#fff5f5",
+        border: "1px solid #fecaca",
+        borderRadius: "10px",
+        padding: "16px",
+        marginBottom: "18px",
+        color: "#991b1b",
+      }}>
+        <p style={{ margin: "0", fontSize: "14px", fontWeight: "bold" }}>
+          حالة الدفع الحالية: غير مكتملة.
+        </p>
+      </div>
+      <p style={{ fontSize: "14px", color: "#111", lineHeight: "1.9" }}>
+        إذا كنت تعتقد أن الخصم تم بالفعل أو واجهت مشكلة أثناء الدفع، تواصل مع فريقنا وسنراجع الطلب معك بسرعة.
+      </p>
+      <OrderSummaryCard order={order} lang="ar" />
+      <PrimaryButton href={`${siteUrl}/track?orderId=${order.id}&phone=${encodeURIComponent(order.customer?.phone || "")}`} label="متابعة الطلب" />
+    </EmailLayout>
+  );
+}
+
 function EmailVerifiedEmail({ customerName }) {
   return (
     <EmailLayout
@@ -544,6 +601,14 @@ const TEMPLATES = {
   order_refunded: {
     subject: (data) => `تم استرداد مبلغ طلبك من CoverUp | رقم الطلب #${data.order?.id || ""}`,
     component: OrderRefundedEmail,
+  },
+  payment_success: {
+    subject: (data) => `تم تأكيد الدفع لطلبك من CoverUp | رقم الطلب #${data.order?.id || ""}`,
+    component: PaymentSuccessEmail,
+  },
+  payment_failed: {
+    subject: (data) => `تعذر تأكيد الدفع لطلبك من CoverUp | رقم الطلب #${data.order?.id || ""}`,
+    component: PaymentFailedEmail,
   },
   email_verified: {
     subject: "تم تأكيد إيميل CoverUp بنجاح",

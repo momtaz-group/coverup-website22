@@ -17,6 +17,10 @@ function cleanText(value, limit = 200) {
 
 function emailTypeForStatus(status) {
   switch (status) {
+    case "pending_payment":
+      return "order_confirmation";
+    case "new":
+      return "order_confirmation";
     case "confirmed":
       return "order_confirmed";
     case "preparing":
@@ -31,6 +35,8 @@ function emailTypeForStatus(status) {
       return "order_refunded";
     case "paid":
       return "payment_success";
+    case "payment_failed":
+      return "payment_failed";
     default:
       return "";
   }
@@ -84,16 +90,17 @@ export async function PATCH(request) {
       extra,
     });
 
+    let email = null;
     const emailType = emailTypeForStatus(status);
     if (emailType && updated?.customer?.email) {
-      await sendTransactionalEmail(emailType, {
+      email = await sendTransactionalEmail(emailType, {
         to: updated.customer.email,
         customer: updated.customer,
         order: updated,
-      }).catch(() => {});
+      });
     }
 
-    return NextResponse.json({ order: updated });
+    return NextResponse.json({ order: updated, email });
   } catch (error) {
     return NextResponse.json({ message: error.message || "Order update failed" }, { status: 500 });
   }

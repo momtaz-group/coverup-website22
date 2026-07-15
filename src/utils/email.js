@@ -7,7 +7,7 @@ const resendApiKey = process.env.RESEND_API_KEY || "temp_key";
 const resend = new Resend(resendApiKey);
 
 function officialFrom() {
-  return process.env.RESEND_FROM_EMAIL || "CoverUp <orders@mail.coverup.tech>";
+  return process.env.RESEND_FROM_EMAIL || "CoverUp <orders@coverup.tech>";
 }
 
 export async function sendEmail({ to, subject, html }) {
@@ -48,7 +48,10 @@ export async function sendTransactionalEmail(type, data = {}) {
   if (!eventKey) {
     if (type === "welcome" && (data.customer?.id || data.user_id)) {
       eventKey = `welcome:${data.customer?.id || data.user_id}`;
-    } else if (type.startsWith("order_") && data.order?.id) {
+    } else if (
+      ["order_confirmation", "order_confirmed", "order_preparing", "order_with_courier", "order_delivered", "order_cancelled", "order_refunded", "payment_success", "payment_failed"].includes(type) &&
+      data.order?.id
+    ) {
       eventKey = `order-status:${data.order.id}:${type}`;
     }
   }

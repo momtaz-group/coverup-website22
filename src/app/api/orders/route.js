@@ -8,6 +8,7 @@ import {
 } from "@/utils/store-db";
 import { getAuthenticatedCustomer } from "@/utils/server-auth";
 import { sendTransactionalEmail } from "@/utils/email";
+import { sendTelegramOrderNotification } from "@/utils/telegram";
 
 const DEFAULT_COUPONS = {
   COVERUP10: { type: "percent", value: 10, minSubtotal: 0 },
@@ -223,6 +224,13 @@ export async function POST(request) {
         payment_method_label: paymentLabel(paymentMethod),
       },
     }).catch(() => {});
+
+    if (!isPosOrder) {
+      await sendTelegramOrderNotification({
+        ...order,
+        customer: customerPayload,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       order,

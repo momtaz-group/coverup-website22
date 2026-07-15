@@ -10,7 +10,7 @@ import { useLoading } from "@/context/LoadingContext";
 import { supabase } from "@/utils/supabase";
 import styles from "./page.module.css";
 
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 6;
 const emptyCode = () => Array(CODE_LENGTH).fill("");
 const MAX_LOCATIONS = 3;
 

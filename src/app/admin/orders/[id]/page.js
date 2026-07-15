@@ -100,7 +100,13 @@ export default function OrderDetailsPage() {
       
       setOrder(data.order);
       setNewStatus(data.order.status || "");
-      setStatusMessage("تم تحديث حالة الطلب بنجاح.");
+      if (data.email?.success) {
+        setStatusMessage("تم تحديث حالة الطلب وإرسال الإيميل للعميل بنجاح.");
+      } else if (data.email && !data.email.success) {
+        setStatusMessage(`تم تحديث حالة الطلب لكن فشل إرسال الإيميل: ${data.email.error || "خطأ غير معروف"}`);
+      } else {
+        setStatusMessage("تم تحديث حالة الطلب بنجاح.");
+      }
       setTimeout(() => setStatusMessage(""), 4000);
       fetchEmailLogs();
     } catch (err) {

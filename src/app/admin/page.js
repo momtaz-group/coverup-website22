@@ -180,7 +180,14 @@ export default function AdminPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to update order status");
 
-      setStatusMessage(`تم تحديث الطلب #${orderId.startsWith("CU") ? orderId : orderId.slice(0, 8)} إلى: ${newStatus}`);
+      const shortId = orderId.startsWith("CU") ? orderId : orderId.slice(0, 8);
+      if (data.email?.success) {
+        setStatusMessage(`تم تحديث الطلب #${shortId} إلى: ${newStatus} وإرسال الإيميل للعميل.`);
+      } else if (data.email && !data.email.success) {
+        setStatusMessage(`تم تحديث الطلب #${shortId} إلى: ${newStatus} لكن الإيميل فشل: ${data.email.error || "خطأ غير معروف"}`);
+      } else {
+        setStatusMessage(`تم تحديث الطلب #${shortId} إلى: ${newStatus}`);
+      }
       loadDashboardData(true);
     } catch (err) {
       setStatusMessage(err.message);

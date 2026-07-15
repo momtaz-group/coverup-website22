@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Confirm your email</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #eef4ff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #10233f;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; mso-hide: all;">
+      Your 6-digit Coverup confirmation code is {{ .Token }}.
+    </div>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #eef4ff; margin: 0; padding: 24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+            <tr>
+              <td style="padding: 0 20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(135deg, #1267e8 0%, #4b91f5 100%); border-radius: 28px 28px 0 0;">
+                  <tr>
+                    <td style="padding: 28px 32px 22px; text-align: left;">
+                      <div style="font-size: 12px; line-height: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); font-weight: 700;">
+                        Coverup
+                      </div>
+                      <div style="padding-top: 18px; font-size: 30px; line-height: 38px; color: #ffffff; font-weight: 800;">
+                        Confirm your email address
+                      </div>
+                      <div style="padding-top: 10px; font-size: 15px; line-height: 24px; color: rgba(255, 255, 255, 0.86);">
+                        Finish creating your account by entering the verification code below in the app.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ffffff; border-radius: 0 0 28px 28px; box-shadow: 0 24px 70px rgba(18, 103, 232, 0.14);">
+                  <tr>
+                    <td style="padding: 32px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%); border: 1px solid #d9e7ff; border-radius: 22px;">
+                        <tr>
+                          <td style="padding: 26px 24px; text-align: center;">
+                            <div style="font-size: 12px; line-height: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #5c7088; font-weight: 700;">
+                              Verification code
+                            </div>
+                            <div style="padding-top: 16px; font-size: 38px; line-height: 42px; letter-spacing: 0.34em; color: #1267e8; font-weight: 800;">
+                              {{ .Token }}
+                            </div>
+                            <div style="padding-top: 14px; font-size: 14px; line-height: 22px; color: #5c7088;">
+                              This code is valid for one verification attempt until it expires. If it stops working, request a fresh one from the sign up screen.
+                            </div>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div style="padding-top: 24px; font-size: 16px; line-height: 28px; color: #10233f;">
+                        We sent this code for <strong>{{ .Email }}</strong>. Return to Coverup and enter the 6-digit code to activate your account.
+                      </div>
+
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top: 28px;">
+                        <tr>
+                          <td align="center" bgcolor="#1267e8" style="border-radius: 14px;">
+                            <a
+                              href="{{ .SiteURL }}/account"
+                              style="display: inline-block; padding: 14px 24px; font-size: 15px; line-height: 15px; color: #ffffff; text-decoration: none; font-weight: 700;"
+                            >
+                              Open Coverup
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <div style="padding-top: 24px; font-size: 13px; line-height: 22px; color: #5c7088;">
+                        If you did not create a Coverup account, you can safely ignore this email.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="padding: 18px 18px 0; text-align: center; font-size: 12px; line-height: 20px; color: #6b7f97;">
+                  Coverup account security email
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
