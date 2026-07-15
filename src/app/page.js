@@ -268,21 +268,22 @@ export default function HomePage() {
   };
   
   // Carousel State & Logic
+  const [carouselProducts, setCarouselProducts] = useState(FEATURED_PRODUCTS);
   const [activeIndex, setActiveIndex] = useState(2);
   
   const handlePrev = () => {
-    setActiveIndex((prev) => (prev - 1 + FEATURED_PRODUCTS.length) % FEATURED_PRODUCTS.length);
+    setActiveIndex((prev) => (prev - 1 + carouselProducts.length) % carouselProducts.length);
   };
 
   const handleNext = () => {
-    setActiveIndex((prev) => (prev + 1) % FEATURED_PRODUCTS.length);
+    setActiveIndex((prev) => (prev + 1) % carouselProducts.length);
   };
 
   const getCardStyle = (index) => {
     let diff = index - activeIndex;
-    const half = Math.floor(FEATURED_PRODUCTS.length / 2);
-    if (diff > half) diff -= FEATURED_PRODUCTS.length;
-    if (diff < -half) diff += FEATURED_PRODUCTS.length;
+    const half = Math.floor(carouselProducts.length / 2);
+    if (diff > half) diff -= carouselProducts.length;
+    if (diff < -half) diff += carouselProducts.length;
 
     const isActive = diff === 0;
     const absDiff = Math.abs(diff);
@@ -317,6 +318,41 @@ export default function HomePage() {
   
   useEffect(() => {
     let active = true;
+
+    // Load dynamic carousel products
+    fetch("/api/store-products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data && Array.isArray(data.products)) {
+          const publicProds = data.products.filter(p => p.status !== "hidden");
+          
+          // Filter products that are marked featured
+          let selected = publicProds.filter(p => p.featured);
+          
+          // If no products are featured, fallback to newest products
+          if (selected.length === 0) {
+            selected = [...publicProds]
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .slice(0, 5);
+          }
+
+          if (selected.length > 0) {
+            const mapped = selected.map(p => ({
+              id: p.id,
+              name: p.name,
+              name_en: p.name_en || p.name,
+              image: p.image,
+              category: p.category,
+              category_en: p.category_en || p.category,
+              category_slug: p.category_slug || p.category
+            }));
+            setCarouselProducts(mapped);
+            setActiveIndex(Math.floor(mapped.length / 2));
+          }
+        }
+      })
+      .catch(() => {});
+
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
@@ -818,7 +854,7 @@ export default function HomePage() {
         </button>
 
         <div className={styles.carouselStage}>
-          {FEATURED_PRODUCTS.map((product, idx) => {
+          {carouselProducts.map((product, idx) => {
             const cardStyle = getCardStyle(idx);
             const isActive = idx === activeIndex;
             return (
@@ -854,12 +890,12 @@ export default function HomePage() {
         </button>
       </div>
 
-      {FEATURED_PRODUCTS[activeIndex] && (
+      {carouselProducts[activeIndex] && (
         <div className={styles.infoArea}>
           <h3 className={styles.productCategory}>
-            {ar ? FEATURED_PRODUCTS[activeIndex].category : FEATURED_PRODUCTS[activeIndex].category_en}
+            {ar ? carouselProducts[activeIndex].category : carouselProducts[activeIndex].category_en}
           </h3>
-          <Link href={`/products?category=${FEATURED_PRODUCTS[activeIndex].category_slug}`} className={styles.shopNowLink}>
+          <Link href={`/products?category=${carouselProducts[activeIndex].category_slug}`} className={styles.shopNowLink}>
             <span>{text("Shop Now", "اطلب الآن")}</span>
             <span>{ar ? " ←" : " →"}</span>
           </Link>
@@ -867,7 +903,7 @@ export default function HomePage() {
       )}
 
       <div className={styles.dotsContainer}>
-        {FEATURED_PRODUCTS.map((_, idx) => (
+        {carouselProducts.map((_, idx) => (
           <button
             key={idx}
             type="button"
