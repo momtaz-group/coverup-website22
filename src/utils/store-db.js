@@ -862,6 +862,75 @@ async function deleteOrder(id) {
   return result;
 }
 
+async function logEmail({ event_key, email_type, recipient, user_id, order_id, order_status, resend_email_id, delivery_status, error_message, metadata }) {
+  try {
+    const saved = await supabaseRequest("email_logs", {
+      service: true,
+      method: "POST",
+      body: {
+        event_key: event_key || null,
+        email_type,
+        recipient,
+        user_id: user_id || null,
+        order_id: order_id || null,
+        order_status: order_status || null,
+        resend_email_id: resend_email_id || null,
+        delivery_status: delivery_status || "queued",
+        error_message: error_message || null,
+        metadata: metadata || {},
+      }
+    });
+    return saved[0] || null;
+  } catch (error) {
+    console.error("Error logging email to db:", error);
+    return null;
+  }
+}
+
+async function updateEmailLogStatus({ id, resend_email_id, status, error_message }) {
+  try {
+    let query = "";
+    if (id) {
+      query = `?id=eq.${encodeURIComponent(id)}`;
+    } else if (resend_email_id) {
+      query = `?resend_email_id=eq.${encodeURIComponent(resend_email_id)}`;
+    } else {
+      return false;
+    }
+
+    const body = {
+      delivery_status: status,
+      updated_at: new Date().toISOString()
+    };
+    if (resend_email_id) body.resend_email_id = resend_email_id;
+    if (error_message) body.error_message = error_message;
+
+    await supabaseRequest("email_logs", {
+      service: true,
+      method: "PATCH",
+      query,
+      body,
+    });
+    return true;
+  } catch (error) {
+    console.error("Error updating email log status:", error);
+    return false;
+  }
+}
+
+async function getEmailLogByEventKey(event_key) {
+  try {
+    const rows = await supabaseRequest("email_logs", {
+      service: true,
+      query: `?select=*&event_key=eq.${encodeURIComponent(event_key)}&limit=1`
+    });
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error fetching email log:", error);
+    return null;
+  }
+}
+
 export {
   ORDER_STATUSES,
   appendEvent,
@@ -897,4 +966,7 @@ export {
   upsertProduct,
   deleteProduct,
   deleteOrder,
+  logEmail,
+  updateEmailLogStatus,
+  getEmailLogByEventKey,
 };

@@ -38,16 +38,35 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
-  const [modalTab, setModalTab] = useState("payment"); // payment, details, status
+  const [modalTab, setModalTab] = useState("payment"); // payment, details, status, emails
   const [rejectReason, setRejectReason] = useState(REJECT_REASONS[0]);
   const [customRejectReason, setCustomRejectReason] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     fetchOrder();
+    fetchEmailLogs();
   }, [id]);
+
+  const fetchEmailLogs = async () => {
+    setLoadingEmails(true);
+    try {
+      const res = await fetch(`/api/admin/emails?orderId=${encodeURIComponent(id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEmailLogs(data.logs || []);
+      }
+    } catch (err) {
+      console.error("Error loading email logs:", err);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -83,8 +102,26 @@ export default function OrderDetailsPage() {
       setNewStatus(data.order.status || "");
       setStatusMessage("تم تحديث حالة الطلب بنجاح.");
       setTimeout(() => setStatusMessage(""), 4000);
+      fetchEmailLogs();
     } catch (err) {
       setStatusMessage(err.message);
+    }
+  };
+
+  const handleRetryEmail = async (logId) => {
+    try {
+      const res = await fetch("/api/admin/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to retry email");
+      setStatusMessage("تمت إعادة محاولة إرسال البريد بنجاح.");
+      setTimeout(() => setStatusMessage(""), 4000);
+      fetchEmailLogs();
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -167,6 +204,7 @@ export default function OrderDetailsPage() {
           <button className={modalTab === "payment" ? "active" : ""} onClick={() => setModalTab("payment")}>تفاصيل الدفع</button>
           <button className={modalTab === "details" ? "active" : ""} onClick={() => setModalTab("details")}>تفاصيل الطلب والعميل</button>
           <button className={modalTab === "status" ? "active" : ""} onClick={() => setModalTab("status")}>تحديث الحالة والسجل</button>
+          <button className={modalTab === "emails" ? "active" : ""} onClick={() => setModalTab("emails")}>سجل الإيميلات</button>
         </div>
 
         <div className="tab-content-card">
@@ -326,6 +364,87 @@ export default function OrderDetailsPage() {
               </div>
             </div>
           )}
+
+          {/* TAB 4: EMAIL LOGS */}
+          {modalTab === "emails" && (
+            <div className="emails-tab">
+              <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ margin: 0 }}>سجل الإيميلات المرسلة للطلب</h3>
+                <button 
+                  onClick={fetchEmailLogs} 
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                    fontSize: "13px"
+                  }}
+                >
+                  تحديث السجل
+                </button>
+              </div>
+              {loadingEmails ? (
+                <p>جاري تحميل سجل الإيميلات...</p>
+              ) : emailLogs.length === 0 ? (
+                <p>لم يتم إرسال أي إيميلات لهذا الطلب بعد.</p>
+              ) : (
+                <div className="email-logs-list" style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                        <th style={{ padding: "12px 8px" }}>نوع البريد</th>
+                        <th style={{ padding: "12px 8px" }}>المستلم</th>
+                        <th style={{ padding: "12px 8px" }}>تاريخ الإرسال</th>
+                        <th style={{ padding: "12px 8px" }}>الحالة</th>
+                        <th style={{ padding: "12px 8px" }}>الإجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emailLogs.map((log) => (
+                        <tr key={log.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "12px 8px" }}><strong>{log.email_type}</strong></td>
+                          <td style={{ padding: "12px 8px" }}><span style={{ fontFamily: "monospace" }}>{log.recipient}</span></td>
+                          <td style={{ padding: "12px 8px" }}><small>{new Date(log.created_at).toLocaleString("ar-EG")}</small></td>
+                          <td style={{ padding: "12px 8px" }}>
+                            <span className={`status-badge email-status-${log.delivery_status}`}>
+                              {log.delivery_status}
+                            </span>
+                            {log.error_message && (
+                              <div style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px" }}>
+                                {log.error_message}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 8px" }}>
+                            {["failed", "bounced", "queued"].includes(log.delivery_status) && (
+                              <button 
+                                className="btn-retry-email"
+                                onClick={() => handleRetryEmail(log.id)}
+                                style={{
+                                  padding: "6px 12px",
+                                  backgroundColor: "#ef4444",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "bold",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                إعادة إرسال
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -373,6 +492,10 @@ export default function OrderDetailsPage() {
         .status-new, .status-pending_payment { background: #fef08a; color: #854d0e; }
         .status-paid, .status-confirmed { background: #bbf7d0; color: #166534; }
         .status-cancelled, .status-refunded, .status-payment_failed { background: #fecaca; color: #991b1b; }
+        .status-badge.email-status-sent, .status-badge.email-status-delivered { background: #bbf7d0 !important; color: #166534 !important; }
+        .status-badge.email-status-queued { background: #e2e8f0 !important; color: #334155 !important; }
+        .status-badge.email-status-failed, .status-badge.email-status-bounced { background: #fecaca !important; color: #991b1b !important; }
+        .status-badge.email-status-retried { background: #fed7aa !important; color: #c2410c !important; }
 
         .status-alert {
           background: #e0f2fe;

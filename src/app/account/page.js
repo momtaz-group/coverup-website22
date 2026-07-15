@@ -361,6 +361,11 @@ export default function AccountPage() {
       if (error) throw error;
       setOldPassword(""); setNewPassword(""); setConfirmPassword("");
       setStatus("تم تحديث كلمة المرور بنجاح.");
+      fetch("/api/auth/password-changed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile?.email || email }),
+      }).catch(() => {});
     } catch (error) { setStatus(error.message); }
     finally { setBusy(false); }
   };
@@ -723,6 +728,12 @@ export default function AccountPage() {
       return;
     }
 
+    fetch("/api/auth/welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    }).catch(() => {});
+
     closeActivationModal();
     router.push("/");
   };
@@ -749,6 +760,12 @@ export default function AccountPage() {
       setStatus("رمز التحقق غير صحيح أو منتهي الصلاحية.");
       return;
     }
+
+    fetch("/api/auth/welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    }).catch(() => {});
 
     router.push("/");
   };
@@ -858,6 +875,11 @@ export default function AccountPage() {
 
     setStatus("تم تحديث كلمة المرور بنجاح! يمكنك الآن استخدام حسابك.");
     setStep("signed-in");
+    fetch("/api/auth/password-changed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email }),
+    }).catch(() => {});
   };
 
   const updateCode = (value, index) => {
