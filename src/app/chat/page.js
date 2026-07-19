@@ -209,16 +209,21 @@ export default function ChatPage() {
   const loadChat = useCallback(async (chatId) => {
     try {
       const res = await fetch(`/api/chat/${chatId}`);
+      if (!res.ok) return;
       const data = await res.json();
       if (data.chat && data.chat.messages) {
-        const loadedMessages = data.chat.messages.map((m) => ({
-          who: m.role === "assistant" ? "ai" : "user",
-          text: m.content,
-          products: m.products || [],
-        }));
-        setMessages(loadedMessages);
-        setCurrentChatId(chatId);
-        setSidebarOpen(false);
+        const loadedMessages = data.chat.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            who: m.role === "assistant" ? "ai" : "user",
+            text: m.content,
+            products: m.products || [],
+          }));
+        if (loadedMessages.length > 0) {
+          setMessages(loadedMessages);
+          setCurrentChatId(chatId);
+          setSidebarOpen(false);
+        }
       }
     } catch {}
   }, []);

@@ -2,15 +2,14 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/utils/supabase";
 import { getAuthenticatedUser } from "@/utils/server-auth";
 
-export async function GET(request) {
+export async function GET(request, { params }) {
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const chatId = searchParams.get("id");
+    const { id: chatId } = await params;
     if (!chatId) {
       return NextResponse.json({ message: "Missing chat id" }, { status: 400 });
     }
