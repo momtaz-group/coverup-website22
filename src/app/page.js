@@ -157,6 +157,7 @@ export default function HomePage() {
   const [useIosMemoMov, setUseIosMemoMov] = useState(false);
   const [idleVideoFailed, setIdleVideoFailed] = useState(false);
   const [searchVideoFailed, setSearchVideoFailed] = useState(false);
+  const [videoStartTimedOut, setVideoStartTimedOut] = useState(false);
 
   useEffect(() => {
     setUseIosMemoMov(isIOSBrowser());
@@ -166,7 +167,20 @@ export default function HomePage() {
   const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
   const idleVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "https://assets.coverup.tech/Memo_The_Mascoot/idle.webm";
   const searchingVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/Searching.mov" : "https://assets.coverup.tech/Memo_The_Mascoot/Searching.webm";
-  const showMascotFallback = activeVideo === "searching" ? searchVideoFailed : idleVideoFailed;
+  const showMascotFallback = (activeVideo === "searching" ? searchVideoFailed : idleVideoFailed) || videoStartTimedOut;
+
+  useEffect(() => {
+    setVideoStartTimedOut(false);
+    const timer = window.setTimeout(() => {
+      const activeRef = activeVideo === "idle" ? idleVideoRef.current : searchVideoRef.current;
+      const didNotStart = !activeRef || activeRef.paused || activeRef.currentTime <= 0;
+      if (didNotStart) {
+        setVideoStartTimedOut(true);
+      }
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [activeVideo, idleVideoSrc, searchingVideoSrc]);
 
   const handleVideoEnded = (type) => {
     if (activeVideo !== type) return;
@@ -446,6 +460,7 @@ export default function HomePage() {
               onEnded={() => handleVideoEnded("idle")}
               onCanPlay={() => setIdleVideoFailed(false)}
               onError={() => setIdleVideoFailed(true)}
+              onPlaying={() => setVideoStartTimedOut(false)}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "idle"}
@@ -464,6 +479,7 @@ export default function HomePage() {
               onEnded={() => handleVideoEnded("searching")}
               onCanPlay={() => setSearchVideoFailed(false)}
               onError={() => setSearchVideoFailed(true)}
+              onPlaying={() => setVideoStartTimedOut(false)}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "searching"}
