@@ -316,27 +316,42 @@
 }
 
 @media (max-width: 768px) {
+  .heroNew {
+    padding: 16px 12px;
+    gap: 12px;
+    min-height: 100dvh;
+    box-sizing: border-box;
+  }
+  .heroTitleContainer {
+    display: none;
+  }
   .heroContentRow {
     flex-direction: column !important;
     gap: 0;
     align-items: center;
+    flex: 1;
+    min-height: 0;
   }
   .heroMascotCol {
     max-width: 100%;
     width: 100%;
-    flex: none;
+    flex: 0 0 auto;
   }
   .mascotVideoWrapper {
-    width: min(80vw, 300px);
+    width: min(70vw, 240px);
     max-height: none;
   }
   .heroChatCol {
     max-width: 100%;
     width: 100%;
-    flex: none;
+    flex: 1;
+    min-height: 0;
   }
   .chatCardGpt {
-    height: 420px;
+    height: 100%;
+  }
+  .heroDescriptionContainer {
+    display: none;
   }
 }
 
@@ -347,6 +362,7 @@
   display: flex;
   flex-direction: column;
   height: 480px;
+  min-height: 0;
   transition: height 0.3s ease;
 }
 
@@ -563,6 +579,7 @@
 .inputFormGpt {
   padding: 0 12px 14px;
   background: transparent;
+  flex-shrink: 0;
 }
 
 .inputRowGpt {
