@@ -322,7 +322,13 @@
     align-items: flex-end;
   }
   .heroMascotCol {
-    max-width: 120px;
+    flex: 0 0 110px;
+    max-width: 110px;
+    min-width: 84px;
+  }
+  .heroChatCol {
+    min-width: 0;
+    flex: 1 1 auto;
   }
 }
 
