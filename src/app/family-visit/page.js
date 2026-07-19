@@ -66,8 +66,8 @@ export default function FamilyVisitPage() {
 
   const steps = [
     text("بيانات العميل", "Customer Details"),
-    text("الموبايلات", "Phone Models"),
-    text("الخدمات والمنتجات", "Services & Products"),
+    text("الموبايل", "Phone Model"),
+    text("الخدمة والمنتج", "Service & Product"),
     text("الموقع", "Location"),
     text("مراجعة وإرسال", "Review & Send"),
   ];
@@ -89,8 +89,9 @@ export default function FamilyVisitPage() {
   const [form, setForm] = useState({
     clientName: "",
     clientPhone: "",
-    phoneIds: [], // stores array of selected phone IDs
-    selections: {}, // phoneId -> { service: "", productId: "" }
+    phoneId: "",
+    service: "",
+    productId: "",
     address: "",
     locationLink: "",
     notes: "",
@@ -128,92 +129,31 @@ export default function FamilyVisitPage() {
     };
   }, []);
 
+  const selectedPhone = phones.find((phone) => phone.id === form.phoneId);
   const matchingModels = phoneModels.filter((phone) => `${phone.brand} ${phone.name}`.toLowerCase().includes(phoneSearch.toLowerCase()));
+  const serviceProducts = products.filter((product) => {
+    const category = `${product.category_en || ""} ${product.category || ""} ${product.name_en || ""}`.toLowerCase();
+    const matchesService = form.service === "cover" ? category.includes("case") || category.includes("كفر") : category.includes("screen") || category.includes("protector") || category.includes("اسكرينة");
+    const matchesPhone = !selectedPhone?.model || !Array.isArray(product.compatible_models) || product.compatible_models.length === 0 || product.compatible_models.includes(selectedPhone.model);
 
-  const togglePhoneSelection = (id) => {
-    setForm((current) => {
-      const isSelected = current.phoneIds.includes(id);
-      const nextPhoneIds = isSelected 
-        ? current.phoneIds.filter(pid => pid !== id)
-        : [...current.phoneIds, id];
-      
-      const nextSelections = { ...current.selections };
-      if (isSelected) {
-        delete nextSelections[id];
-      } else {
-        nextSelections[id] = { service: "", productId: "" };
-      }
-
-      return {
-        ...current,
-        phoneIds: nextPhoneIds,
-        selections: nextSelections
-      };
-    });
-  };
-
-  const updatePhoneSelection = (phoneId, key, value) => {
-    setForm((current) => {
-      const currentSel = current.selections[phoneId] || { service: "", productId: "" };
-      const nextSel = { 
-        ...currentSel, 
-        [key]: value,
-        ...(key === "service" ? { productId: "" } : null)
-      };
-      return {
-        ...current,
-        selections: {
-          ...current.selections,
-          [phoneId]: nextSel
-        }
-      };
-    });
-  };
-
-  const getProductsForPhone = (phoneId, service) => {
-    const phone = phones.find(p => p.id === phoneId);
-    if (!phone || !service) return [];
-    
-    return products.filter((product) => {
-      const category = `${product.category_en || ""} ${product.category || ""} ${product.name_en || ""}`.toLowerCase();
-      const matchesService = service === "cover" 
-        ? category.includes("case") || category.includes("كفر") 
-        : category.includes("screen") || category.includes("protector") || category.includes("اسكرينة");
-      
-      const matchesPhone = !phone.model || !Array.isArray(product.compatible_models) || product.compatible_models.length === 0 || product.compatible_models.includes(phone.model);
-
-      return matchesService && matchesPhone;
-    });
-  };
+    return form.service && matchesService && matchesPhone;
+  });
+  const selectedProduct = products.find((product) => product.id === form.productId);
 
   const updateField = (key, value) => {
     setForm((current) => ({
       ...current,
-      [key]: value
+      [key]: value,
+      ...(key === "service" ? { productId: "" } : null),
     }));
   };
 
   const canOpenStep = (index) => {
     if (index <= activeStep) return true;
     if (index === 1) return form.clientName.trim() && form.clientPhone.trim();
-    if (index === 2) return form.clientName.trim() && form.clientPhone.trim() && form.phoneIds.length > 0;
-    if (index === 3) {
-      return (
-        form.clientName.trim() &&
-        form.clientPhone.trim() &&
-        form.phoneIds.length > 0 &&
-        form.phoneIds.every(pid => form.selections[pid]?.service && form.selections[pid]?.productId)
-      );
-    }
-    if (index === 4) {
-      return (
-        form.clientName.trim() &&
-        form.clientPhone.trim() &&
-        form.phoneIds.length > 0 &&
-        form.phoneIds.every(pid => form.selections[pid]?.service && form.selections[pid]?.productId) &&
-        form.address.trim()
-      );
-    }
+    if (index === 2) return form.clientName.trim() && form.clientPhone.trim() && form.phoneId;
+    if (index === 3) return form.clientName.trim() && form.clientPhone.trim() && form.phoneId && form.service && form.productId;
+    if (index === 4) return form.clientName.trim() && form.clientPhone.trim() && form.phoneId && form.service && form.productId && form.address.trim();
     return false;
   };
 
@@ -262,7 +202,7 @@ export default function FamilyVisitPage() {
     }
 
     setPhones((current) => [data, ...current]);
-    togglePhoneSelection(data.id);
+    updateField("phoneId", data.id);
     setPhoneModal(false);
     setPhoneName("");
     setSelectedModel(null);
@@ -279,36 +219,27 @@ export default function FamilyVisitPage() {
       return;
     }
 
-    const hasIncomplete = form.phoneIds.some(pid => !form.selections[pid]?.service || !form.selections[pid]?.productId);
-    if (form.phoneIds.length === 0 || hasIncomplete || !form.address.trim()) {
+    if (!selectedPhone || !form.service || !selectedProduct || !form.address.trim()) {
       setNotice(text("راجع البيانات المطلوبة قبل الإرسال.", "Please review the required details before submitting."));
       return;
     }
 
     setSubmitting(true);
-    const visits = form.phoneIds.map(pid => {
-      const selectedPhone = phones.find(p => p.id === pid);
-      const sel = form.selections[pid];
-      const selectedProduct = products.find(p => p.id === sel.productId) || {};
-      
-      return {
-        user_id: user.id,
-        client_name: form.clientName.trim(),
-        client_phone: form.clientPhone.trim(),
-        phone_id: selectedPhone.id,
-        phone_label: selectedPhone.phone_name,
-        phone_brand: selectedPhone.brand,
-        phone_model: selectedPhone.model,
-        requested_service: sel.service,
-        product_id: selectedProduct.id,
-        product_name: selectedProduct.name_en || selectedProduct.name,
-        address: form.address.trim(),
-        location_link: form.locationLink.trim() || null,
-        notes: form.notes.trim() || null,
-      };
+    const { error } = await supabase.from("family_rep_visits").insert({
+      user_id: user.id,
+      client_name: form.clientName.trim(),
+      client_phone: form.clientPhone.trim(),
+      phone_id: selectedPhone.id,
+      phone_label: selectedPhone.phone_name,
+      phone_brand: selectedPhone.brand,
+      phone_model: selectedPhone.model,
+      requested_service: form.service,
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.name_en || selectedProduct.name,
+      address: form.address.trim(),
+      location_link: form.locationLink.trim() || null,
+      notes: form.notes.trim() || null,
     });
-
-    const { error } = await supabase.from("family_rep_visits").insert(visits);
     setSubmitting(false);
 
     if (error) {
@@ -369,8 +300,8 @@ export default function FamilyVisitPage() {
             <div className={styles.stepContent}>
               <div className={styles.panelHead}>
                 <div>
-                  <h2>{text("الموبايلات", "Phone Models")}</h2>
-                  <p>{text("اختار الموبايلات المحفوظة لعائلتك أو أضف موبايل جديد للقائمة.", "Choose saved phones for your family or add a new one to the list.")}</p>
+                  <h2>{text("الموبايل", "Phone Model")}</h2>
+                  <p>{text("اختار موبايل محفوظ أو أضف موبايل جديد لنفس جدول الأجهزة.", "Choose a saved phone or add a new one to your device list.")}</p>
                 </div>
                 <button className={styles.secondaryButton} type="button" onClick={() => setPhoneModal(true)}>
                   {text("إضافة موبايل", "Add Phone")}
@@ -381,9 +312,9 @@ export default function FamilyVisitPage() {
                 {phones.map((phone) => (
                   <button
                     key={phone.id}
-                    className={form.phoneIds.includes(phone.id) ? styles.selectedPhone : ""}
+                    className={form.phoneId === phone.id ? styles.selectedPhone : ""}
                     type="button"
-                    onClick={() => togglePhoneSelection(phone.id)}
+                    onClick={() => updateField("phoneId", phone.id)}
                   >
                     <DeviceSketch design={phone.design_key} />
                     <strong>{phone.phone_name}</strong>
@@ -403,58 +334,33 @@ export default function FamilyVisitPage() {
 
           {activeStep === 2 && (
             <div className={styles.stepContent}>
-              <h2>{text("الخدمات والمنتجات المطلوبة", "Requested Services & Products")}</h2>
-              
-              {form.phoneIds.map((pid, idx) => {
-                const phoneObj = phones.find(p => p.id === pid);
-                if (!phoneObj) return null;
-                const sel = form.selections[pid] || { service: "", productId: "" };
-                const productsForThisPhone = getProductsForPhone(pid, sel.service);
+              <h2>{text("تحتاج إيه للموبايل؟", "What do you need for your phone?")}</h2>
+              <label>
+                {text("نوع الخدمة", "Service Type")}
+                <select value={form.service} onChange={(event) => updateField("service", event.target.value)}>
+                  <option value="">{text("اختر الخدمة", "Select Service")}</option>
+                  <option value="cover">{text("كفر", "Case")}</option>
+                  <option value="screen_protector">{text("اسكرينة", "Screen Protector")}</option>
+                </select>
+              </label>
 
-                return (
-                  <div key={pid} className={styles.phoneSelectionBlock} style={{
-                    borderBottom: idx < form.phoneIds.length - 1 ? "1px solid var(--line)" : "none",
-                    paddingBottom: "24px",
-                    marginBottom: "24px"
-                  }}>
-                    <h3 style={{ marginBottom: "12px", color: "var(--blue)" }}>
-                      {phoneObj.phone_name} ({phoneObj.brand} · {phoneObj.model})
-                    </h3>
-                    
-                    <label style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
-                      {text("نوع الخدمة", "Service Type")}
-                      <select 
-                        value={sel.service} 
-                        onChange={(event) => updatePhoneSelection(pid, "service", event.target.value)}
-                      >
-                        <option value="">{text("اختر الخدمة", "Select Service")}</option>
-                        <option value="cover">{text("كفر", "Case")}</option>
-                        <option value="screen_protector">{text("اسكرينة", "Screen Protector")}</option>
-                      </select>
-                    </label>
-
-                    {sel.service && (
-                      <div className={styles.productGrid}>
-                        {productsForThisPhone.map((product) => (
-                          <button
-                            key={product.id}
-                            className={sel.productId === product.id ? styles.selectedProduct : ""}
-                            type="button"
-                            onClick={() => updatePhoneSelection(pid, "productId", product.id)}
-                          >
-                            <Image src={safeProductImage(product)} alt={locale === "en" && product.name_en ? product.name_en : product.name} width={220} height={220} />
-                            <span>{locale === "en" && product.name_en ? product.name_en : product.name}</span>
-                            <strong>{product.price} EGP</strong>
-                          </button>
-                        ))}
-                        {productsForThisPhone.length === 0 && (
-                          <p className={styles.muted}>{text("لا توجد منتجات مطابقة لهذا الموديل حالياً.", "No matching products for this model at the moment.")}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {form.service && (
+                <div className={styles.productGrid}>
+                  {serviceProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      className={form.productId === product.id ? styles.selectedProduct : ""}
+                      type="button"
+                      onClick={() => updateField("productId", product.id)}
+                    >
+                      <Image src={safeProductImage(product)} alt={locale === "en" && product.name_en ? product.name_en : product.name} width={220} height={220} />
+                      <span>{locale === "en" && product.name_en ? product.name_en : product.name}</span>
+                      <strong>{product.price} EGP</strong>
+                    </button>
+                  ))}
+                  {!serviceProducts.length && <p className={styles.muted}>{text("لا توجد منتجات مطابقة لهذا الموديل حالياً.", "No matching products for this model at the moment.")}</p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -484,23 +390,10 @@ export default function FamilyVisitPage() {
               <dl className={styles.review}>
                 <div><dt>{text("العميل", "Customer")}</dt><dd>{form.clientName || text("غير محدد", "Not specified")}</dd></div>
                 <div><dt>{text("رقم الموبايل", "Phone Number")}</dt><dd>{form.clientPhone || text("غير محدد", "Not specified")}</dd></div>
+                <div><dt>{text("الجهاز", "Device")}</dt><dd>{selectedPhone ? `${selectedPhone.phone_name} · ${selectedPhone.model}` : text("غير محدد", "Not specified")}</dd></div>
+                <div><dt>{text("الخدمة", "Service")}</dt><dd>{form.service === "cover" ? text("كفر", "Case") : form.service === "screen_protector" ? text("اسكرينة", "Screen Protector") : text("غير محدد", "Not specified")}</dd></div>
+                <div><dt>{text("المنتج", "Product")}</dt><dd>{(locale === "en" && selectedProduct?.name_en ? selectedProduct?.name_en : selectedProduct?.name) || text("غير محدد", "Not specified")}</dd></div>
                 <div><dt>{text("العنوان", "Address")}</dt><dd>{form.address || text("غير محدد", "Not specified")}</dd></div>
-                
-                {form.phoneIds.map((pid) => {
-                  const phoneObj = phones.find(p => p.id === pid);
-                  const sel = form.selections[pid] || {};
-                  const prodObj = products.find(p => p.id === sel.productId);
-                  if (!phoneObj) return null;
-                  return (
-                    <div key={pid} style={{ borderTop: "1px dashed var(--line)", paddingTop: "12px", marginTop: "12px" }}>
-                      <dt>{phoneObj.phone_name} ({phoneObj.brand} · {phoneObj.model})</dt>
-                      <dd>
-                        {sel.service === "cover" ? text("كفر", "Case") : text("اسكرينة", "Screen Protector")} : {" "}
-                        {(locale === "en" && prodObj?.name_en ? prodObj?.name_en : prodObj?.name) || text("غير محدد", "Not specified")}
-                      </dd>
-                    </div>
-                  );
-                })}
               </dl>
             </div>
           )}
