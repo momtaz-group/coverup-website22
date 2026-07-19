@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
-import { useLanguage } from "@/context/LanguageContext";
 import styles from "./page.module.css";
 
 const phoneModels = [
@@ -37,6 +36,14 @@ function safeProductImage(product) {
   return fallback || "/assets/products/tempered-glass-screen-protector.jpeg";
 }
 
+const steps = [
+  "بيانات العميل",
+  "الموبايل",
+  "الخدمة والمنتج",
+  "الموقع",
+  "مراجعة وإرسال",
+];
+
 function DeviceSketch({ design = "triple" }) {
   const count = design === "dual" ? 2 : design === "ultra" ? 4 : 3;
 
@@ -61,17 +68,6 @@ function DeviceSketch({ design = "triple" }) {
 }
 
 export default function FamilyVisitPage() {
-  const { locale } = useLanguage();
-  const text = (ar, en) => (locale === "ar" ? ar : en);
-
-  const steps = [
-    text("بيانات العميل", "Customer Details"),
-    text("الموبايل", "Phone Model"),
-    text("الخدمة والمنتج", "Service & Product"),
-    text("الموقع", "Location"),
-    text("مراجعة وإرسال", "Review & Send"),
-  ];
-
   const [activeStep, setActiveStep] = useState(0);
   const [user, setUser] = useState(null);
   const [phones, setPhones] = useState([]);
@@ -164,7 +160,7 @@ export default function FamilyVisitPage() {
       return;
     }
 
-    setNotice(text("أكمل بيانات هذه الخطوة أولاً.", "Please complete this step's details first."));
+    setNotice("أكمل بيانات هذه الخطوة أولاً.");
   };
 
   const savePhone = async (event) => {
@@ -172,13 +168,13 @@ export default function FamilyVisitPage() {
     setNotice("");
 
     if (!user) {
-      setNotice(text("سجّل الدخول أولاً حتى نقدر نحفظ الموبايل.", "Please sign in first to save your phone."));
+      setNotice("سجّل الدخول أولاً حتى نقدر نحفظ الموبايل.");
       return;
     }
 
     const model = customPhone ? { brand: customBrand.trim(), name: customModel.trim(), design: "triple" } : selectedModel;
     if (!phoneName.trim() || !model?.brand || !model?.name) {
-      setNotice(text("اكتب اسم الموبايل واختر الموديل.", "Please write the phone name and select a model."));
+      setNotice("اكتب اسم الموبايل واختر الموديل.");
       return;
     }
 
@@ -215,12 +211,12 @@ export default function FamilyVisitPage() {
     setNotice("");
 
     if (!user) {
-      setNotice(text("سجّل الدخول أولاً حتى يتم حفظ طلب المندوب.", "Please sign in first to submit a representative request."));
+      setNotice("سجّل الدخول أولاً حتى يتم حفظ طلب المندوب.");
       return;
     }
 
     if (!selectedPhone || !form.service || !selectedProduct || !form.address.trim()) {
-      setNotice(text("راجع البيانات المطلوبة قبل الإرسال.", "Please review the required details before submitting."));
+      setNotice("راجع البيانات المطلوبة قبل الإرسال.");
       return;
     }
 
@@ -247,31 +243,30 @@ export default function FamilyVisitPage() {
       return;
     }
 
-    setNotice(text("تم إرسال طلب مندوب العيلة بنجاح.", "Family representative request submitted successfully."));
+    setNotice("تم إرسال طلب مندوب العيلة بنجاح.");
   };
 
   return (
-    <main className={styles.page} dir={locale === "ar" ? "rtl" : "ltr"}>
+    <main className={styles.page} dir="rtl">
       <section className={styles.hero}>
-        <p className={styles.eyebrow}>{text("مندوب العيلة", "Family Representative")}</p>
-        <h1>{text("احجز مندوب يجهّز حماية الموبايل عندك.", "Book a representative to install protection at your place.")}</h1>
-        <p>{text("اختار الموبايل، نوع الحماية، المنتج المناسب، ومكان الزيارة. الطلب بيتحفظ على حسابك علشان نتابعه معاك بسهولة.", "Choose the phone, protection type, suitable product, and visit location. The request will be saved to your account so we can easily track it with you.")}</p>
+        <p className={styles.eyebrow}>مندوب العيلة</p>
+        <h1>احجز مندوب يجهّز حماية الموبايل عندك.</h1>
+        <p>اختار الموبايل، نوع الحماية، المنتج المناسب، ومكان الزيارة. الطلب بيتحفظ على حسابك علشان نتابعه معاك بسهولة.</p>
         {!user && (
           <Link className={styles.loginNotice} href="/account">
-            {text("سجّل الدخول قبل حفظ الموبايلات أو إرسال الطلب", "Sign in before saving phones or submitting the request")}
+            سجّل الدخول قبل حفظ الموبايلات أو إرسال الطلب
           </Link>
         )}
       </section>
 
       <section className={styles.stepper}>
-        <aside className={styles.tabs} aria-label={text("خطوات طلب مندوب العيلة", "Family representative request steps")}>
+        <aside className={styles.tabs} aria-label="خطوات طلب مندوب العيلة">
           {steps.map((step, index) => (
             <button
               key={step}
               className={index === activeStep ? styles.activeTab : ""}
               type="button"
               onClick={() => canOpenStep(index) && setActiveStep(index)}
-              style={{ textAlign: locale === 'ar' ? 'right' : 'left' }}
             >
               <span>{index + 1}</span>
               {step}
@@ -282,14 +277,14 @@ export default function FamilyVisitPage() {
         <div className={styles.panel}>
           {activeStep === 0 && (
             <div className={styles.stepContent}>
-              <h2>{text("بيانات العميل", "Customer Details")}</h2>
+              <h2>بيانات العميل</h2>
               <div className={styles.fieldGrid}>
                 <label>
-                  {text("اسم العميل", "Customer Name")}
-                  <input value={form.clientName} onChange={(event) => updateField("clientName", event.target.value)} placeholder={text("مثال: أحمد محمد", "e.g. John Doe")} />
+                  اسم العميل
+                  <input value={form.clientName} onChange={(event) => updateField("clientName", event.target.value)} placeholder="مثال: أحمد محمد" />
                 </label>
                 <label>
-                  {text("رقم الموبايل", "Phone Number")}
+                  رقم الموبايل
                   <input value={form.clientPhone} onChange={(event) => updateField("clientPhone", event.target.value)} placeholder="010..." inputMode="tel" />
                 </label>
               </div>
@@ -300,11 +295,11 @@ export default function FamilyVisitPage() {
             <div className={styles.stepContent}>
               <div className={styles.panelHead}>
                 <div>
-                  <h2>{text("الموبايل", "Phone Model")}</h2>
-                  <p>{text("اختار موبايل محفوظ أو أضف موبايل جديد لنفس جدول الأجهزة.", "Choose a saved phone or add a new one to your device list.")}</p>
+                  <h2>الموبايل</h2>
+                  <p>اختار موبايل محفوظ أو أضف موبايل جديد لنفس جدول الأجهزة.</p>
                 </div>
                 <button className={styles.secondaryButton} type="button" onClick={() => setPhoneModal(true)}>
-                  {text("إضافة موبايل", "Add Phone")}
+                  إضافة موبايل
                 </button>
               </div>
 
@@ -325,7 +320,7 @@ export default function FamilyVisitPage() {
                 {!phones.length && (
                   <button className={styles.emptyPhone} type="button" onClick={() => setPhoneModal(true)}>
                     <b>+</b>
-                    <span>{text("أضف أول موبايل", "Add your first phone")}</span>
+                    <span>أضف أول موبايل</span>
                   </button>
                 )}
               </div>
@@ -334,13 +329,13 @@ export default function FamilyVisitPage() {
 
           {activeStep === 2 && (
             <div className={styles.stepContent}>
-              <h2>{text("تحتاج إيه للموبايل؟", "What do you need for your phone?")}</h2>
+              <h2>تحتاج إيه للموبايل؟</h2>
               <label>
-                {text("نوع الخدمة", "Service Type")}
+                نوع الخدمة
                 <select value={form.service} onChange={(event) => updateField("service", event.target.value)}>
-                  <option value="">{text("اختر الخدمة", "Select Service")}</option>
-                  <option value="cover">{text("كفر", "Case")}</option>
-                  <option value="screen_protector">{text("اسكرينة", "Screen Protector")}</option>
+                  <option value="">اختر الخدمة</option>
+                  <option value="cover">كفر</option>
+                  <option value="screen_protector">اسكرينة</option>
                 </select>
               </label>
 
@@ -353,12 +348,12 @@ export default function FamilyVisitPage() {
                       type="button"
                       onClick={() => updateField("productId", product.id)}
                     >
-                      <Image src={safeProductImage(product)} alt={locale === "en" && product.name_en ? product.name_en : product.name} width={220} height={220} />
-                      <span>{locale === "en" && product.name_en ? product.name_en : product.name}</span>
+                      <Image src={safeProductImage(product)} alt={product.name_en || product.name} width={220} height={220} />
+                      <span>{product.name_en || product.name}</span>
                       <strong>{product.price} EGP</strong>
                     </button>
                   ))}
-                  {!serviceProducts.length && <p className={styles.muted}>{text("لا توجد منتجات مطابقة لهذا الموديل حالياً.", "No matching products for this model at the moment.")}</p>}
+                  {!serviceProducts.length && <p className={styles.muted}>لا توجد منتجات مطابقة لهذا الموديل حالياً.</p>}
                 </div>
               )}
             </div>
@@ -366,19 +361,19 @@ export default function FamilyVisitPage() {
 
           {activeStep === 3 && (
             <div className={styles.stepContent}>
-              <h2>{text("بيانات الموقع", "Location Details")}</h2>
+              <h2>بيانات الموقع</h2>
               <div className={styles.fieldGrid}>
                 <label className={styles.fullField}>
-                  {text("العنوان بالتفصيل", "Detailed Address")}
-                  <input value={form.address} onChange={(event) => updateField("address", event.target.value)} placeholder={text("المدينة، المنطقة، الشارع، رقم العمارة", "City, area, street, building number")} />
+                  العنوان بالتفصيل
+                  <input value={form.address} onChange={(event) => updateField("address", event.target.value)} placeholder="المدينة، المنطقة، الشارع، رقم العمارة" />
                 </label>
                 <label className={styles.fullField}>
-                  {text("لينك اللوكيشن", "Location Link")}
+                  لينك اللوكيشن
                   <input value={form.locationLink} onChange={(event) => updateField("locationLink", event.target.value)} placeholder="https://maps.google.com/..." />
                 </label>
                 <label className={styles.fullField}>
-                  {text("ملاحظات", "Notes")}
-                  <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} placeholder={text("أقرب علامة أو تفاصيل تساعد المندوب", "Nearest landmark or details to help the representative")} rows="3" />
+                  ملاحظات
+                  <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} placeholder="أقرب علامة أو تفاصيل تساعد المندوب" rows="3" />
                 </label>
               </div>
             </div>
@@ -386,14 +381,14 @@ export default function FamilyVisitPage() {
 
           {activeStep === 4 && (
             <div className={styles.stepContent}>
-              <h2>{text("مراجعة الطلب", "Review Request")}</h2>
+              <h2>مراجعة الطلب</h2>
               <dl className={styles.review}>
-                <div><dt>{text("العميل", "Customer")}</dt><dd>{form.clientName || text("غير محدد", "Not specified")}</dd></div>
-                <div><dt>{text("رقم الموبايل", "Phone Number")}</dt><dd>{form.clientPhone || text("غير محدد", "Not specified")}</dd></div>
-                <div><dt>{text("الجهاز", "Device")}</dt><dd>{selectedPhone ? `${selectedPhone.phone_name} · ${selectedPhone.model}` : text("غير محدد", "Not specified")}</dd></div>
-                <div><dt>{text("الخدمة", "Service")}</dt><dd>{form.service === "cover" ? text("كفر", "Case") : form.service === "screen_protector" ? text("اسكرينة", "Screen Protector") : text("غير محدد", "Not specified")}</dd></div>
-                <div><dt>{text("المنتج", "Product")}</dt><dd>{(locale === "en" && selectedProduct?.name_en ? selectedProduct?.name_en : selectedProduct?.name) || text("غير محدد", "Not specified")}</dd></div>
-                <div><dt>{text("العنوان", "Address")}</dt><dd>{form.address || text("غير محدد", "Not specified")}</dd></div>
+                <div><dt>العميل</dt><dd>{form.clientName || "غير محدد"}</dd></div>
+                <div><dt>رقم الموبايل</dt><dd>{form.clientPhone || "غير محدد"}</dd></div>
+                <div><dt>الجهاز</dt><dd>{selectedPhone ? `${selectedPhone.phone_name} · ${selectedPhone.model}` : "غير محدد"}</dd></div>
+                <div><dt>الخدمة</dt><dd>{form.service === "cover" ? "كفر" : form.service === "screen_protector" ? "اسكرينة" : "غير محدد"}</dd></div>
+                <div><dt>المنتج</dt><dd>{selectedProduct?.name_en || selectedProduct?.name || "غير محدد"}</dd></div>
+                <div><dt>العنوان</dt><dd>{form.address || "غير محدد"}</dd></div>
               </dl>
             </div>
           )}
@@ -402,15 +397,15 @@ export default function FamilyVisitPage() {
 
           <div className={styles.actions}>
             <button className={styles.backButton} type="button" disabled={activeStep === 0} onClick={() => setActiveStep((current) => Math.max(current - 1, 0))}>
-              {text("رجوع", "Back")}
+              رجوع
             </button>
             {activeStep < steps.length - 1 ? (
               <button className={styles.primaryButton} type="button" onClick={goNext}>
-                {text("التالي", "Next")}
+                التالي
               </button>
             ) : (
               <button className={styles.primaryButton} type="button" disabled={submitting} onClick={submitRequest}>
-                {submitting ? text("جارٍ الإرسال...", "Sending...") : text("إرسال الطلب", "Submit Request")}
+                {submitting ? "جارٍ الإرسال..." : "إرسال الطلب"}
               </button>
             )}
           </div>
@@ -419,51 +414,51 @@ export default function FamilyVisitPage() {
 
       {phoneModal && (
         <div className={styles.overlay} onMouseDown={() => setPhoneModal(false)}>
-          <form className={styles.modal} onSubmit={savePhone} onMouseDown={(event) => event.stopPropagation()} style={{ textAlign: locale === 'ar' ? 'right' : 'left' }}>
+          <form className={styles.modal} onSubmit={savePhone} onMouseDown={(event) => event.stopPropagation()}>
             <div className={styles.modalTop}>
-              <div style={{ textAlign: locale === 'ar' ? 'right' : 'left' }}>
-                <p className={styles.eyebrow}>{text("جهازك", "Your Device")}</p>
-                <h2>{text("إضافة موبايل", "Add Phone")}</h2>
+              <div>
+                <p className={styles.eyebrow}>جهازك</p>
+                <h2>إضافة موبايل</h2>
               </div>
-              <button type="button" onClick={() => setPhoneModal(false)} aria-label={text("إغلاق", "Close")}>
+              <button type="button" onClick={() => setPhoneModal(false)} aria-label="إغلاق">
                 ×
               </button>
             </div>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: locale === 'ar' ? 'right' : 'left' }}>
-              {text("اسم لهذا الموبايل", "Name for this phone")}
-              <input value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder={text("مثال: موبايل الشخصي", "e.g. My Personal Phone")} autoFocus />
+            <label>
+              اسم لهذا الموبايل
+              <input value={phoneName} onChange={(event) => setPhoneName(event.target.value)} placeholder="مثال: موبايل الشخصي" autoFocus />
             </label>
 
             <div className={styles.choiceTabs}>
               <button className={!customPhone ? styles.activeChoice : ""} type="button" onClick={() => setCustomPhone(false)}>
-                {text("ابحث عن موديل", "Search Model")}
+                ابحث عن موديل
               </button>
               <button className={customPhone ? styles.activeChoice : ""} type="button" onClick={() => setCustomPhone(true)}>
-                {text("موديل مخصص", "Custom Model")}
+                موديل مخصص
               </button>
             </div>
 
             {customPhone ? (
               <div className={styles.fieldGrid}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: locale === 'ar' ? 'right' : 'left' }}>
-                  {text("الماركة", "Brand")}
-                  <input value={customBrand} onChange={(event) => setCustomBrand(event.target.value)} placeholder={text("مثال: Xiaomi", "e.g. Xiaomi")} />
+                <label>
+                  الماركة
+                  <input value={customBrand} onChange={(event) => setCustomBrand(event.target.value)} placeholder="مثال: Xiaomi" />
                 </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: locale === 'ar' ? 'right' : 'left' }}>
-                  {text("الموديل", "Model")}
-                  <input value={customModel} onChange={(event) => setCustomModel(event.target.value)} placeholder={text("مثال: Redmi Note 13", "e.g. Redmi Note 13")} />
+                <label>
+                  الموديل
+                  <input value={customModel} onChange={(event) => setCustomModel(event.target.value)} placeholder="مثال: Redmi Note 13" />
                 </label>
               </div>
             ) : (
               <>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: locale === 'ar' ? 'right' : 'left' }}>
-                  {text("ابحث عن الموديل", "Search for Model")}
-                  <input value={phoneSearch} onChange={(event) => setPhoneSearch(event.target.value)} placeholder={text("iPhone أو Galaxy أو OPPO", "iPhone, Galaxy or OPPO")} />
+                <label>
+                  ابحث عن الموديل
+                  <input value={phoneSearch} onChange={(event) => setPhoneSearch(event.target.value)} placeholder="iPhone أو Galaxy أو OPPO" />
                 </label>
                 <div className={styles.modelList}>
                   {matchingModels.map((model) => (
-                    <button className={selectedModel?.name === model.name ? styles.selectedModel : ""} key={model.name} type="button" onClick={() => setSelectedModel(model)} style={{ textAlign: locale === 'ar' ? 'right' : 'left' }}>
+                    <button className={selectedModel?.name === model.name ? styles.selectedModel : ""} key={model.name} type="button" onClick={() => setSelectedModel(model)}>
                       <span>{model.brand}</span>
                       <strong>{model.name}</strong>
                     </button>
@@ -475,14 +470,14 @@ export default function FamilyVisitPage() {
             {(selectedModel || customPhone) && (
               <div className={styles.preview}>
                 <DeviceSketch design={customPhone ? "triple" : selectedModel.design} />
-                <span>{customPhone ? customModel || text("موديل مخصص", "Custom Model") : selectedModel.name}</span>
+                <span>{customPhone ? customModel || "موديل مخصص" : selectedModel.name}</span>
               </div>
             )}
 
             {notice && <p className={styles.notice}>{notice}</p>}
 
             <button className={styles.primaryButton} type="submit" disabled={savingPhone}>
-              {savingPhone ? text("جارٍ الحفظ...", "Saving...") : text("حفظ الموبايل", "Save Phone")}
+              {savingPhone ? "جارٍ الحفظ..." : "حفظ الموبايل"}
             </button>
           </form>
         </div>
