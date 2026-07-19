@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import OptimizedVideo from "@/components/OptimizedVideo";
 import { useLanguage } from "@/context/LanguageContext";
@@ -68,10 +68,6 @@ const FEATURED_PRODUCTS = [
     category_slug: "cases"
   }
 ];
-
-const subscribeToDeviceSnapshot = () => () => {};
-const getIOSBrowserSnapshot = () => isIOSBrowser();
-const getServerIOSBrowserSnapshot = () => false;
 
 function TypewriterText({ text, speed = 10, onComplete, scrollContainerRef }) {
   const [displayText, setDisplayText] = useState("");
@@ -158,16 +154,19 @@ export default function HomePage() {
 
   const idleVideoRef = useRef(null);
   const searchVideoRef = useRef(null);
-  const useIosMemoMov = useSyncExternalStore(
-    subscribeToDeviceSnapshot,
-    getIOSBrowserSnapshot,
-    getServerIOSBrowserSnapshot
-  );
+  const [useIosMemoMov, setUseIosMemoMov] = useState(false);
+  const [idleVideoFailed, setIdleVideoFailed] = useState(false);
+  const [searchVideoFailed, setSearchVideoFailed] = useState(false);
+
+  useEffect(() => {
+    setUseIosMemoMov(isIOSBrowser());
+  }, []);
 
   const [activeVideo, setActiveVideo] = useState("idle");
   const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
   const idleVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "/media/memo/idle.webm";
   const searchingVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/Searching.mov" : "/media/memo/Searching.webm";
+  const showMascotFallback = activeVideo === "searching" ? searchVideoFailed : idleVideoFailed;
 
   const handleVideoEnded = (type) => {
     if (activeVideo !== type) return;
@@ -445,6 +444,8 @@ export default function HomePage() {
               ref={idleVideoRef}
               src={idleVideoSrc}
               onEnded={() => handleVideoEnded("idle")}
+              onCanPlay={() => setIdleVideoFailed(false)}
+              onError={() => setIdleVideoFailed(true)}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${activeVideo !== "idle" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "idle"}
@@ -461,6 +462,8 @@ export default function HomePage() {
               ref={searchVideoRef}
               src={searchingVideoSrc}
               onEnded={() => handleVideoEnded("searching")}
+              onCanPlay={() => setSearchVideoFailed(false)}
+              onError={() => setSearchVideoFailed(true)}
               className={styles.mascotImage}
               wrapperClassName={`${styles.mascotVideoLayer} ${styles.mascotVideoLayerAbsolute} ${activeVideo !== "searching" ? styles.hiddenVideo : ""}`}
               active={activeVideo === "searching"}
@@ -473,6 +476,16 @@ export default function HomePage() {
               playsInline
               autoPlay
             />
+            <div className={`${styles.mascotFallbackLayer} ${showMascotFallback ? styles.mascotFallbackVisible : ""}`} aria-hidden={!showMascotFallback}>
+              <img
+                src="/assets/brand/mascot-character.png"
+                alt="Memo mascot"
+                className={styles.mascotFallbackImage}
+                width="220"
+                height="220"
+                decoding="async"
+              />
+            </div>
             <div 
               className={styles.videoProtectionOverlay} 
               onContextMenu={(e) => e.preventDefault()} 
