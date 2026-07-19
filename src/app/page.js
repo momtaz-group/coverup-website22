@@ -164,8 +164,8 @@ export default function HomePage() {
 
   const [activeVideo, setActiveVideo] = useState("idle");
   const targetVideoState = inputText.trim().length > 0 || aiBusy ? "searching" : "idle";
-  const idleVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "/media/memo/idle.webm";
-  const searchingVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/Searching.mov" : "/media/memo/Searching.webm";
+  const idleVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/idle.mov" : "https://assets.coverup.tech/Memo_The_Mascoot/idle.webm";
+  const searchingVideoSrc = useIosMemoMov ? "https://assets.coverup.tech/Memo_The_Mascoot/Searching.mov" : "https://assets.coverup.tech/Memo_The_Mascoot/Searching.webm";
   const showMascotFallback = activeVideo === "searching" ? searchVideoFailed : idleVideoFailed;
 
   const handleVideoEnded = (type) => {
