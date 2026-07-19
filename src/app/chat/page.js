@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 
 import { useLanguage } from "@/context/LanguageContext";
@@ -78,6 +78,33 @@ function TypewriterText({ text, speed = 10, onComplete, scrollContainerRef }) {
   return <>{displayText}</>;
 }
 
+function CopyButton({ text: copyText, ar }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <button type="button" className={styles.copyBtn} onClick={handleCopy} title={ar ? "نسخ" : "Copy"}>
+      {copied ? (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function ChatPage() {
   const { locale } = useLanguage();
   const ar = locale === "ar";
@@ -94,13 +121,21 @@ export default function ChatPage() {
   const [customModel, setCustomModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  const [chatPhone, setChatPhone] = useState(null);
+  const [chatPhone, setChatPhone] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = sessionStorage.getItem("coverup-chat-phone");
+        if (raw) return JSON.parse(raw);
+      } catch {}
+    }
+    return null;
+  });
   const [isChatSelection, setIsChatSelection] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState(null);
 
   const [userLoaded, setUserLoaded] = useState(false);
 
   const [messages, setMessages] = useState(() => {
-    // Module store is the most reliable source — set synchronously on navigation
     const stored = loadInitialMessages();
     if (stored && stored.length > 0) return stored;
     return [
@@ -118,6 +153,12 @@ export default function ChatPage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   const messagesContainerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Scroll to bottom + sync store on every messages change
   useEffect(() => {
@@ -127,7 +168,6 @@ export default function ChatPage() {
     }
   }, [messages]);
 
-  // Scroll when busy state changes
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -153,10 +193,53 @@ export default function ChatPage() {
       const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
       if (active) setPhones(data || []);
     });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
+
+  const fetchChatHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/chat/history");
+      const data = await res.json();
+      setChatHistory(data.chats || []);
+    } catch {}
+    setHistoryLoading(false);
+  }, []);
+
+  const loadChat = useCallback(async (chatId) => {
+    try {
+      const res = await fetch(`/api/chat/${chatId}`);
+      const data = await res.json();
+      if (data.chat && data.chat.messages) {
+        const loadedMessages = data.chat.messages.map((m) => ({
+          who: m.role === "assistant" ? "ai" : "user",
+          text: m.content,
+          products: m.products || [],
+        }));
+        setMessages(loadedMessages);
+        setCurrentChatId(chatId);
+        setSidebarOpen(false);
+      }
+    } catch {}
+  }, []);
+
+  const startNewChat = useCallback(() => {
+    setMessages([
+      {
+        who: "ai",
+        text: text(
+          "Hey, I'm Memo. Tell me your phone and I'll help you find something that actually fits.",
+          "أهلاً، أنا Memo. قل لي نوع موبايلك وأنا أظبطلك حاجة تركب عليه بجد."
+        ),
+      },
+    ]);
+    setCurrentChatId(null);
+    setChatPhone(null);
+    sessionStorage.removeItem("coverup-chat-messages");
+    sessionStorage.removeItem("coverup-chat-phone");
+    setSidebarOpen(false);
+    inputRef.current?.focus();
+  }, [text]);
 
   const handleSelectChatPhone = (brand, model) => {
     const nextPhone = { brand, model };
@@ -230,7 +313,7 @@ export default function ChatPage() {
     ];
 
     setMessages(updatedMessages);
-    storeMessages(updatedMessages); // synchronous — no race condition
+    storeMessages(updatedMessages);
 
     const apiMessages = updatedMessages.map((m) => ({
       role: m.who === "user" ? "user" : "assistant",
@@ -263,7 +346,7 @@ export default function ChatPage() {
           },
         ];
         setMessages(withAi);
-        storeMessages(withAi); // storeMessages strips isNew
+        storeMessages(withAi);
         if (data.chatId) {
           setCurrentChatId(data.chatId);
           fetchChatHistory();
@@ -328,11 +411,71 @@ export default function ChatPage() {
   return (
     <div className={styles.chatPageContainer} dir={ar ? "rtl" : "ltr"}>
 
-        {/* Full-width chat header */}
-        <div className={styles.chatHeaderGpt}>
+      {/* Sidebar overlay */}
+      <div
+        className={`${styles.sidebarOverlay} ${sidebarOpen ? styles.sidebarOpen : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar drawer */}
+      <div className={`${styles.sidebarDrawer} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
+        <div className={styles.sidebarHeader}>
+          <h3>{text("Chats", "المحادثات")}</h3>
+          <button type="button" className={styles.modalCloseBtn} onClick={() => setSidebarOpen(false)}>×</button>
+        </div>
+
+        <button type="button" className={styles.newChatBtn} onClick={startNewChat}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {text("New Chat", "محادثة جديدة")}
+        </button>
+
+        <div className={styles.sidebarList}>
+          {historyLoading && (
+            <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: "0.85rem" }}>
+              {text("Loading...", "جارٍ التحميل...")}
+            </div>
+          )}
+          {!historyLoading && chatHistory.length === 0 && (
+            <div style={{ textAlign: "center", padding: "20px", color: "var(--muted)", fontSize: "0.85rem" }}>
+              {text("No chat history yet.", "لا توجد محادثات سابقة.")}
+            </div>
+          )}
+          {chatHistory.map((chat) => (
+            <button
+              key={chat.id}
+              type="button"
+              className={`${styles.chatHistoryCard} ${currentChatId === chat.id ? styles.activeChat : ""}`}
+              onClick={() => loadChat(chat.id)}
+            >
+              <span className={styles.chatCardTitle}>{chat.title}</span>
+              {chat.summary && <span className={styles.chatCardSummary}>{chat.summary}</span>}
+              <span className={styles.chatCardMeta}>
+                {new Date(chat.updated_at).toLocaleDateString(ar ? "ar-EG" : "en-US", { month: "short", day: "numeric" })}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Full-width chat header */}
+      <div className={styles.chatHeaderGpt}>
         <div className={styles.chatHeaderInner}>
-          {/* Left: Avatar + name */}
           <div className={styles.headerLeftPage}>
+            {/* Sidebar toggle */}
+            <button
+              type="button"
+              className={styles.sidebarToggleBtn}
+              onClick={() => { setSidebarOpen(true); fetchChatHistory(); }}
+              title={text("Chat History", "المحادثات السابقة")}
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+              </svg>
+            </button>
+
             <div className={styles.headerAvatarWrapper}>
               <img src="/assets/memo-profile-96.webp" alt="Memo" className={styles.headerMemoImg} width="36" height="36" decoding="async" />
               <i className={styles.statusDotGpt} />
@@ -343,8 +486,18 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Right: Close button */}
           <div className={styles.headerRightPage}>
+            <button
+              type="button"
+              className={styles.newChatHeaderBtn}
+              onClick={startNewChat}
+              title={text("New Chat", "محادثة جديدة")}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
             <Link href="/" className={styles.closeBtnPage} aria-label="Close Chat" title={text("Close", "إغلاق")}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -354,14 +507,9 @@ export default function ChatPage() {
         </div>
       </div>
 
-
       <main className={styles.chatMainArea}>
         <div className={styles.chatCardGpt}>
-          {/* Messages block */}
-          <div 
-            ref={messagesContainerRef} 
-            className={styles.messagesGpt}
-          >
+          <div ref={messagesContainerRef} className={styles.messagesGpt}>
             {messages.map((message, index) => (
               <div key={index} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
                 <div className={message.who === "ai" ? styles.msgRowAi : styles.msgRowUser}>
@@ -372,15 +520,20 @@ export default function ChatPage() {
                       "U"
                     )}
                   </div>
-                  <div className={styles.msgBubbleGpt}>
-                    {message.who === "ai" && message.isNew ? (
-                      <TypewriterText
-                        text={message.text}
-                        scrollContainerRef={messagesContainerRef}
-                        onComplete={() => handleTypewriterComplete(index)}
-                      />
-                    ) : (
-                      message.text
+                  <div className={styles.msgBubbleWrapper}>
+                    <div className={styles.msgBubbleGpt}>
+                      {message.who === "ai" && message.isNew ? (
+                        <TypewriterText
+                          text={message.text}
+                          scrollContainerRef={messagesContainerRef}
+                          onComplete={() => handleTypewriterComplete(index)}
+                        />
+                      ) : (
+                        message.text
+                      )}
+                    </div>
+                    {message.who === "ai" && !message.isNew && (
+                      <CopyButton text={message.text} ar={ar} />
                     )}
                   </div>
                 </div>
@@ -401,7 +554,6 @@ export default function ChatPage() {
                           <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{product.category}</span>
                           <span className={styles.productCardPrice}>{product.price} EGP</span>
                         </div>
-
                         <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
                           <Link href={`/product/${product.id}`} className={styles.chipGpt} style={{ flex: 1, justifyContent: "center", padding: "4px 0", fontSize: "0.7rem", borderRadius: "6px", textAlign: "center" }}>
                             {ar ? "عرض" : "View"}
@@ -442,7 +594,6 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* Suggestions and text box fixed at the bottom */}
           <div className={styles.fixedBottomArea}>
             <form onSubmit={handleSendGpt} className={styles.inputFormGpt}>
               <div className={styles.chipsGpt}>
@@ -485,38 +636,28 @@ export default function ChatPage() {
 
               <div className={styles.inputRowGpt}>
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputText}
                   onChange={handleInputChange}
                   placeholder={text("Message Memo...", "اسأل Memo...")}
                   className={styles.textInputGpt}
+                  disabled={aiBusy}
                 />
-                <button 
-                  className={styles.modelSelectorGpt} 
-                  type="button" 
+                <button
+                  className={styles.modelSelectorGpt}
+                  type="button"
                   onClick={openChatPhoneSelection}
-                  style={{
-                    borderRadius: "12px",
-                    border: "none",
-                    background: "var(--panel-soft)",
-                    fontSize: "0.75rem",
-                    padding: "8px 10px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    color: "var(--muted)",
-                    flexShrink: 0
-                  }}
                   title={text("Choose phone", "اختر الهاتف")}
                 >
-                  <span className={styles.modelSelectedText} style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span className={styles.modelSelectedText}>
                     {chatPhone ? `${chatPhone.brand} ${chatPhone.model}` : text("Phone", "الهاتف")}
                   </span>
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style={{ flexShrink: 0 }}>
                     <path d="M7 10l5 5 5-5H7z" />
                   </svg>
                 </button>
-                <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim() || wordCount > 400} aria-label="Send">
+                <button type="submit" className={styles.sendBtnGpt} disabled={!inputText.trim() || aiBusy || wordCount > 400} aria-label="Send">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                   </svg>

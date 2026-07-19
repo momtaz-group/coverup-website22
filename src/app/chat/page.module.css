@@ -965,3 +965,69 @@
   align-self: flex-end;
 }
 
+/* Message bubble wrapper — holds bubble + copy button */
+.msgBubbleWrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+  position: relative;
+}
+
+/* Copy button */
+.copyBtn {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+
+.msgBubbleWrapper:hover .copyBtn {
+  opacity: 1;
+}
+
+.copyBtn:hover {
+  color: var(--text);
+}
+
+/* Touch devices — always show copy button */
+@media (hover: none) {
+  .copyBtn {
+    opacity: 1;
+  }
+}
+
+/* New Chat header button */
+.newChatHeaderBtn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.newChatHeaderBtn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .msgBubbleWrapper {
+    max-width: 85%;
+  }
+}
+
