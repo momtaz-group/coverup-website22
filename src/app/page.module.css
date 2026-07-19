@@ -317,12 +317,26 @@
 
 @media (max-width: 768px) {
   .heroContentRow {
-    flex-direction: row !important;
-    gap: 16px;
-    align-items: flex-end;
+    flex-direction: column !important;
+    gap: 0;
+    align-items: center;
   }
   .heroMascotCol {
-    max-width: 120px;
+    max-width: 100%;
+    width: 100%;
+    flex: none;
+  }
+  .mascotVideoWrapper {
+    width: min(80vw, 300px);
+    max-height: none;
+  }
+  .heroChatCol {
+    max-width: 100%;
+    width: 100%;
+    flex: none;
+  }
+  .chatCardGpt {
+    height: 420px;
   }
 }
 
