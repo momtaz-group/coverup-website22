@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { findOrderById, supabaseConfigured, updateOrder } from "@/utils/store-db";
+import { rateLimit } from "@/utils/rate-limit";
 
 const PAYMOB_API_BASE = process.env.PAYMOB_API_BASE || "https://accept.paymob.com";
 
 export async function POST(request) {
   try {
+    // Rate limit: max 10 payment attempts per minute per IP
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    if (!rateLimit(`payment:${ip}`, { maxRequests: 10, windowMs: 60000 })) {
+      return NextResponse.json({ message: "تم تجاوز الحد المسموح. يرجى المحاولة لاحقاً." }, { status: 429 });
+    }
+
     if (!supabaseConfigured(true)) {
       return NextResponse.json({ message: "Supabase service role is not configured." }, { status: 501 });
     }
@@ -126,6 +133,6 @@ export async function POST(request) {
 
     return NextResponse.json({ checkoutUrl, clientSecret, orderId: order.id });
   } catch (error) {
-    return NextResponse.json({ message: error.message || "Payment creation failed" }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء إنشاء عملية الدفع." }, { status: 500 });
   }
 }

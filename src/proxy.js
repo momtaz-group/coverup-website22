@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { updateSupabaseSession } from "@/utils/supabase-proxy";
+import crypto from "node:crypto";
 
-const ADMIN_CREDENTIALS_HASH = "QVJpYW5hX0dyYW5EeTpNb210YXpfYmV0YTNfZWxfTWE3bA=="; // Base64 of ARiana_GranDy:Momtaz_beta3_el_Ma7l
+const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || "";
+
+function verifyAdminToken(token) {
+  if (!ADMIN_TOKEN_SECRET || !token) return false;
+  try {
+    const [payload, signature] = token.split(".");
+    if (!payload || !signature) return false;
+    const expectedSig = crypto.createHmac("sha256", ADMIN_TOKEN_SECRET).update(payload).digest("hex");
+    return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expectedSig, "hex"));
+  } catch {
+    return false;
+  }
+}
 
 export async function proxy(request) {
   const url = new URL(request.url);
@@ -10,7 +23,8 @@ export async function proxy(request) {
   // 1. Guard admin pages
   if (pathname.startsWith("/admin")) {
     const adminToken = request.cookies.get("coverup_admin_token")?.value;
-    if (adminToken !== ADMIN_CREDENTIALS_HASH) {
+    const isValid = verifyAdminToken(adminToken);
+    if (!isValid) {
       const loginUrl = new URL("/account", request.url);
       loginUrl.searchParams.set("showAdminLogin", "true");
       return NextResponse.redirect(loginUrl);
@@ -23,13 +37,9 @@ export async function proxy(request) {
   ];
   if (adminApiRoutes.some(route => pathname === route || pathname.startsWith(route + "/"))) {
     const adminToken = request.cookies.get("coverup_admin_token")?.value;
-    const providedUser = request.headers.get("x-admin-username");
-    const providedPass = request.headers.get("x-admin-password");
+    const isValid = verifyAdminToken(adminToken);
 
-    const hasValidCookie = adminToken === ADMIN_CREDENTIALS_HASH;
-    const hasValidHeaders = providedUser === "ARiana_GranDy" && providedPass === "Momtaz_beta3_el_Ma7l";
-
-    if (!hasValidCookie && !hasValidHeaders) {
+    if (!isValid) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
   }

@@ -3,6 +3,9 @@ import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/utils/store-db";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
+import { rateLimit } from "@/utils/rate-limit";
+
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 
 function cleanText(value, limit = 200) {
   return String(value || "").trim().slice(0, limit);
@@ -10,6 +13,12 @@ function cleanText(value, limit = 200) {
 
 export async function POST(request) {
   try {
+    // Rate limit: max 20 uploads per minute per IP
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    if (!rateLimit(`upload:${ip}`, { maxRequests: 20, windowMs: 60000 })) {
+      return NextResponse.json({ message: "تم تجاوز الحد المسموح من الرفع. يرجى المحاولة لاحقاً." }, { status: 429 });
+    }
+
     const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL } = process.env;
     
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
@@ -32,6 +41,12 @@ export async function POST(request) {
 
     if (!dataUrl) {
       return NextResponse.json({ message: "الصورة غير مكتملة." }, { status: 400 });
+    }
+
+    // Validate file size (check base64 size)
+    const base64Size = Math.ceil((dataUrl.length * 3) / 4);
+    if (base64Size > MAX_UPLOAD_SIZE) {
+      return NextResponse.json({ message: "حجم الملف يتجاوز الحد المسموح (10MB)." }, { status: 413 });
     }
 
     if (kind === "product") {
@@ -85,6 +100,11 @@ export async function POST(request) {
     }
 
     if (kind === "payment") {
+      const adminCheck = requireAdmin(request);
+      if (!adminCheck.authorized) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      }
+
       const orderId = cleanText(body.orderId, 60).replace(/[^a-z0-9_-]/gi, "");
       const method = cleanText(body.method, 40).replace(/[^a-z0-9_-]/gi, "") || "generic";
 
@@ -138,6 +158,6 @@ export async function POST(request) {
     return NextResponse.json({ message: "نوع الرفع غير مدعوم." }, { status: 400 });
   } catch (error) {
     console.error("R2 Upload Error:", error);
-    return NextResponse.json({ message: error.message || "Upload error" }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء رفع الملف." }, { status: 500 });
   }
 }

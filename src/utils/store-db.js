@@ -48,7 +48,7 @@ function hasServiceRoleKey() {
 }
 
 function supabaseAnonKey() {
-  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkeGtybWNlZ3JsZ2l4bmNpeXp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMTk3ODMsImV4cCI6MjA5ODU5NTc4M30.oD9mNx2kZZ_wc2lR7oiHWd1LS3z11NNxbLCD42CKea4";
+  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 }
 
 function supabaseConfigured(requireService = false) {
@@ -796,28 +796,13 @@ async function getEvents() {
 }
 
 function requireAdmin(request) {
-  const expectedUser = "ARiana_GranDy";
-  const expected = "Momtaz_beta3_el_Ma7l";
-  const expectedHash = "QVJpYW5hX0dyYW5EeTpNb210YXpfYmV0YTNfZWxfTWE3bA==";
+  const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || "";
 
-  // Check headers
-  const providedUser = typeof request?.headers?.get === "function"
-    ? request.headers.get("x-admin-username")
-    : request?.headers?.["x-admin-username"];
-  const provided = typeof request?.headers?.get === "function"
-    ? request.headers.get("x-admin-password")
-    : request?.headers?.["x-admin-password"];
-
-  if (providedUser === expectedUser && provided === expected) {
-    return { authorized: true };
-  }
-
-  // Check cookie
+  // Check cookie only - no more header-based auth
   let adminToken = "";
   if (typeof request?.cookies?.get === "function") {
     adminToken = request.cookies.get("coverup_admin_token")?.value || "";
   } else if (request?.headers?.get) {
-    // Parse cookies from headers manually if request.cookies is not available
     const cookieHeader = request.headers.get("cookie") || "";
     const match = cookieHeader.match(/coverup_admin_token=([^;]+)/);
     if (match) {
@@ -825,15 +810,26 @@ function requireAdmin(request) {
     }
   }
 
-  if (adminToken === expectedHash) {
-    return { authorized: true };
+  if (!adminToken || !ADMIN_TOKEN_SECRET) {
+    return { authorized: false, status: 401, message: "Unauthorized" };
   }
 
-  return {
-    authorized: false,
-    status: 401,
-    message: "Unauthorized"
-  };
+  try {
+    const crypto = require("node:crypto");
+    const [payload, signature] = adminToken.split(".");
+    if (!payload || !signature) {
+      return { authorized: false, status: 401, message: "Unauthorized" };
+    }
+    const expectedSig = crypto.createHmac("sha256", ADMIN_TOKEN_SECRET).update(payload).digest("hex");
+    const isValid = crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expectedSig, "hex"));
+    if (isValid) {
+      return { authorized: true };
+    }
+  } catch {
+    // fall through
+  }
+
+  return { authorized: false, status: 401, message: "Unauthorized" };
 }
 
 async function deleteProduct(id) {

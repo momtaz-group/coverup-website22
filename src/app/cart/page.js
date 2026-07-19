@@ -546,7 +546,7 @@ function CartContent() {
             
             {message && (
               <div style={{ marginTop: "16px", padding: "16px", borderRadius: "12px", background: "var(--input-bg)", textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: "14px", color: message.includes("تم") || message.includes("successfully") ? "#4caf50" : "#ff8f3d", fontWeight: "bold" }} dangerouslySetInnerHTML={{ __html: message }}></p>
+                <p style={{ margin: 0, fontSize: "14px", color: message.includes("تم") || message.includes("successfully") ? "#4caf50" : "#ff8f3d", fontWeight: "bold" }}>{message}</p>
               </div>
             )}
           </aside>

@@ -19,7 +19,8 @@ function bodySignature(payload) {
 function signatureValid(request, payload) {
   const secret = process.env.PAYMOB_HMAC_SECRET;
   if (!secret) {
-    return true;
+    console.error("CRITICAL: PAYMOB_HMAC_SECRET is not set. Rejecting webhook.");
+    return false;
   }
 
   const incoming =

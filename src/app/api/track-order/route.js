@@ -42,6 +42,6 @@ export async function GET(request) {
 
     return NextResponse.json({ order: publicOrder(order) });
   } catch (error) {
-    return NextResponse.json({ message: error.message || "Tracking error" }, { status: 400 });
+    return NextResponse.json({ message: "حدث خطأ أثناء تتبع الطلب." }, { status: 400 });
   }
 }

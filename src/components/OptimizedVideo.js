@@ -139,6 +139,21 @@ const OptimizedVideo = forwardRef(function OptimizedVideo(
     };
   }, [disposeOnExit]);
 
+  // Retry playback after iOS media unlock event
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !autoPlay || !active) return undefined;
+
+    const handleUnlock = () => {
+      if (video.paused && !video.ended && nearViewport) {
+        video.play().catch(() => {});
+      }
+    };
+
+    window.addEventListener("ios-media-unlocked", handleUnlock, { once: true });
+    return () => window.removeEventListener("ios-media-unlocked", handleUnlock);
+  }, [autoPlay, active, nearViewport]);
+
   const markReady = (event) => {
     setReady(true);
     onLoadedData?.(event);

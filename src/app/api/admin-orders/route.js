@@ -102,7 +102,7 @@ export async function PATCH(request) {
 
     return NextResponse.json({ order: updated, email });
   } catch (error) {
-    return NextResponse.json({ message: error.message || "Order update failed" }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء تحديث حالة الطلب." }, { status: 500 });
   }
 }
 
@@ -131,7 +131,7 @@ export async function GET(request) {
 
     return NextResponse.json({ order });
   } catch (error) {
-    return NextResponse.json({ message: error.message || "Failed to fetch order" }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء جلب الطلب." }, { status: 500 });
   }
 }
 
@@ -156,6 +156,6 @@ export async function DELETE(request) {
     await deleteOrder(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ message: error.message || "Failed to delete order" }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء حذف الطلب." }, { status: 500 });
   }
 }

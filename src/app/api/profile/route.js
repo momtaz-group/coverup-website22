@@ -89,14 +89,14 @@ export async function GET(request) {
       return NextResponse.json({
         profile: publicProfile(null, user),
         setupRequired: true,
-        message: "The public.profiles table is missing in Supabase. Apply the profile migration in your Supabase SQL editor, then try again.",
+        message: "Profile table is missing.",
       }, { status: 200 });
     }
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء جلب البيانات." }, { status: 500 });
   }
   if (!profile) {
     const created = await ensureProfileRow(client, user);
-    if (created.error) return NextResponse.json({ message: created.error.message }, { status: 500 });
+    if (created.error) return NextResponse.json({ message: "حدث خطأ أثناء إنشاء الحساب." }, { status: 500 });
     return NextResponse.json({ profile: publicProfile(created.data, user) });
   }
   return NextResponse.json({ profile: publicProfile(profile, user) });
@@ -123,10 +123,10 @@ export async function PATCH(request) {
   if (error) {
     if (isMissingProfilesTable(error)) {
       return NextResponse.json({
-        message: "The public.profiles table is missing in Supabase. Apply the profile migration before saving names or addresses.",
+        message: "Profile table is missing.",
       }, { status: 503 });
     }
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء حفظ البيانات." }, { status: 500 });
   }
   return NextResponse.json({ profile: publicProfile(profile, user) });
 }

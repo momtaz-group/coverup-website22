@@ -9,6 +9,7 @@ import {
 import { getAuthenticatedCustomer } from "@/utils/server-auth";
 import { sendTransactionalEmail } from "@/utils/email";
 import { sendTelegramOrderNotification } from "@/utils/telegram";
+import { rateLimit } from "@/utils/rate-limit";
 
 const DEFAULT_COUPONS = {
   COVERUP10: { type: "percent", value: 10, minSubtotal: 0 },
@@ -124,6 +125,12 @@ function normalizeItems(items, products) {
 
 export async function POST(request) {
   try {
+    // Rate limit: max 10 orders per minute per IP
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    if (!rateLimit(`orders:${ip}`, { maxRequests: 10, windowMs: 60000 })) {
+      return NextResponse.json({ message: "تم تجاوز الحد المسموح. يرجى المحاولة لاحقاً." }, { status: 429 });
+    }
+
     if (!supabaseConfigured(true)) {
       return NextResponse.json({ message: "Supabase service role is not configured." }, { status: 501 });
     }

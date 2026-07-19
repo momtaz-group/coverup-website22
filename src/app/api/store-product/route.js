@@ -76,7 +76,7 @@ export async function GET(request) {
 
     return NextResponse.json({ configured: true, product });
   } catch (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء جلب المنتج." }, { status: 500 });
   }
 }
 
@@ -95,7 +95,7 @@ export async function POST(request) {
     const product = await upsertProduct(cleanProduct(body.product || body || {}));
     return NextResponse.json({ product });
   } catch (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء حفظ المنتج." }, { status: 500 });
   }
 }
 
@@ -120,6 +120,6 @@ export async function DELETE(request) {
     await deleteProduct(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    return NextResponse.json({ message: "حدث خطأ أثناء حذف المنتج." }, { status: 500 });
   }
 }

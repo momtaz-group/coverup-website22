@@ -811,7 +811,10 @@ function scriptedReply(message) {
 
 function appendChatLine(name, message) {
   const line = document.createElement("p");
-  line.innerHTML = `<strong>${name}:</strong> ${message.replace(/[<>]/g, "")}`;
+  const strong = document.createElement("strong");
+  strong.textContent = name + ":";
+  line.appendChild(strong);
+  line.appendChild(document.createTextNode(" " + message));
   chatLog.append(line);
   chatLog.scrollTop = chatLog.scrollHeight;
 }
