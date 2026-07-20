@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
 import { isIOSBrowser } from "@/utils/ios-media";
 import { loadInitialMessages, storeMessages, loadInitialChatPhone, storeChatPhone } from "@/utils/chatStore";
+import FamilyRepresentative from "@/components/FamilyRepresentative";
 import styles from "./page.module.css";
 
 const MODELS = [
@@ -914,6 +915,8 @@ export default function HomePage() {
         ))}
       </div>
     </section>
+
+    <FamilyRepresentative />
 
     {modal && (
       <div className={styles.overlay} onMouseDown={() => setModal(false)}>
