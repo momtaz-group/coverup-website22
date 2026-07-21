@@ -15,8 +15,11 @@ const ORDER_STATUSES = [
   "paid",
   "confirmed",
   "preparing",
+  "fetching_required_items",
+  "representative_on_way",
   "with_courier",
   "delivered",
+  "suspended",
   "cancelled",
   "refunded",
   "payment_failed",
@@ -466,6 +469,13 @@ export default function AdminPage() {
 
   // Calculate Metrics
   const ordersList = events.orders || [];
+  const isFamilyRepresentativeOrder = (order) => {
+    const notes = String(order.notes || "");
+    return order.delivery_method === "family_representative" ||
+      notes.includes("مندوب العيلة") ||
+      (order.items || []).some((item) => item.source === "family_representative" || item.family_member || item.service_type);
+  };
+  const familyRepresentativeOrders = ordersList.filter(isFamilyRepresentativeOrder);
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayOrders = ordersList.filter((o) => String(o.created_at || "").slice(0, 10) === todayKey);
   const salesToday = todayOrders.reduce((sum, o) => sum + Number(o.grand_total || o.total || 0), 0);
@@ -673,6 +683,17 @@ export default function AdminPage() {
                 <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.9 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
               </svg>
               <span>الطلبات</span>
+            </button>
+
+            <button 
+              type="button" 
+              className={`nav-item ${activeTab === "family_orders" ? "active" : ""}`}
+              onClick={() => { setActiveTab("family_orders"); setSelectedChat(null); }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm8 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zM8 13c-2.67 0-8 1.34-8 4v2h7v-2.5c0-1.25.56-2.37 1.54-3.3C8.36 13.08 8.17 13 8 13z"/>
+              </svg>
+              <span>مندوب العيلة</span>
             </button>
 
             <button 
@@ -1025,6 +1046,17 @@ export default function AdminPage() {
             />
           )}
 
+          {activeTab === "family_orders" && (
+            <AdminOrdersTab
+              title="طلبات مندوب العيلة"
+              description="مراجعة طلبات العيلة بكل أفرادها وموبايلاتهم والخدمات المطلوبة لكل شخص."
+              ordersList={familyRepresentativeOrders}
+              onUpdateOrder={handleUpdateOrderStatus}
+              ORDER_STATUSES={ORDER_STATUSES}
+              onRefresh={() => loadDashboardData(true)}
+            />
+          )}
+
           {/* ======================================================================= */}
           {/* TAB: MEMO CHATS */}
           {activeTab === "memo_chats" && (
@@ -1221,7 +1253,7 @@ export default function AdminPage() {
           height: 100vh;
           background-color: #ffffff;
           color: #000000;
-          font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+          font-family: 'Almarai', system-ui, -apple-system, sans-serif;
           overflow: hidden;
         }
 

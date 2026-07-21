@@ -25,11 +25,17 @@ function emailTypeForStatus(status) {
       return "order_confirmed";
     case "preparing":
       return "order_preparing";
+    case "fetching_required_items":
+      return "order_preparing";
+    case "representative_on_way":
+      return "order_with_courier";
     case "with_courier":
       return "order_with_courier";
     case "delivered":
       return "order_delivered";
     case "cancelled":
+      return "order_cancelled";
+    case "suspended":
       return "order_cancelled";
     case "refunded":
       return "order_refunded";
@@ -67,11 +73,11 @@ export async function PATCH(request) {
       return NextResponse.json({ message: "الطلب غير موجود." }, { status: 404 });
     }
 
-    if (["confirmed", "paid", "preparing", "with_courier", "delivered"].includes(status) && !order.inventory_reserved) {
+    if (["confirmed", "paid", "preparing", "fetching_required_items", "representative_on_way", "with_courier", "delivered"].includes(status) && !order.inventory_reserved) {
       await reserveInventoryForOrder(order);
     }
 
-    if (["cancelled", "refunded"].includes(status) && order.inventory_reserved) {
+    if (["cancelled", "suspended", "refunded"].includes(status) && order.inventory_reserved) {
       await releaseInventoryForOrder(order);
     }
 
@@ -80,7 +86,7 @@ export async function PATCH(request) {
       extra.payment_status = "paid";
     } else if (status === "payment_failed") {
       extra.payment_status = "failed";
-    } else if (status === "cancelled") {
+    } else if (status === "cancelled" || status === "suspended") {
       extra.payment_status = order.payment_method === "cash" ? "cancelled" : order.payment_status;
     }
 

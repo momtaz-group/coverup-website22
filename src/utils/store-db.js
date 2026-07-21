@@ -13,8 +13,11 @@ const ORDER_STATUSES = [
   "paid",
   "confirmed",
   "preparing",
+  "fetching_required_items",
+  "representative_on_way",
   "with_courier",
   "delivered",
+  "suspended",
   "cancelled",
   "refunded",
   "payment_failed",
@@ -796,7 +799,11 @@ async function getEvents() {
 }
 
 function requireAdmin(request) {
-  const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || "";
+  const ADMIN_TOKEN_SECRET =
+    process.env.ADMIN_TOKEN_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    "";
 
   // Check cookie only - no more header-based auth
   let adminToken = "";

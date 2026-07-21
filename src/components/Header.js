@@ -19,14 +19,9 @@ export default function Header() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [customerName, setCustomerName] = useState("");
-  const [hash, setHash] = useState(() => (typeof window !== "undefined" ? window.location.hash : ""));
   const [headerHidden, setHeaderHidden] = useState(false);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setHash(window.location.hash);
-    };
-
     let lastScrollY = typeof window !== "undefined" ? window.scrollY : 0;
 
     const handleScroll = () => {
@@ -44,7 +39,6 @@ export default function Header() {
       lastScrollY = currentScrollY;
     };
 
-    window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -66,7 +60,6 @@ export default function Header() {
     });
 
     return () => {
-      window.removeEventListener("hashchange", handleHashChange);
       window.removeEventListener("scroll", handleScroll);
       subscription.unsubscribe();
     };
@@ -90,16 +83,22 @@ export default function Header() {
     setMobileSearchOpen(false);
   };
 
+  const isActivePath = (href) => {
+    if (!pathname) return false;
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const navItems = [
     {
       href: "/",
-      active: pathname === "/" && !hash,
+      active: isActivePath("/"),
       label: locale === "ar" ? "الرئيسية" : "Home",
       icon: <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />,
     },
     {
       href: "/products",
-      active: pathname === "/products" && !hash,
+      active: isActivePath("/products"),
       label: t("navShop"),
       icon: (
         <>
@@ -111,7 +110,7 @@ export default function Header() {
     },
     {
       href: "/family-visit",
-      active: pathname === "/family-visit",
+      active: isActivePath("/family-visit"),
       label: t("navFamily"),
       icon: (
         <>
@@ -124,7 +123,7 @@ export default function Header() {
     },
     {
       href: "/corporate",
-      active: pathname === "/corporate",
+      active: isActivePath("/corporate"),
       label: t("navCorporate"),
       icon: (
         <>
@@ -136,7 +135,7 @@ export default function Header() {
     },
     {
       href: "/services",
-      active: pathname === "/services",
+      active: isActivePath("/services"),
       label: locale === "ar" ? "الخدمات" : "Services",
       icon: (
         <>
@@ -198,14 +197,14 @@ export default function Header() {
 
         {/* Desktop Main Navigation Tabs */}
         <nav className="site-nav" aria-label="Main navigation">
-          <Link href="/" className={pathname === "/" && !hash ? "is-active" : ""}>
+          <Link href="/" className={isActivePath("/") ? "is-active" : ""}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
               <polyline points="9 22 9 12 15 12 15 22"></polyline>
             </svg>
             {locale === "ar" ? "الرئيسية" : "Home"}
           </Link>
-          <Link href="/products" className={pathname === "/products" && !hash ? "is-active" : ""}>
+          <Link href="/products" className={isActivePath("/products") ? "is-active" : ""}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
               <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -213,7 +212,7 @@ export default function Header() {
             </svg>
             {t("navShop")}
           </Link>
-          <Link href="/family-visit" className={pathname === "/family-visit" ? "is-active" : ""}>
+          <Link href="/family-visit" className={isActivePath("/family-visit") ? "is-active" : ""}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
               <circle cx="9" cy="7" r="4"></circle>
@@ -222,7 +221,7 @@ export default function Header() {
             </svg>
             {t("navFamily")}
           </Link>
-          <Link href="/corporate" className={pathname === "/corporate" ? "is-active" : ""}>
+          <Link href="/corporate" className={isActivePath("/corporate") ? "is-active" : ""}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
               <line x1="9" y1="22" x2="9" y2="16"></line>
@@ -231,7 +230,7 @@ export default function Header() {
             </svg>
             {t("navCorporate")}
           </Link>
-          <Link href="/services" className={pathname === "/services" ? "is-active" : ""}>
+          <Link href="/services" className={isActivePath("/services") ? "is-active" : ""}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="16"></line>

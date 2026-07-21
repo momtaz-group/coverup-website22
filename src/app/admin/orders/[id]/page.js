@@ -21,8 +21,11 @@ const ORDER_STATUSES = [
   "paid",
   "confirmed",
   "preparing",
+  "fetching_required_items",
+  "representative_on_way",
   "with_courier",
   "delivered",
+  "suspended",
   "cancelled",
   "refunded",
   "payment_failed",
@@ -329,6 +332,13 @@ export default function OrderDetailsPage() {
                       <div className="item-info">
                         <h4>{item.name}</h4>
                         <span>SKU: {item.sku || "N/A"}</span>
+                        {item.family_member && (
+                          <span>فرد العيلة: {item.family_member.name} | {item.phone?.label || "موبايل محفوظ"} | {item.phone?.brand} {item.phone?.model}</span>
+                        )}
+                        {item.service_type && (
+                          <span>الخدمة: {item.service_label || item.service_type}{item.auto_choose ? " | Cover Up يحدد الاختيار الأنسب" : ""}</span>
+                        )}
+                        {item.representative_note && <span>{item.representative_note}</span>}
                         {item.color && <span>اللون المختارة: <span style={{ display: "inline-block", width: "12px", height: "12px", background: item.color.hex, borderRadius: "50%", verticalAlign: "middle" }}></span> {item.color.name}</span>}
                         <strong>{item.quantity} × {item.price} EGP = {item.line_total} EGP</strong>
                       </div>
@@ -497,7 +507,8 @@ export default function OrderDetailsPage() {
         }
         .status-new, .status-pending_payment { background: #fef08a; color: #854d0e; }
         .status-paid, .status-confirmed { background: #bbf7d0; color: #166534; }
-        .status-cancelled, .status-refunded, .status-payment_failed { background: #fecaca; color: #991b1b; }
+        .status-fetching_required_items, .status-representative_on_way, .status-with_courier, .status-preparing { background: #dbeafe; color: #1d4ed8; }
+        .status-cancelled, .status-refunded, .status-payment_failed, .status-suspended { background: #fecaca; color: #991b1b; }
         .status-badge.email-status-sent, .status-badge.email-status-delivered { background: #bbf7d0 !important; color: #166534 !important; }
         .status-badge.email-status-queued { background: #e2e8f0 !important; color: #334155 !important; }
         .status-badge.email-status-failed, .status-badge.email-status-bounced { background: #fecaca !important; color: #991b1b !important; }

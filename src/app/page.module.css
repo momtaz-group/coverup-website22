@@ -546,6 +546,99 @@
   border-top-right-radius: 2px;
 }
 
+.savedPhoneCard {
+  position: relative;
+}
+
+.savedPhoneCard > a {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--panel-soft);
+  text-align: center;
+}
+
+.phoneMoreButton {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.phoneMoreMenu {
+  position: absolute;
+  top: 42px;
+  inset-inline-start: 8px;
+  z-index: 5;
+  display: grid;
+  min-width: 136px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.phoneMoreMenu button {
+  min-height: 40px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0 12px;
+  text-align: start;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.phoneMoreMenu button:last-child {
+  border-bottom: 0;
+  color: #d82f45;
+}
+
+.home {
+  --blue: #155BD0;
+  background: #FFFFFF;
+}
+
+.chatCard,
+.phoneCard,
+.emptyPhone,
+.modal {
+  border-radius: 21px;
+  border-color: #B5C7D8;
+  box-shadow: 0 24px 64px rgba(16, 35, 63, 0.08);
+}
+
+.chatButton,
+.saveButton {
+  border-radius: 21px;
+  background: #155BD0;
+}
+
+.plainButton,
+.phoneCard a,
+.phoneCard span {
+  color: #155BD0;
+}
+
 .chipsGpt {
   display: flex;
   gap: 6px;

@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUSES, onRefresh }) {
+export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUSES, onRefresh, title = "قائمة الطلبات", description = "مراجعة الطلبات، تحديث حالات الشحن، وتأكيد عمليات الدفع الإلكتروني." }) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -118,8 +118,8 @@ export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUS
   return (
     <div className="admin-orders-tab">
       <div className="orders-header">
-        <h2>قائمة الطلبات</h2>
-        <p>مراجعة الطلبات، تحديث حالات الشحن، وتأكيد عمليات الدفع الإلكتروني.</p>
+        <h2>{title}</h2>
+        <p>{description}</p>
       </div>
 
       {/* Filters */}
@@ -207,6 +207,8 @@ export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUS
             <tbody>
               {paginatedOrders.map((order) => {
                 const firstItem = order.items?.[0];
+                const firstFamilyMember = firstItem?.family_member?.name;
+                const firstPhone = firstItem?.phone?.model || firstItem?.phone?.label;
                 const itemsCount = order.items?.length || 0;
                 return (
                   <tr key={order.id} className="order-row" onClick={() => handleOpenOrder(order.id)}>
@@ -238,7 +240,7 @@ export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUS
                           {firstItem.image && <img src={firstItem.image} alt="" className="item-thumb" />}
                           <div className="item-meta">
                             <span className="item-title">{firstItem.name}</span>
-                            <span className="item-qty">الكمية: {firstItem.quantity} | SKU: {firstItem.sku || "N/A"}</span>
+                            <span className="item-qty">{firstFamilyMember ? `${firstFamilyMember} | ${firstPhone || "موبايل محفوظ"} | ${firstItem.service_label || firstItem.service_type}` : `الكمية: ${firstItem.quantity} | SKU: ${firstItem.sku || "N/A"}`}</span>
                             {itemsCount > 1 && <span className="more-items">و {itemsCount - 1} منتج آخر</span>}
                           </div>
                         </div>
@@ -356,7 +358,8 @@ export default function AdminOrdersTab({ ordersList, onUpdateOrder, ORDER_STATUS
         .status-badge { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #e2e8f0; color: #334155; font-weight: bold; }
         .status-new, .status-pending_payment { background: #fef08a; color: #854d0e; }
         .status-paid, .status-confirmed { background: #bbf7d0; color: #166534; }
-        .status-cancelled, .status-refunded, .status-payment_failed { background: #fecaca; color: #991b1b; }
+        .status-preparing, .status-fetching_required_items, .status-representative_on_way, .status-with_courier { background: #dbeafe; color: #1d4ed8; }
+        .status-cancelled, .status-suspended, .status-refunded, .status-payment_failed { background: #fecaca; color: #991b1b; }
  
         .view-btn { padding: 6px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
         .order-row:hover .view-btn { border-color: #0052ff; color: #0052ff; }

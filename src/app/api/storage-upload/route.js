@@ -100,11 +100,6 @@ export async function POST(request) {
     }
 
     if (kind === "payment") {
-      const adminCheck = requireAdmin(request);
-      if (!adminCheck.authorized) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-
       const orderId = cleanText(body.orderId, 60).replace(/[^a-z0-9_-]/gi, "");
       const method = cleanText(body.method, 40).replace(/[^a-z0-9_-]/gi, "") || "generic";
 

@@ -148,7 +148,7 @@ function ShopContent() {
   const urlModel = searchParams.get("model") || "All";
 
   // State
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(defaultProducts);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [selectedModel, setSelectedModel] = useState(urlModel);

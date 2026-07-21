@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
+import { createUserPhone, deleteUserPhone, loadUserPhones, updateUserPhone } from "@/utils/userPhones";
 import { loadInitialMessages, storeMessages } from "@/utils/chatStore";
 import styles from "./page.module.css";
 
@@ -121,6 +122,9 @@ export default function ChatPage() {
   const [customModel, setCustomModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [editingPhone, setEditingPhone] = useState(null);
+  const [phoneToDelete, setPhoneToDelete] = useState(null);
+  const [deletingPhone, setDeletingPhone] = useState(false);
   const [chatPhone, setChatPhone] = useState(() => {
     if (typeof window !== "undefined") {
       try {
@@ -187,11 +191,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (active) setUserLoaded(!!user);
-      if (!user) return;
-      const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
-      if (active) setPhones(data || []);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (active) setUserLoaded(!!session?.user);
+      if (!session?.user) return;
+      try {
+        const data = await loadUserPhones();
+        if (active) setPhones(data);
+      } catch {}
     });
     return () => { active = false; };
   }, []);
@@ -263,7 +269,45 @@ export default function ChatPage() {
 
   const openAddPhone = () => {
     setIsChatSelection(false);
+    setEditingPhone(null);
+    setPhoneName("");
+    setSelected(null);
+    setCustom(false);
+    setCustomBrand("");
+    setCustomModel("");
+    setQuery("");
     setModal(true);
+  };
+
+  const openEditPhone = (phone) => {
+    setIsChatSelection(false);
+    setEditingPhone(phone);
+    setPhoneName(phone.phone_name || "");
+    setSelected(null);
+    setCustom(true);
+    setCustomBrand(phone.brand || "");
+    setCustomModel(phone.model || "");
+    setQuery("");
+    setModal(true);
+  };
+
+  const confirmDeletePhone = async () => {
+    if (!phoneToDelete) return;
+    setNotice("");
+    setDeletingPhone(true);
+    try {
+      await deleteUserPhone(phoneToDelete.id);
+      setPhones((items) => items.filter((item) => item.id !== phoneToDelete.id));
+      if (chatPhone?.brand === phoneToDelete.brand && chatPhone?.model === phoneToDelete.model) {
+        setChatPhone(null);
+        sessionStorage.removeItem("coverup-chat-phone");
+      }
+      setPhoneToDelete(null);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setDeletingPhone(false);
+    }
   };
 
   const ask = (prompt) => {
@@ -278,33 +322,40 @@ export default function ChatPage() {
     const device = custom ? { brand: customBrand.trim(), name: customModel.trim(), design: "triple" } : selected;
     if (!device?.brand || !device?.name || !phoneName.trim()) return;
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) {
       setSaving(false);
       setNotice(text("Please sign in before saving a phone.", "سجّل الدخول أولاً لحفظ موبايلك."));
       return;
     }
-    const { data, error } = await supabase
-      .from("user_phones")
-      .insert({
-        user_id: user.id,
+    try {
+      const payload = {
+        id: editingPhone?.id,
         phone_name: phoneName.trim(),
         brand: device.brand,
         model: device.name,
         design_key: device.design,
-      })
-      .select()
-      .single();
-    setSaving(false);
-    if (error) {
+      };
+      const data = editingPhone ? await updateUserPhone(payload) : await createUserPhone(payload);
+      setPhones((items) => editingPhone
+        ? items.map((item) => item.id === data.id ? data : item)
+        : [data, ...items]);
+      if (chatPhone?.brand === editingPhone?.brand && chatPhone?.model === editingPhone?.model) {
+        setChatPhone({ brand: data.brand, model: data.model });
+        sessionStorage.setItem("coverup-chat-phone", JSON.stringify({ brand: data.brand, model: data.model }));
+      }
+      setModal(false);
+      setPhoneName("");
+      setSelected(null);
+      setCustom(false);
+      setCustomBrand("");
+      setCustomModel("");
+      setEditingPhone(null);
+      setNotice("");
+    } catch (error) {
       setNotice(error.message);
-      return;
     }
-    setPhones((items) => [data, ...items]);
-    setModal(false);
-    setPhoneName("");
-    setSelected(null);
-    setCustom(false);
   };
 
   const submitMessage = async (messageText, activePhone = chatPhone) => {
@@ -683,7 +734,7 @@ export default function ChatPage() {
         <div className={styles.modalOverlay} onMouseDown={() => setModal(false)}>
           <div className={styles.modalCard} onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>{isChatSelection ? text("Select Phone model", "اختر موديل الموبايل") : text("Add new device", "إضافة جهاز جديد")}</h3>
+              <h3>{isChatSelection ? text("Select Phone model", "اختر موديل الموبايل") : editingPhone ? text("Edit device", "تعديل الجهاز") : text("Add new device", "إضافة جهاز جديد")}</h3>
               <button type="button" className={styles.modalCloseBtn} onClick={() => setModal(false)}>×</button>
             </div>
             {notice && <p className={styles.modalNotice}>{notice}</p>}
@@ -695,10 +746,20 @@ export default function ChatPage() {
                     <h4>{text("Your Saved Phones", "أجهزتك المحفوظة")}</h4>
                     <div className={styles.savedPhonesGrid}>
                       {phones.map((p) => (
-                        <button key={p.id} type="button" className={styles.savedPhoneBtn} onClick={() => handleSelectChatPhone(p.brand, p.model)}>
-                          <strong>{p.phone_name}</strong>
-                          <span>{p.brand} {p.model}</span>
-                        </button>
+                        <div key={p.id} style={{ display: "grid", gap: "8px" }}>
+                          <button type="button" className={styles.savedPhoneBtn} onClick={() => handleSelectChatPhone(p.brand, p.model)}>
+                            <strong>{p.phone_name}</strong>
+                            <span>{p.brand} {p.model}</span>
+                          </button>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button type="button" className={styles.modalLinkBtn} style={{ flex: 1, justifyContent: "center" }} onClick={() => openEditPhone(p)}>
+                              {text("Edit", "تعديل")}
+                            </button>
+                            <button type="button" className={styles.modalLinkBtn} style={{ flex: 1, justifyContent: "center", color: "#d82f45" }} onClick={() => setPhoneToDelete(p)}>
+                              {text("Delete", "حذف")}
+                            </button>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -775,11 +836,39 @@ export default function ChatPage() {
                 <div className={styles.modalActions}>
                   <button type="button" className={styles.modalCancelBtn} onClick={() => setModal(false)}>{text("Cancel", "إلغاء")}</button>
                   <button type="submit" className={styles.modalSubmitBtn} disabled={saving}>
-                    {saving ? text("Saving...", "جارٍ الحفظ...") : text("Save Phone", "حفظ الهاتف")}
+                    {saving ? text("Saving...", "جارٍ الحفظ...") : editingPhone ? text("Update Phone", "تحديث الهاتف") : text("Save Phone", "حفظ الهاتف")}
                   </button>
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {phoneToDelete && (
+        <div className={styles.modalOverlay} onMouseDown={() => !deletingPhone && setPhoneToDelete(null)}>
+          <div className={styles.modalCard} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-chat-phone-title">
+            <div className={styles.modalHeader}>
+              <h3 id="delete-chat-phone-title">{text("Delete this phone?", "حذف هذا الموبايل؟")}</h3>
+              <button type="button" className={styles.modalCloseBtn} onClick={() => setPhoneToDelete(null)} disabled={deletingPhone}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.modalNotice}>
+                {text("This phone will be removed from your saved devices.", "سيتم حذف هذا الموبايل من أجهزتك المحفوظة.")}
+              </p>
+              <button type="button" className={styles.savedPhoneBtn} style={{ cursor: "default" }}>
+                <strong>{phoneToDelete.phone_name}</strong>
+                <span>{phoneToDelete.brand} {phoneToDelete.model}</span>
+              </button>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.modalCancelBtn} onClick={() => setPhoneToDelete(null)} disabled={deletingPhone}>
+                  {text("Cancel", "إلغاء")}
+                </button>
+                <button type="button" className={styles.modalSubmitBtn} onClick={confirmDeletePhone} disabled={deletingPhone} style={{ background: "#d82f45" }}>
+                  {deletingPhone ? text("Deleting...", "جارٍ الحذف...") : text("Delete phone", "حذف الموبايل")}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

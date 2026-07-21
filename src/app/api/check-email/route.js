@@ -3,24 +3,26 @@ import { getSupabaseServerClient } from "@/utils/supabase";
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const email = String(body?.email || "").trim().toLowerCase();
 
     if (!email) {
-      return NextResponse.json(
-        { message: "البريد الإلكتروني مطلوب" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Email is required." }, { status: 400 });
     }
 
-    // Always return the same generic response to prevent email enumeration
-    return NextResponse.json({
-      message: "تم استلام طلبك.",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { message: "حدث خطأ." },
-      { status: 500 }
-    );
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ message: "Could not check this email right now." }, { status: 500 });
+    }
+
+    return NextResponse.json({ exists: Boolean(data) });
+  } catch {
+    return NextResponse.json({ message: "Could not check this email right now." }, { status: 500 });
   }
 }

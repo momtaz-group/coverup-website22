@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { updateSupabaseSession } from "@/utils/supabase-proxy";
 import crypto from "node:crypto";
 
-const ADMIN_TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || "";
+const ADMIN_TOKEN_SECRET =
+  process.env.ADMIN_TOKEN_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SECRET_KEY ||
+  "";
 
 function verifyAdminToken(token) {
   if (!ADMIN_TOKEN_SECRET || !token) return false;

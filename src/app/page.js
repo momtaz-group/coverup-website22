@@ -6,9 +6,9 @@ import OptimizedVideo from "@/components/OptimizedVideo";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/utils/supabase";
+import { createUserPhone, deleteUserPhone, loadUserPhones, updateUserPhone } from "@/utils/userPhones";
 import { isIOSBrowser } from "@/utils/ios-media";
 import { loadInitialMessages, storeMessages, loadInitialChatPhone, storeChatPhone } from "@/utils/chatStore";
-import FamilyRepresentative from "@/components/FamilyRepresentative";
 import styles from "./page.module.css";
 
 const MODELS = [
@@ -121,6 +121,10 @@ export default function HomePage() {
   const text = (en, arabic) => ar ? arabic : en;
   const [phones, setPhones] = useState([]); const [modal, setModal] = useState(false); const [query, setQuery] = useState(""); const [custom, setCustom] = useState(false);
   const [phoneName, setPhoneName] = useState(""); const [selected, setSelected] = useState(null); const [customBrand, setCustomBrand] = useState(""); const [customModel, setCustomModel] = useState(""); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState("");
+  const [editingPhone, setEditingPhone] = useState(null);
+  const [phoneToDelete, setPhoneToDelete] = useState(null);
+  const [phoneMenuOpen, setPhoneMenuOpen] = useState("");
+  const [deletingPhone, setDeletingPhone] = useState(false);
   const [chatPhone, setChatPhone] = useState(null);
   const [isChatSelection, setIsChatSelection] = useState(false);
 
@@ -354,11 +358,11 @@ export default function HomePage() {
       })
       .catch(() => {});
 
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data } = await supabase.from("user_phones").select("*").order("created_at", { ascending: false });
-      if (active) setPhones(data || []);
-    });
+    loadUserPhones()
+      .then((data) => {
+        if (active) setPhones(data);
+      })
+      .catch(() => {});
     return () => { active = false; };
   }, []);
   const handleSelectChatPhone = (brand, model) => {
@@ -375,7 +379,44 @@ export default function HomePage() {
 
   const openAddPhone = () => {
     setIsChatSelection(false);
+    setEditingPhone(null);
+    setPhoneName("");
+    setSelected(null);
+    setCustom(false);
+    setCustomBrand("");
+    setCustomModel("");
+    setQuery("");
     setModal(true);
+  };
+
+  const openEditPhone = (phone) => {
+    setIsChatSelection(false);
+    setEditingPhone(phone);
+    setPhoneName(phone.phone_name || "");
+    setSelected(null);
+    setCustom(true);
+    setCustomBrand(phone.brand || "");
+    setCustomModel(phone.model || "");
+    setQuery("");
+    setModal(true);
+  };
+
+  const confirmDeletePhone = async () => {
+    if (!phoneToDelete) return;
+    setNotice("");
+    setDeletingPhone(true);
+    try {
+      await deleteUserPhone(phoneToDelete.id);
+      setPhones((items) => items.filter((item) => item.id !== phoneToDelete.id));
+      if (chatPhone?.brand === phoneToDelete.brand && chatPhone?.model === phoneToDelete.model) {
+        setChatPhone(null);
+      }
+      setPhoneToDelete(null);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setDeletingPhone(false);
+    }
   };
 
   const ask = (prompt) => {
@@ -390,23 +431,41 @@ export default function HomePage() {
     const device = custom ? { brand: customBrand.trim(), name: customModel.trim(), design: "triple" } : selected;
     if (!device?.brand || !device?.name || !phoneName.trim()) return;
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) {
       setSaving(false);
       setNotice(text("Please sign in before saving a phone.", "سجّل الدخول أولاً لحفظ موبايلك."));
       return;
     }
-    const { data, error } = await supabase.from("user_phones").insert({ user_id: user.id, phone_name: phoneName.trim(), brand: device.brand, model: device.name, design_key: device.design }).select().single();
-    setSaving(false);
-    if (error) {
+    try {
+      const payload = {
+        id: editingPhone?.id,
+        phone_name: phoneName.trim(),
+        brand: device.brand,
+        model: device.name,
+        design_key: device.design,
+      };
+      const data = editingPhone ? await updateUserPhone(payload) : await createUserPhone(payload);
+      setPhones((items) => editingPhone
+        ? items.map((item) => item.id === data.id ? data : item)
+        : [data, ...items]);
+      if (chatPhone?.brand === editingPhone?.brand && chatPhone?.model === editingPhone?.model) {
+        setChatPhone({ brand: data.brand, model: data.model });
+      }
+      setModal(false);
+      setPhoneName("");
+      setSelected(null);
+      setCustom(false);
+      setCustomBrand("");
+      setCustomModel("");
+      setEditingPhone(null);
+      setNotice("");
+    } catch (error) {
       setNotice(error.message);
-      return;
+    } finally {
+      setSaving(false);
     }
-    setPhones((items) => [data, ...items]);
-    setModal(false);
-    setPhoneName("");
-    setSelected(null);
-    setCustom(false);
   };
 
   const latestAiMessage = useMemo(() => {
@@ -822,6 +881,14 @@ export default function HomePage() {
                 <Link href={`/products?model=${encodeURIComponent(phone.model)}`}>
                   {text("View matching products", "عرض المنتجات المناسبة")} →
                 </Link>
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => openEditPhone(phone)} style={{ border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)", borderRadius: "8px", padding: "7px 10px", font: "inherit", fontSize: "0.76rem", fontWeight: 800, cursor: "pointer" }}>
+                    {text("Edit", "تعديل")}
+                  </button>
+                  <button type="button" onClick={() => setPhoneToDelete(phone)} style={{ border: "1px solid rgba(255, 77, 77, 0.35)", background: "rgba(255, 77, 77, 0.08)", color: "#d82f45", borderRadius: "8px", padding: "7px 10px", font: "inherit", fontSize: "0.76rem", fontWeight: 800, cursor: "pointer" }}>
+                    {text("Delete", "حذف")}
+                  </button>
+                </div>
               </div>
             </article>
           ))
@@ -916,8 +983,6 @@ export default function HomePage() {
       </div>
     </section>
 
-    <FamilyRepresentative />
-
     {modal && (
       <div className={styles.overlay} onMouseDown={() => setModal(false)}>
         <form 
@@ -933,7 +998,7 @@ export default function HomePage() {
           <div className={styles.modalTop}>
             <div>
               <span className={styles.eyebrow}>{text("YOUR DEVICE", "جهازك")}</span>
-              <h2>{isChatSelection ? text("Select phone for chat", "تحديد الموبايل للمساعد") : text("Add a phone", "إضافة موبايل")}</h2>
+              <h2>{isChatSelection ? text("Select phone for chat", "تحديد الموبايل للمساعد") : editingPhone ? text("Edit phone", "تعديل الموبايل") : text("Add a phone", "إضافة موبايل")}</h2>
             </div>
             <button type="button" onClick={() => setModal(false)} aria-label={text("Close", "إغلاق")}>×</button>
           </div>
@@ -964,11 +1029,22 @@ export default function HomePage() {
                     <small>{phone.brand} · {phone.model}</small>
                   </button>
                 ) : (
-                  <Link key={phone.id} href={`/products?model=${encodeURIComponent(phone.model)}`} onClick={() => setModal(false)}>
-                    <DeviceSketch design={phone.design_key} />
-                    <span>{phone.phone_name}</span>
-                    <small>{phone.brand} · {phone.model}</small>
-                  </Link>
+                  <article key={phone.id} className={styles.savedPhoneCard}>
+                    <Link href={`/products?model=${encodeURIComponent(phone.model)}`} onClick={() => setModal(false)}>
+                      <DeviceSketch design={phone.design_key} />
+                      <span>{phone.phone_name}</span>
+                      <small>{phone.brand} · {phone.model}</small>
+                    </Link>
+                    <button type="button" className={styles.phoneMoreButton} aria-label={text("Phone options", "خيارات الموبايل")} onClick={() => setPhoneMenuOpen((current) => current === phone.id ? "" : phone.id)}>
+                      ⋯
+                    </button>
+                    {phoneMenuOpen === phone.id && (
+                      <div className={styles.phoneMoreMenu}>
+                        <button type="button" onClick={() => { setPhoneMenuOpen(""); openEditPhone(phone); }}>{text("Edit phone", "تعديل الموبايل")}</button>
+                        <button type="button" onClick={() => { setPhoneMenuOpen(""); setPhoneToDelete(phone); }}>{text("Delete phone", "حذف الموبايل")}</button>
+                      </div>
+                    )}
+                  </article>
                 )
               ))}
             </div>
@@ -1021,9 +1097,41 @@ export default function HomePage() {
               ? text("Select for Chat", "تحديد للدردشة") 
               : saving 
                 ? text("Saving…", "جارٍ الحفظ…") 
-                : text("Save phone", "حفظ الموبايل")}
+                : editingPhone ? text("Update phone", "تحديث الموبايل") : text("Save phone", "حفظ الموبايل")}
           </button>
         </form>
+      </div>
+    )}
+
+    {phoneToDelete && (
+      <div className={styles.overlay} onMouseDown={() => !deletingPhone && setPhoneToDelete(null)}>
+        <section className={styles.modal} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-phone-title" style={{ maxWidth: "460px" }}>
+          <div className={styles.modalTop}>
+            <div>
+              <span className={styles.eyebrow}>{text("DELETE PHONE", "حذف الموبايل")}</span>
+              <h2 id="delete-phone-title">{text("Delete this phone?", "حذف هذا الموبايل؟")}</h2>
+            </div>
+            <button type="button" onClick={() => setPhoneToDelete(null)} disabled={deletingPhone} aria-label={text("Close", "إغلاق")}>×</button>
+          </div>
+          <p style={{ margin: 0, color: "var(--muted)", lineHeight: 1.7 }}>
+            {text("This phone will be removed from your saved devices.", "سيتم حذف هذا الموبايل من أجهزتك المحفوظة.")}
+          </p>
+          <div className={styles.preview}>
+            <DeviceSketch design={phoneToDelete.design_key} />
+            <p>
+              <strong>{phoneToDelete.phone_name}</strong>
+              {phoneToDelete.brand} · {phoneToDelete.model}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setPhoneToDelete(null)} disabled={deletingPhone} style={{ border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)", borderRadius: "10px", padding: "12px 16px", font: "inherit", fontWeight: 800, cursor: "pointer" }}>
+              {text("Cancel", "إلغاء")}
+            </button>
+            <button type="button" onClick={confirmDeletePhone} disabled={deletingPhone} style={{ border: "1px solid rgba(255, 77, 77, 0.35)", background: "#d82f45", color: "white", borderRadius: "10px", padding: "12px 16px", font: "inherit", fontWeight: 900, cursor: "pointer" }}>
+              {deletingPhone ? text("Deleting...", "جارٍ الحذف...") : text("Delete phone", "حذف الموبايل")}
+            </button>
+          </div>
+        </section>
       </div>
     )}
   </main>;

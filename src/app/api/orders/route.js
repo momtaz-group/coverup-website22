@@ -53,12 +53,12 @@ function applyCoupon(subtotal, code) {
   return { code: normalized, amount: Math.max(0, Math.min(subtotal, amount)) };
 }
 
-function deliveryFee(method) {
+function deliveryFee(method, familyRepresentativeFee = 0) {
   switch (method) {
     case "pickup":
       return 0;
     case "family_representative":
-      return 90;
+      return Number(familyRepresentativeFee) > 0 ? Number(familyRepresentativeFee) : 90;
     default:
       return 45;
   }
@@ -119,6 +119,13 @@ function normalizeItems(items, products) {
       image: product.image || "",
       line_total: Number(product.price || 0) * quantity,
       color: item.color || null,
+      family_member: item.family_member || null,
+      phone: item.phone || null,
+      service_type: cleanText(item.service_type, 80),
+      service_label: cleanText(item.service_label, 120),
+      auto_choose: Boolean(item.auto_choose),
+      representative_note: cleanText(item.representative_note, 240),
+      source: item.family_member ? "family_representative" : "",
     };
   });
 }
@@ -161,7 +168,7 @@ export async function POST(request) {
     const paymentMethod = cleanText(body.paymentMethod, 40) || "cash";
     const tipAmount = Math.max(0, Number(body.tipAmount) || 0);
     const branchLocation = cleanText(body.branchLocation, 200) || "";
-    const fee = deliveryFee(method);
+    const fee = deliveryFee(method, body.familyRepresentativeFee);
     const grandTotal = Math.max(0, subtotal - discount.amount + fee) + tipAmount;
     const savedLocation = Array.isArray(customer?.location)
       ? (customer.location.find((location) => location.isDefault) || customer.location[0])
