@@ -149,6 +149,7 @@ function ShopContent() {
 
   // State
   const [products, setProducts] = useState(defaultProducts);
+  const [storeCategories, setStoreCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [selectedModel, setSelectedModel] = useState(urlModel);
@@ -188,6 +189,15 @@ function ShopContent() {
         }
       })
       .catch(() => {});
+
+    fetch("/api/store-categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.categories)) {
+          setStoreCategories(data.categories.filter((category) => category.name && category.image_url));
+        }
+      })
+      .catch(() => setStoreCategories([]));
 
     const loadWishlist = async () => {
       let localWish = [];
@@ -284,6 +294,26 @@ function ShopContent() {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
+    const categoryAliases = {
+      Airbuds: ["airbud", "earbud", "headphone", "سماعة", "سماعات"],
+      Chargers: ["charger", "charge", "cable", "adapter", "شاحن", "كابل"],
+      "Phone Covers": ["case", "cover", "magsafe", "كفر"],
+      "Power Banks": ["power bank", "powerbank", "باور"],
+      "Screen Protectors": ["screen", "protector", "glass", "privacy", "حماية", "اسكرينة"],
+      "Phone Holders": ["holder", "stand", "mount", "حامل", "حوامل"]
+    };
+
+    const productSearchText = (p) => [
+      p.name,
+      p.name_en,
+      p.category,
+      p.category_en,
+      p.description,
+      p.description_en,
+      p.product_family,
+      ...(Array.isArray(p.tags) ? p.tags : [])
+    ].filter(Boolean).join(" ").toLowerCase();
+
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -301,7 +331,11 @@ function ShopContent() {
       result = result.filter((p) => {
         const cat = locale === "en" && p.category_en ? p.category_en : p.category;
         const target = selectedCategory;
-        return cat === target || p.category === target || p.category_en === target;
+        const aliases = categoryAliases[target] || [];
+        return cat === target
+          || p.category === target
+          || p.category_en === target
+          || aliases.some((alias) => productSearchText(p).includes(alias.toLowerCase()));
       });
     }
 
@@ -361,8 +395,65 @@ function ShopContent() {
     }).format(amount);
   };
 
+  const colorNameMap = {
+    black: "#1f252c",
+    midnight: "#1f252c",
+    white: "#f7f5ef",
+    clear: "#eef4f8",
+    transparent: "#eef4f8",
+    blue: "#4f7fbf",
+    navy: "#233a5c",
+    brown: "#8b6a4d",
+    orange: "#f0a273",
+    gold: "#d8cdbb",
+    silver: "#c6c9d1",
+    gray: "#8ca0ad",
+    grey: "#8ca0ad",
+    purple: "#b7b1c9",
+    pink: "#efb69c",
+    green: "#7d9b8c",
+    red: "#c95a54"
+  };
+
+  const fallbackSwatches = ["#8ca0ad", "#b7b1c9", "#1f252c", "#d8cdbb", "#efb69c"];
+
+  const getProductColorSwatches = (product) => {
+    const values = Array.isArray(product.colors) ? product.colors : [];
+    const swatches = values
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "object") {
+          const label = item.name || item.label || item.color || item.hex || "";
+          const hex = item.hex || item.value || colorNameMap[String(label).toLowerCase()];
+          return hex ? { hex, label: String(label || hex) } : null;
+        }
+        const label = String(item).trim();
+        const lower = label.toLowerCase();
+        const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(label) ? label : colorNameMap[lower];
+        return hex ? { hex, label } : null;
+      })
+      .filter(Boolean);
+
+    return swatches.length
+      ? swatches.slice(0, 6)
+      : fallbackSwatches.map((hex, index) => ({ hex, label: `Color ${index + 1}` }));
+  };
+
+  const categoryTiles = [
+    {
+      title: locale === "ar" ? "الكل" : "All",
+      image: "/assets/categories/all.png",
+      category: "All"
+    },
+    ...storeCategories.map((category) => ({
+      title: category.name,
+      image: category.image_url,
+      category: category.name,
+    })),
+  ];
+
   return (
-    <main className="simple-page" style={{ paddingInline: "clamp(16px, 3vw, 36px)", paddingTop: "40px" }}>
+    <main className="simple-page store-page" style={{ paddingInline: "clamp(16px, 3vw, 36px)", paddingTop: "40px" }}>
       {/* Shop Title and Description */}
       <section className="amazon-search-copy">
         <span className="eyebrow">{locale === "ar" ? "متجر كفر أب" : "Cover Up Store"}</span>
@@ -403,6 +494,22 @@ function ShopContent() {
             </button>
           )}
         </form>
+      </section>
+
+      <section className="store-category-strip" aria-label={locale === "ar" ? "تصنيفات المتجر" : "Store categories"}>
+        {categoryTiles.map((item) => (
+          <button
+            key={item.image}
+            type="button"
+            className={`store-category-tile ${selectedCategory === item.category ? "is-active" : ""}`}
+            onClick={() => handleCategoryChange(item.category)}
+          >
+            <span className="store-category-image">
+              <img src={item.image} alt="" loading="lazy" decoding="async" />
+            </span>
+            <span>{item.title}</span>
+          </button>
+        ))}
       </section>
 
       {/* Category Tabs under Search Bar */}
@@ -578,10 +685,13 @@ function ShopContent() {
             <div className="amazon-products-grid">
               {filteredProducts.map((p) => {
                 const displayName = locale === "en" && p.name_en ? p.name_en : p.name;
-                const displayDesc = locale === "en" && p.description_en ? p.description_en : p.description;
                 const displayBadge = locale === "en" && p.badge_en ? p.badge_en : p.badge;
                 const displayCategory = locale === "en" && p.category_en ? p.category_en : p.category;
                 const isFavorite = wishlist.includes(p.id);
+                const colorSwatches = getProductColorSwatches(p);
+                const stockQuantity = Math.max(0, Number(p.stock_quantity ?? 0));
+                const isVersionedProduct = p.product_type === "device_versions";
+                const isOutOfStock = !isVersionedProduct && (p.is_in_stock === false || stockQuantity === 0);
 
                 return (
                   <article key={p.id} className="amazon-product-card">
@@ -591,7 +701,6 @@ function ShopContent() {
                       className={`amazon-wishlist-btn ${isFavorite ? "is-active" : ""}`}
                       onClick={() => toggleWishlist(p.id)}
                       aria-label="Wishlist"
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px' }}
                     >
                       <svg width="24" height="24" viewBox="0 0 24 24" fill={isFavorite ? "#ff4d4d" : "none"} stroke={isFavorite ? "#ff4d4d" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -612,6 +721,17 @@ function ShopContent() {
 
                     {/* Product details */}
                     <div className="amazon-card-body">
+                      <div className="store-color-swatches" aria-label={locale === "ar" ? "Available colors" : "Available colors"}>
+                        {colorSwatches.map((color) => (
+                          <span
+                            key={`${p.id}-${color.hex}-${color.label}`}
+                            className="store-color-swatch"
+                            title={color.label}
+                            style={{ backgroundColor: color.hex }}
+                          />
+                        ))}
+                      </div>
+
                       <span className="amazon-brand">{displayCategory}</span>
                       <h2 className="amazon-title">
                         <Link href={`/product?id=${p.id}`}>{displayName}</Link>
@@ -642,11 +762,16 @@ function ShopContent() {
                         )}
                       </p>
 
-                      {/* Add to Cart button */}
+                      {/* Add to Cart / Select Model button */}
                       <button
                         type="button"
                         className="amazon-add-to-cart-btn"
+                        disabled={isOutOfStock}
                         onClick={() => {
+                          if (isVersionedProduct) {
+                            router.push(`/product?id=${p.id}`);
+                            return;
+                          }
                           addToCart(p);
                           showToast(locale === "ar" ? "تمت الإضافة للسلة!" : "Added to cart!");
                         }}

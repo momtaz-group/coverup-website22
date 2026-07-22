@@ -1,8 +1,35 @@
 import { NextResponse } from "next/server";
-import { getProductById, upsertProduct, deleteProduct, requireAdmin, supabaseConfigured } from "@/utils/store-db";
+import {
+  getProductById,
+  getProductVersions,
+  upsertProduct,
+  replaceProductVersions,
+  deleteProduct,
+  requireAdmin,
+  supabaseConfigured,
+} from "@/utils/store-db";
 import { randomUUID } from "node:crypto";
 
 export const dynamic = "force-dynamic";
+
+const DEVICE_VERSION_CATEGORY_PATTERNS = [
+  "phone cases",
+  "phone covers",
+  "cases",
+  "covers",
+  "screen protectors",
+  "screen protection",
+  "كفر",
+  "كفرات",
+  "حماية الشاشة",
+  "اسكرينة",
+  "سكرينة",
+];
+
+function isDeviceVersionCategory(category = "") {
+  const value = String(category || "").trim().toLowerCase();
+  return DEVICE_VERSION_CATEGORY_PATTERNS.some((pattern) => value.includes(pattern));
+}
 
 function cleanProduct(product = {}) {
   return {
@@ -47,6 +74,7 @@ function cleanProduct(product = {}) {
           .map((item) => item.trim())
           .filter(Boolean),
     status: String(product.status || "public").trim(),
+    product_type: String(product.product_type || product.productType || "simple").trim(),
   };
 }
 
@@ -74,7 +102,8 @@ export async function GET(request) {
       return NextResponse.json({ message: "المنتج غير متوفر حالياً." }, { status: 404 });
     }
 
-    return NextResponse.json({ configured: true, product });
+    const versions = await getProductVersions(id, { service: adminCheck.authorized });
+    return NextResponse.json({ configured: true, product: { ...product, versions } });
   } catch (error) {
     return NextResponse.json({ message: "حدث خطأ أثناء جلب المنتج." }, { status: 500 });
   }
@@ -92,8 +121,24 @@ export async function POST(request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const product = await upsertProduct(cleanProduct(body.product || body || {}));
-    return NextResponse.json({ product });
+    const rawProduct = body.product || body || {};
+    const cleanedProduct = cleanProduct(rawProduct);
+    const shouldUseVersions = isDeviceVersionCategory(cleanedProduct.category);
+    const versionsInput = Array.isArray(rawProduct.versions) ? rawProduct.versions : [];
+
+    cleanedProduct.product_type = shouldUseVersions ? "device_versions" : "simple";
+    if (!shouldUseVersions && Object.hasOwn(rawProduct, "versions") && versionsInput.length > 0) {
+      return NextResponse.json({ message: "Product versions are only available for Phone Cases and Screen Protectors." }, { status: 400 });
+    }
+    if (shouldUseVersions && versionsInput.length === 0) {
+      return NextResponse.json({ message: "Add at least one product version for this category before saving." }, { status: 400 });
+    }
+
+    const product = await upsertProduct(cleanedProduct);
+    const versions = shouldUseVersions && Object.hasOwn(rawProduct, "versions")
+      ? await replaceProductVersions(product.id, Array.isArray(rawProduct.versions) ? rawProduct.versions : [])
+      : await getProductVersions(product.id, { service: true });
+    return NextResponse.json({ product: { ...product, versions } });
   } catch (error) {
     return NextResponse.json({ message: "حدث خطأ أثناء حفظ المنتج." }, { status: 500 });
   }

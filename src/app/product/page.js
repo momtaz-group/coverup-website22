@@ -7,6 +7,40 @@ import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 
+function normalizeProductColor(value, index) {
+  let color = value;
+  if (typeof value === "string") {
+    try {
+      color = JSON.parse(value);
+    } catch {
+      color = { name: value, hex: "#cccccc" };
+    }
+  }
+  if (!color || typeof color !== "object") {
+    return { name: `Color ${index + 1}`, hex: "#cccccc", image: null, images: [] };
+  }
+
+  const images = Array.from(new Set([
+    color.image,
+    ...(Array.isArray(color.images) ? color.images : []),
+  ].filter(Boolean)));
+  return {
+    ...color,
+    name: color.name || color.label || `Color ${index + 1}`,
+    hex: color.hex || color.value || "#cccccc",
+    image: images[0] || null,
+    images,
+  };
+}
+
+function getColorImages(color) {
+  if (!color) return [];
+  return Array.from(new Set([
+    color.image,
+    ...(Array.isArray(color.images) ? color.images : []),
+  ].filter(Boolean)));
+}
+
 function ProductDetailContent() {
   const { t, locale } = useLanguage();
   const { addToCart } = useCart();
@@ -24,6 +58,7 @@ function ProductDetailContent() {
   const [wishlist, setWishlist] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [activeColor, setActiveColor] = useState(null);
+  const [activeVersionId, setActiveVersionId] = useState("");
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
   const [colorError, setColorError] = useState("");
@@ -38,10 +73,10 @@ function ProductDetailContent() {
   const productColors = useMemo(() => {
     if (!product || !product.colors) return [];
     if (Array.isArray(product.colors)) {
-      return product.colors.map(c => typeof c === 'string' ? { name: c, hex: '#ccc' } : c);
+      return product.colors.map(normalizeProductColor);
     }
     if (typeof product.colors === 'string') {
-      return product.colors.split(/[,\n]/).map(c => ({ name: c.trim(), hex: '#ccc' }));
+      return product.colors.split(/[,\n]/).map(normalizeProductColor);
     }
     return [];
   }, [product]);
@@ -52,17 +87,23 @@ function ProductDetailContent() {
       product.image,
       ...(Array.isArray(product.images) ? product.images : [])
     ];
-    const colorsList = Array.isArray(product.colors) ? product.colors : [];
-    colorsList.forEach(c => {
-      if (c.image) allImages.push(c.image);
-      if (Array.isArray(c.images)) {
-        c.images.forEach(img => { if (img) allImages.push(img); });
-      }
+    productColors.forEach((color) => {
+      allImages.push(...getColorImages(color));
     });
     return Array.from(new Set(allImages.filter(Boolean)));
-  }, [product]);
+  }, [product, productColors]);
 
-  const galleryImages = defaultGalleryImages;
+  const galleryImages = useMemo(() => {
+    const activeVersion = (product?.versions || []).find((version) => version.id === activeVersionId) || null;
+    if (activeVersion) {
+      const versionImages = [
+        activeVersion.main_image_url,
+        ...(Array.isArray(activeVersion.images) ? activeVersion.images : []),
+      ].filter(Boolean);
+      if (versionImages.length) return Array.from(new Set(versionImages));
+    }
+    return defaultGalleryImages;
+  }, [activeVersionId, defaultGalleryImages, product]);
 
 
   useEffect(() => {
@@ -117,6 +158,8 @@ function ProductDetailContent() {
           setProduct(productData.product);
           setReviews(reviewsData.reviews || []);
           setMainImage(productData.product.image);
+          setActiveColor(null);
+          setActiveVersionId("");
           if (typeof window !== "undefined") {
             window.scrollTo({ top: 0, behavior: "instant" });
           }
@@ -225,29 +268,51 @@ function ProductDetailContent() {
   const displayDesc = locale === "en" && product.description_en ? product.description_en : product.description;
   const displayBadge = locale === "en" && product.badge_en ? product.badge_en : product.badge;
   const displayCategory = locale === "en" && product.category_en ? product.category_en : product.category;
+  const activeVersion = (product.versions || []).find((version) => version.id === activeVersionId) || null;
+  const isVersionedProduct = product.product_type === "device_versions" || (product.versions || []).length > 0;
+  const effectiveName = activeVersion?.version_name || displayName;
+  const effectivePrice = activeVersion ? Number(activeVersion.price || 0) : Number(product.price || 0);
+  const effectiveCompareAt = activeVersion?.compare_at_price ? Number(activeVersion.compare_at_price) : 0;
+  const effectiveStock = activeVersion ? Number(activeVersion.stock_quantity || 0) : Number(product.stock_quantity || 0);
+  const effectiveSku = activeVersion?.sku || product.sku || "";
+  const canAddProduct = isVersionedProduct ? Boolean(activeVersion && activeVersion.status !== "inactive" && effectiveStock > 0) : product.is_in_stock !== false;
 
   const handleAddToCart = () => {
+    if (isVersionedProduct && !activeVersion) {
+      setColorError(locale === "ar" ? "الرجاء اختيار موديل الهاتف أولا" : "Please select a phone model first");
+      return;
+    }
     if (productColors.length > 1 && !activeColor) {
       setColorError(locale === "ar" ? "الرجاء اختيار اللون أولاً" : "Please select a color first");
       return;
     }
 
     for (let i = 0; i < quantity; i++) {
-      addToCart({ ...product, selectedColor: activeColor });
+      addToCart({
+        ...product,
+        name: effectiveName,
+        price: effectivePrice,
+        image: mainImage || activeVersion?.main_image_url || product.image,
+        sku: effectiveSku,
+        stock_quantity: effectiveStock,
+        is_in_stock: canAddProduct,
+        selectedColor: activeColor,
+        selectedVersion: activeVersion,
+      });
     }
     router.push("/cart");
   };
 
   return (
-    <main style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'var(--font-sans)' }}>
+    <main className="apple-product-page" style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'var(--font-sans)' }}>
       {/* Hero Section */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '48px', marginBottom: '64px', alignItems: 'start' }}>
+      <section className="apple-product-hero" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '48px', marginBottom: '64px', alignItems: 'start' }}>
         
         {/* Info Column (Left typically, but standard flow puts it first in DOM. We can use dir='ltr'/'rtl' to manage right/left natively) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', order: locale === "ar" ? 2 : 1 }}>
+        <div className="apple-product-info" style={{ display: 'flex', flexDirection: 'column', gap: '24px', order: locale === "ar" ? 2 : 1 }}>
           <div>
             {displayBadge && <span style={{ background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px', display: 'inline-block' }}>{displayBadge}</span>}
-            <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{displayName}</h1>
+            <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{effectiveName}</h1>
             <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
             {product.compatible_models && product.compatible_models.length > 1 && (
               <div style={{ marginTop: '16px' }}>
@@ -265,20 +330,46 @@ function ProductDetailContent() {
             )}
           </div>
 
+          {isVersionedProduct && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "اختر موديل الهاتف:" : "Choose phone model:"}</span>
+              <select
+                value={activeVersionId}
+                onChange={(event) => {
+                  const version = (product.versions || []).find((item) => item.id === event.target.value) || null;
+                  setActiveVersionId(event.target.value);
+                  setColorError("");
+                  if (version) {
+                    const nextImage = version.main_image_url || (Array.isArray(version.images) ? version.images[0] : "") || product.image;
+                    setMainImage(nextImage);
+                  }
+                }}
+                style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--panel)', color: 'var(--text)', fontWeight: '700' }}
+              >
+                <option value="">{locale === "ar" ? "اختر الموديل" : "Select model"}</option>
+                {(product.versions || []).map((version) => (
+                  <option key={version.id} value={version.id} disabled={version.status === "inactive" || Number(version.stock_quantity || 0) <= 0}>
+                    {version.phone_model} - {formatMoney(Number(version.price || 0))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0070f3' }}>
-            {formatMoney(product.price)} <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 'normal' }}>{locale === "ar" ? "شامل ضريبة القيمة المضافة" : "VAT included"}</span>
+            {formatMoney(effectivePrice)} {effectiveCompareAt > effectivePrice && <span style={{ fontSize: '16px', color: 'var(--muted)', textDecoration: 'line-through', marginInlineStart: '8px' }}>{formatMoney(effectiveCompareAt)}</span>} <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 'normal' }}>{locale === "ar" ? "شامل ضريبة القيمة المضافة" : "VAT included"}</span>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', background: 'var(--input-bg)', padding: '16px', borderRadius: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "حالة المخزون" : "Availability"}</span>
-              <strong style={{ fontSize: '14px', color: product.is_in_stock === false ? '#ff4d4d' : '#4caf50' }}>
-                {product.is_in_stock === false ? (locale === "ar" ? "نفد من المخزون" : "Out of stock") : (locale === "ar" ? "متوفر" : "In stock")}
+              <strong style={{ fontSize: '14px', color: !canAddProduct ? '#ff4d4d' : '#4caf50' }}>
+                {!canAddProduct ? (locale === "ar" ? "نفد من المخزون" : "Out of stock") : (locale === "ar" ? `متوفر - ${effectiveStock} قطعة` : `In stock - ${effectiveStock} available`)}
               </strong>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: locale === 'en' ? '1px solid var(--line)' : 'none', borderRight: locale === 'ar' ? '1px solid var(--line)' : 'none', paddingLeft: locale === 'en' ? '16px' : 0, paddingRight: locale === 'ar' ? '16px' : 0 }}>
               <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "رمز المنتج" : "SKU"}</span>
-              <strong style={{ fontSize: '14px' }}>{product.sku || (locale === "ar" ? "بدون" : "None")}</strong>
+              <strong style={{ fontSize: '14px' }}>{effectiveSku || (locale === "ar" ? "بدون" : "None")}</strong>
             </div>
           </div>
 
@@ -287,14 +378,19 @@ function ProductDetailContent() {
               <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "الألوان المتاحة:" : "Available Colors:"}</span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                 {productColors.map((color, idx) => {
-                  const isSelected = activeColor?.hex === color.hex;
+                  const isSelected = activeColor && (color.name ? activeColor.name === color.name : activeColor.hex === color.hex);
                   return (
                     <button
                       key={idx}
                       type="button"
                       title={color.name}
                       onClick={() => {
-                        if (color.image) setMainImage(color.image);
+                        const colorImages = getColorImages(color);
+                        if (colorImages.length > 0) {
+                          setMainImage(colorImages[0]);
+                        } else if (product.image) {
+                          setMainImage(product.image);
+                        }
                         setActiveColor(color);
                         setColorError("");
                       }}
@@ -350,16 +446,16 @@ function ProductDetailContent() {
 
           <button
             type="button"
-            disabled={product.is_in_stock === false}
+            disabled={!canAddProduct}
             onClick={handleAddToCart}
-            style={{ width: '100%', padding: '18px', borderRadius: '16px', border: 'none', background: '#0070f3', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: product.is_in_stock === false ? 'not-allowed' : 'pointer', opacity: product.is_in_stock === false ? 0.5 : 1, transition: 'all 0.3s', boxShadow: '0 8px 24px rgba(0, 112, 243, 0.4)', marginTop: '8px' }}
+            style={{ width: '100%', padding: '18px', borderRadius: '16px', border: 'none', background: '#0070f3', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: !canAddProduct ? 'not-allowed' : 'pointer', opacity: !canAddProduct ? 0.5 : 1, transition: 'all 0.3s', boxShadow: '0 8px 24px rgba(0, 112, 243, 0.4)', marginTop: '8px' }}
           >
             {locale === "ar" ? "أضف إلى السلة" : "Add to Cart"}
           </button>
         </div>
 
         {/* Gallery Column (Right typically, order 2 in standard DOM, or order 1 in AR if we want it on the right) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', order: locale === "ar" ? 1 : 2 }}>
+        <div className="apple-product-gallery" style={{ display: 'flex', flexDirection: 'column', gap: '16px', order: locale === "ar" ? 1 : 2 }}>
           <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px', overflow: 'hidden' }}>
              {mainImage ? (
                <div 
@@ -380,7 +476,7 @@ function ProductDetailContent() {
                >
                  <img 
                    src={mainImage} 
-                   alt={displayName} 
+                   alt={effectiveName}
                    decoding="async" 
                    style={{ 
                      width: '100%', 
@@ -418,7 +514,7 @@ function ProductDetailContent() {
 
       {/* Description Section */}
       {displayDesc && (
-        <section style={{ marginBottom: '64px', background: 'var(--panel)', padding: '40px', borderRadius: '24px', border: '1px solid var(--line)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
+        <section className="apple-product-description" style={{ marginBottom: '64px', background: 'var(--panel)', padding: '40px', borderRadius: '24px', border: '1px solid var(--line)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: '22px', marginBottom: '24px', borderBottom: '1px solid var(--line)', paddingBottom: '16px' }}>{locale === "ar" ? "التفاصيل الوصفية" : "Description"}</h2>
           <div style={{ fontSize: '16px', lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-line' }}>
             {displayDesc}
@@ -428,7 +524,7 @@ function ProductDetailContent() {
 
       {/* Suggested Products Section */}
       {suggestedProducts.length > 0 && (
-        <section>
+        <section className="apple-product-suggestions">
           <h2 style={{ fontSize: '24px', marginBottom: '24px' }}>{locale === "ar" ? "منتجات قد تعجبك" : "Suggested Products"}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px' }}>
             {suggestedProducts.map(p => {

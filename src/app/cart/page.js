@@ -201,7 +201,10 @@ function CartContent() {
         tipAmount: formData.tipAmount,
         branchLocation: formData.deliveryMethod === 'pickup' ? "Cover Up Main Branch, Cairo" : "",
         items: cartEntries.map((item) => ({
-          id: item.id,
+          id: item.product.id || item.id.split("::")[0],
+          cartKey: item.id,
+          product_version_id: item.product.product_version_id || item.product.selectedVersion?.id || null,
+          phone_model: item.product.phone_model || item.product.selectedVersion?.phone_model || "",
           quantity: item.quantity,
           color: item.product.selectedColor || null
         })),
@@ -261,6 +264,11 @@ function CartContent() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                             <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: item.product.selectedColor.hex, border: '1px solid rgba(0,0,0,0.1)' }} />
                             <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{item.product.selectedColor.name}</span>
+                          </div>
+                        )}
+                        {(item.product.phone_model || item.product.selectedVersion?.phone_model) && (
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
+                            {locale === "ar" ? "الموديل: " : "Model: "}{item.product.phone_model || item.product.selectedVersion?.phone_model}
                           </div>
                         )}
                         <strong style={{ fontSize: '18px', color: '#0070f3' }}>{formatMoney(item.product.price * item.quantity)}</strong>

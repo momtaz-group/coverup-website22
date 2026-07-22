@@ -5,6 +5,12 @@ const TABLES = {
   complaints: "complaints",
   chats: "chats",
   profiles: "profiles",
+  categories: "product_sections",
+  productVersions: "product_versions",
+  productVersionImages: "product_version_images",
+  brands: "brands",
+  deviceFamilies: "device_families",
+  deviceModels: "device_models",
 };
 
 const ORDER_STATUSES = [
@@ -117,6 +123,24 @@ function cleanArray(value) {
   return [];
 }
 
+function slugify(value, fallback = "item") {
+  const slug = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || fallback;
+}
+
+function publicImages(id, images) {
+  return cleanArray(images)
+    .filter((image) => !image.startsWith("data:image/"))
+    .map((image) => publicProductImage(id, image))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 function toBoolean(value, fallback = false) {
   if (typeof value === "boolean") {
     return value;
@@ -172,9 +196,17 @@ function publicProductImages(id, images) {
 }
 
 function productFromDb(row) {
-  const parsedColors = cleanArray(row.colors).map(c => {
+  let rawColors = Array.isArray(row.colors) ? row.colors : cleanArray(row.colors);
+  if (typeof row.colors === "string") {
     try {
-      if (c.startsWith("{") || c.startsWith("[")) {
+      const decodedColors = JSON.parse(row.colors);
+      if (Array.isArray(decodedColors)) rawColors = decodedColors;
+    } catch {}
+  }
+  const parsedColors = rawColors.map(c => {
+    if (c && typeof c === "object") return c;
+    try {
+      if (typeof c === "string" && (c.startsWith("{") || c.startsWith("["))) {
         return JSON.parse(c);
       }
     } catch {}
@@ -204,6 +236,7 @@ function productFromDb(row) {
     material: row.material || "",
     featured: Boolean(row.featured),
     status: row.status || "public",
+    product_type: row.product_type || "simple",
     brand: row.brand || "",
     product_family: row.product_family || "",
     tags: cleanArray(row.tags),
@@ -242,6 +275,7 @@ function productToDb(product) {
     material: String(product.material || "").trim(),
     featured: toBoolean(product.featured, false),
     status: String(product.status || "public").trim(),
+    product_type: String(product.product_type || product.productType || "simple").trim(),
     brand: String(product.brand || "").trim(),
     product_family: String(product.product_family || "").trim(),
     tags: cleanArray(product.tags),
@@ -360,9 +394,296 @@ async function getProductById(id) {
   return rows[0] ? productFromDb(rows[0]) : null;
 }
 
+function productVersionFromDb(row, images = []) {
+  return {
+    id: row.id,
+    product_id: row.product_id,
+    version_name: String(row.version_name || row.phone_model || "").trim(),
+    device_model_id: String(row.device_model_id || "").trim(),
+    brand_id: String(row.brand_id || "").trim(),
+    family_id: String(row.family_id || "").trim(),
+    phone_model: String(row.phone_model || "").trim(),
+    brand: String(row.brand || row.brand_name || "").trim(),
+    product_family: String(row.product_family || row.family_name || "").trim(),
+    sku: String(row.sku || "").trim(),
+    barcode: String(row.barcode || "").trim(),
+    price: Number(row.price || 0),
+    compare_at_price: row.compare_at_price == null ? "" : Number(row.compare_at_price),
+    stock_quantity: Number(row.stock_quantity || 0),
+    main_image_url: publicProductImage(row.product_id, row.main_image_url || ""),
+    images: publicImages(row.product_id, images),
+    status: row.status || (row.is_active === false ? "inactive" : "active"),
+    is_active: row.status ? row.status === "active" : row.is_active !== false,
+    sort_order: Number(row.sort_order || 0),
+  };
+}
+
+async function getProductVersions(productId, { service = false } = {}) {
+  const rows = await supabaseRequest(TABLES.productVersions, {
+    service,
+    query: `?select=*&product_id=eq.${encodeURIComponent(productId)}&deleted_at=is.null&order=sort_order.asc,created_at.asc`,
+  });
+  if (!rows.length) return [];
+
+  const imageRows = await supabaseRequest(TABLES.productVersionImages, {
+    service,
+    query: `?select=*&product_version_id=in.(${rows.map((row) => encodeURIComponent(row.id)).join(",")})&order=sort_order.asc,created_at.asc`,
+  }).catch(() => []);
+  const imagesByVersion = new Map();
+  for (const imageRow of imageRows) {
+    const list = imagesByVersion.get(imageRow.product_version_id) || [];
+    list.push(imageRow.image_url);
+    imagesByVersion.set(imageRow.product_version_id, list);
+  }
+
+  return rows.map((row) => productVersionFromDb(row, imagesByVersion.get(row.id) || []));
+}
+
+async function getProductVersionById(versionId, { service = true } = {}) {
+  const rows = await supabaseRequest(TABLES.productVersions, {
+    service,
+    query: `?select=*&id=eq.${encodeURIComponent(versionId)}&deleted_at=is.null&limit=1`,
+  });
+  if (!rows[0]) return null;
+  const imageRows = await supabaseRequest(TABLES.productVersionImages, {
+    service,
+    query: `?select=*&product_version_id=eq.${encodeURIComponent(versionId)}&order=sort_order.asc,created_at.asc`,
+  }).catch(() => []);
+  return productVersionFromDb(rows[0], imageRows.map((row) => row.image_url));
+}
+
+async function upsertById(table, id, body) {
+  const existing = await supabaseRequest(table, {
+    service: true,
+    query: `?select=id&id=eq.${encodeURIComponent(id)}&limit=1`,
+  });
+  if (existing.length) {
+    const rows = await supabaseRequest(table, {
+      service: true,
+      method: "PATCH",
+      query: `?id=eq.${encodeURIComponent(id)}`,
+      body,
+    });
+    return rows[0] || null;
+  }
+  const rows = await supabaseRequest(table, {
+    service: true,
+    method: "POST",
+    body: { id, ...body },
+  });
+  return rows[0] || null;
+}
+
+async function ensureDeviceCatalog({ brand, product_family, phone_model }) {
+  const brandName = String(brand || "Unknown").trim().slice(0, 80) || "Unknown";
+  const familyName = String(product_family || "Devices").trim().slice(0, 100) || "Devices";
+  const modelName = String(phone_model || "").trim().slice(0, 120);
+  if (!modelName) {
+    throw new Error("Phone model is required for every product version.");
+  }
+
+  const brandId = slugify(brandName, "unknown");
+  const familyId = `${brandId}-${slugify(familyName, "devices")}`;
+  const deviceModelId = `${familyId}-${slugify(modelName, "model")}`;
+
+  await upsertById(TABLES.brands, brandId, {
+    name: brandName,
+    slug: brandId,
+    updated_at: new Date().toISOString(),
+  });
+  await upsertById(TABLES.deviceFamilies, familyId, {
+    brand_id: brandId,
+    name: familyName,
+    slug: slugify(familyName, "devices"),
+    updated_at: new Date().toISOString(),
+  });
+  await upsertById(TABLES.deviceModels, deviceModelId, {
+    brand_id: brandId,
+    family_id: familyId,
+    name: modelName,
+    slug: slugify(modelName, "model"),
+    active: true,
+    updated_at: new Date().toISOString(),
+  });
+
+  return { brandId, familyId, deviceModelId, brandName, familyName, modelName };
+}
+
+async function replaceVersionImages(versionId, images = []) {
+  await supabaseRequest(TABLES.productVersionImages, {
+    service: true,
+    method: "DELETE",
+    query: `?product_version_id=eq.${encodeURIComponent(versionId)}`,
+    prefer: "return=minimal",
+  });
+
+  const rows = publicImages("", images)
+    .map((image_url, sort_order) => ({ product_version_id: versionId, image_url, sort_order }));
+  if (!rows.length) return [];
+  return supabaseRequest(TABLES.productVersionImages, {
+    service: true,
+    method: "POST",
+    body: rows,
+  });
+}
+
+async function replaceProductVersions(productId, versions = []) {
+  const cleanProductId = String(productId || "").trim();
+  const uniqueVersions = [];
+  const seenModels = new Set();
+  const seenSkus = new Set();
+
+  for (const rawVersion of versions) {
+    const phoneModel = String(rawVersion.phone_model || rawVersion.phoneModel || "").trim().slice(0, 120);
+    const sku = String(rawVersion.sku || "").trim().slice(0, 120);
+    const versionName = String(rawVersion.version_name || rawVersion.versionName || "").trim().slice(0, 180);
+    const modelKey = phoneModel.toLowerCase();
+    const skuKey = sku.toLowerCase();
+    if (!phoneModel) throw new Error("Every version needs a phone model.");
+    if (!versionName) throw new Error("Every version needs a version name.");
+    if (!sku) throw new Error("Every version needs a SKU.");
+    if (seenModels.has(modelKey)) throw new Error(`Duplicate phone model: ${phoneModel}`);
+    if (seenSkus.has(skuKey)) throw new Error(`Duplicate SKU: ${sku}`);
+    if (rawVersion.price === "" || rawVersion.price == null || Number(rawVersion.price) < 0) {
+      throw new Error(`Version ${versionName} needs a valid price.`);
+    }
+    if (rawVersion.stock_quantity === "" || rawVersion.stockQuantity === "" || rawVersion.stock_quantity == null || rawVersion.stockQuantity == null) {
+      throw new Error(`Version ${versionName} needs a valid stock quantity.`);
+    }
+
+    seenModels.add(modelKey);
+    seenSkus.add(skuKey);
+    uniqueVersions.push(rawVersion);
+  }
+
+  const current = await getProductVersions(cleanProductId, { service: true });
+  const savedIds = new Set();
+  const savedVersions = [];
+
+  for (const [index, rawVersion] of uniqueVersions.entries()) {
+    const catalog = await ensureDeviceCatalog({
+      brand: rawVersion.brand,
+      product_family: rawVersion.product_family || rawVersion.productFamily,
+      phone_model: rawVersion.phone_model || rawVersion.phoneModel,
+    });
+    const existing = rawVersion.id
+      ? current.find((version) => version.id === rawVersion.id)
+      : current.find((version) => version.device_model_id === catalog.deviceModelId);
+    const body = {
+      product_id: cleanProductId,
+      version_name: String(rawVersion.version_name || rawVersion.versionName || "").trim().slice(0, 180),
+      device_model_id: catalog.deviceModelId,
+      brand_id: catalog.brandId,
+      family_id: catalog.familyId,
+      brand: catalog.brandName,
+      product_family: catalog.familyName,
+      phone_model: catalog.modelName,
+      sku: String(rawVersion.sku || "").trim().slice(0, 120),
+      barcode: String(rawVersion.barcode || "").trim().slice(0, 120),
+      price: Math.max(0, Number(rawVersion.price) || 0),
+      compare_at_price: rawVersion.compare_at_price === "" || rawVersion.compareAtPrice === "" || (rawVersion.compare_at_price == null && rawVersion.compareAtPrice == null)
+        ? null
+        : Math.max(0, Number(rawVersion.compare_at_price ?? rawVersion.compareAtPrice) || 0),
+      stock_quantity: Math.max(0, Math.floor(Number(rawVersion.stock_quantity ?? rawVersion.stockQuantity) || 0)),
+      main_image_url: String(rawVersion.main_image_url || rawVersion.mainImageUrl || "").trim(),
+      status: rawVersion.status === "inactive" || rawVersion.is_active === false ? "inactive" : "active",
+      is_active: rawVersion.status !== "inactive" && rawVersion.is_active !== false,
+      sort_order: Math.max(0, Number(rawVersion.sort_order ?? rawVersion.sortOrder ?? index) || 0),
+      deleted_at: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const rows = await supabaseRequest(TABLES.productVersions, existing ? {
+      service: true,
+      method: "PATCH",
+      query: `?id=eq.${encodeURIComponent(existing.id)}`,
+      body,
+    } : {
+      service: true,
+      method: "POST",
+      body,
+    });
+    const saved = rows[0];
+    if (saved?.id) {
+      savedIds.add(saved.id);
+      await replaceVersionImages(saved.id, rawVersion.images || rawVersion.gallery_images || rawVersion.galleryImages || []);
+      savedVersions.push(productVersionFromDb(saved, rawVersion.images || []));
+    }
+  }
+
+  const idsToDisable = current.map((version) => version.id).filter((id) => !savedIds.has(id));
+  for (const id of idsToDisable) {
+    await supabaseRequest(TABLES.productVersions, {
+      service: true,
+      method: "PATCH",
+      query: `?id=eq.${encodeURIComponent(id)}`,
+      body: { status: "inactive", is_active: false, deleted_at: new Date().toISOString() },
+      prefer: "return=minimal",
+    });
+  }
+
+  return savedVersions;
+}
+
+function categoryFromDb(row) {
+  return {
+    id: row.id ?? row.name,
+    name: String(row.name || "").trim(),
+    image_url: String(row.image_url || "").trim(),
+    sort_order: Number(row.sort_order || 0),
+    is_active: row.is_active !== false,
+    created_at: row.created_at || null,
+  };
+}
+
+async function getCategories({ service = false, includeInactive = false } = {}) {
+  const filters = includeInactive ? "" : "&is_active=eq.true";
+  const rows = await supabaseRequest(TABLES.categories, {
+    service,
+    query: `?select=*&order=sort_order.asc,created_at.asc${filters}`,
+  });
+  return rows.map(categoryFromDb).filter((category) => category.name);
+}
+
+async function upsertCategory(category) {
+  const name = String(category.name || "").trim().slice(0, 100);
+  const imageUrl = String(category.image_url || "").trim();
+  if (!name || !imageUrl) {
+    throw new Error("اسم القسم وصورته مطلوبان.");
+  }
+  if (name.toLowerCase() === "all" || name === "الكل") {
+    throw new Error("قسم الكل موجود تلقائياً ولا يحتاج إلى إضافته.");
+  }
+
+  const existingRows = await supabaseRequest(TABLES.categories, {
+    service: true,
+    query: `?select=*&name=eq.${encodeURIComponent(name)}&limit=1`,
+  });
+  const body = {
+    name,
+    image_url: imageUrl,
+    sort_order: Math.max(0, Number(category.sort_order || 0)),
+    is_active: category.is_active !== false,
+    updated_at: new Date().toISOString(),
+  };
+
+  const rows = await supabaseRequest(TABLES.categories, existingRows.length ? {
+    service: true,
+    method: "PATCH",
+    query: `?name=eq.${encodeURIComponent(name)}`,
+    body,
+  } : {
+    service: true,
+    method: "POST",
+    body,
+  });
+
+  return rows[0] ? categoryFromDb(rows[0]) : null;
+}
+
 async function upsertProduct(product) {
   const row = productToDb(product);
-  if (!row.id || !row.name || row.price <= 0) {
+  if (!row.id || !row.name || (row.product_type !== "device_versions" && row.price <= 0)) {
     throw new Error("بيانات المنتج ناقصة.");
   }
 
@@ -672,6 +993,29 @@ async function updateProductStock(productId, nextQuantity) {
   return rows[0] ? productFromDb(rows[0]) : null;
 }
 
+async function updateProductVersionStock(versionId, nextQuantity) {
+  const quantity = Math.max(0, Number(nextQuantity || 0));
+  const rows = await supabaseRequest(TABLES.productVersions, {
+    service: true,
+    method: "PATCH",
+    query: `?id=eq.${encodeURIComponent(versionId)}`,
+    body: {
+      stock_quantity: quantity,
+      updated_at: new Date().toISOString(),
+    },
+  });
+
+  return rows[0] ? productVersionFromDb(rows[0]) : null;
+}
+
+async function productForOrderItem(item) {
+  const product = await getProductById(item.id);
+  if (!product) return { product: null, version: null };
+  const versionId = String(item.product_version_id || item.version_id || "").trim();
+  const version = versionId ? await getProductVersionById(versionId, { service: true }) : null;
+  return { product, version };
+}
+
 async function reserveInventoryForOrder(order) {
   const current = order?.id ? await findOrderById(order.id) : order;
   if (!current) {
@@ -683,14 +1027,15 @@ async function reserveInventoryForOrder(order) {
   }
 
   for (const item of current.items || []) {
-    const product = await getProductById(item.id);
+    const { product, version } = await productForOrderItem(item);
     if (!product) {
       throw new Error(`المنتج ${item.name || item.id} لم يعد متاحًا.`);
     }
 
     const requested = Math.max(0, Number(item.quantity || 0));
-    const trackedStock = Number(product.stock_quantity || 0);
-    if (product.is_in_stock === false) {
+    const stockSource = version || product;
+    const trackedStock = Number(stockSource.stock_quantity || 0);
+    if ((version && version.status !== "active") || (!version && product.is_in_stock === false)) {
       throw new Error(`المنتج ${product.name} لم يعد متاحًا.`);
     }
 
@@ -700,8 +1045,10 @@ async function reserveInventoryForOrder(order) {
   }
 
   for (const item of current.items || []) {
-    const product = await getProductById(item.id);
-    if (Number(product.stock_quantity || 0) > 0) {
+    const { product, version } = await productForOrderItem(item);
+    if (version && Number(version.stock_quantity || 0) > 0) {
+      await updateProductVersionStock(version.id, version.stock_quantity - Number(item.quantity || 0));
+    } else if (product && Number(product.stock_quantity || 0) > 0) {
       await updateProductStock(item.id, product.stock_quantity - Number(item.quantity || 0));
     }
   }
@@ -716,12 +1063,12 @@ async function releaseInventoryForOrder(order) {
   }
 
   for (const item of current.items || []) {
-    const product = await getProductById(item.id);
-    if (!product) {
-      continue;
+    const { product, version } = await productForOrderItem(item);
+    if (version) {
+      await updateProductVersionStock(version.id, version.stock_quantity + Number(item.quantity || 0));
+    } else if (product) {
+      await updateProductStock(item.id, product.stock_quantity + Number(item.quantity || 0));
     }
-
-    await updateProductStock(item.id, product.stock_quantity + Number(item.quantity || 0));
   }
 
   return updateOrder(current.id, { inventory_reserved: false });
@@ -950,11 +1297,15 @@ export {
   getEvents,
   getPublicProductReviews,
   getProductById,
+  getProductVersionById,
+  getProductVersions,
+  getCategories,
   getProducts,
   getCustomerOrdersForTracking,
   orderFromDb,
   productFromDb,
   releaseInventoryForOrder,
+  replaceProductVersions,
   requireAdmin,
   reserveInventoryForOrder,
   sendJson,
@@ -967,6 +1318,7 @@ export {
   updateOrderStatus,
   uploadStorageObjectFromDataUrl,
   upsertProduct,
+  upsertCategory,
   deleteProduct,
   deleteOrder,
   logEmail,

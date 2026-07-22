@@ -1,15 +1,56 @@
 import React, { useState } from "react";
 import { brandsData, FAMOUS_COLORS } from "@/utils/brandsData";
-import { supabase } from "@/utils/supabase";
 
-export default function ProductEditor({ form, setForm, imageFile, setImageFile, galleryFiles, setGalleryFiles, sections, setSections, onSubmit, onDelete, onClose }) {
+export default function ProductEditor({ form, setForm, imageFile, setImageFile, galleryFiles, setGalleryFiles, sections, onSubmit, onDelete, onClose }) {
   const [customModelInput, setCustomModelInput] = useState("");
-  const [newSection, setNewSection] = useState("");
   const [newColorHex, setNewColorHex] = useState("#000000");
   const [newColorName, setNewColorName] = useState("");
+  const [bulkBrand, setBulkBrand] = useState("");
+  const [bulkFamily, setBulkFamily] = useState("");
+  const [bulkModels, setBulkModels] = useState([]);
+
+  const deviceCategoryPatterns = [
+    "phone cases",
+    "phone covers",
+    "cases",
+    "covers",
+    "screen protectors",
+    "screen protection",
+    "كفر",
+    "كفرات",
+    "حماية الشاشة",
+    "اسكرينة",
+    "سكرينة",
+  ];
+  const supportsDeviceVersions = deviceCategoryPatterns.some((pattern) =>
+    String(form.category || "").trim().toLowerCase().includes(pattern),
+  );
 
   const selectedBrand = brandsData.find(b => b.brand === form.brand) || null;
   const selectedFamily = selectedBrand?.families.find(f => f.family === form.product_family) || null;
+  const availableModels = Array.from(new Set([...(selectedFamily?.models || []), ...(form.compatible_models || [])]));
+  const bulkSelectedBrand = brandsData.find(b => b.brand === bulkBrand) || null;
+  const bulkSelectedFamily = bulkSelectedBrand?.families.find(f => f.family === bulkFamily) || null;
+  const bulkAvailableModels = bulkSelectedFamily?.models || [];
+
+  const makeVersionName = (phoneModel) => [form.name, phoneModel].filter(Boolean).join(" - ");
+
+  const normalizeVersion = (version = {}, index = 0) => ({
+    version_name: version.version_name || version.versionName || makeVersionName(version.phone_model || ""),
+    brand: version.brand || form.brand || "",
+    product_family: version.product_family || version.productFamily || form.product_family || "",
+    phone_model: version.phone_model || version.phoneModel || "",
+    sku: version.sku || "",
+    barcode: version.barcode || "",
+    price: version.price ?? form.price ?? "",
+    compare_at_price: version.compare_at_price ?? version.compareAtPrice ?? "",
+    stock_quantity: version.stock_quantity ?? version.stockQuantity ?? form.stock_quantity ?? "",
+    main_image_url: version.main_image_url || version.mainImageUrl || "",
+    images: Array.isArray(version.images) ? version.images : [],
+    status: version.status || (version.is_active === false ? "inactive" : "active"),
+    sort_order: version.sort_order ?? version.sortOrder ?? index,
+    ...version,
+  });
 
   const handleAddCustomModel = () => {
     if (!customModelInput.trim()) return;
@@ -19,20 +60,6 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
       setForm({ ...form, compatible_models: [...current, model] });
     }
     setCustomModelInput("");
-  };
-
-  const handleAddSection = async () => {
-    if (!newSection.trim()) return;
-    const name = newSection.trim();
-    if (sections.includes(name)) {
-      setForm({ ...form, category: name });
-      setNewSection("");
-      return;
-    }
-    await supabase.from("product_sections").insert([{ name }]);
-    setSections([...sections, name]);
-    setForm({ ...form, category: name });
-    setNewSection("");
   };
 
   const handleAddColor = (colorObj) => {
@@ -52,6 +79,77 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
     } else {
       setForm({ ...form, compatible_models: [...current, model] });
     }
+  };
+
+  const addVersion = () => {
+    const usedModels = new Set((form.versions || []).map(version => version.phone_model));
+    const phoneModel = availableModels.find(model => !usedModels.has(model)) || "";
+    setForm({
+      ...form,
+      versions: [...(form.versions || []), normalizeVersion({ phone_model: phoneModel }, (form.versions || []).length)],
+    });
+  };
+
+  const updateVersion = (index, field, value) => {
+    const versions = [...(form.versions || [])];
+    versions[index] = { ...versions[index], [field]: value };
+    const compatibleModels = field === "phone_model" && value.trim()
+      ? Array.from(new Set([...(form.compatible_models || []), value.trim()]))
+      : form.compatible_models;
+    setForm({ ...form, versions, compatible_models: compatibleModels });
+  };
+
+  const updateVersionPhoneModel = (index, phoneModel) => {
+    const versions = [...(form.versions || [])];
+    const previous = versions[index] || {};
+    const previousAutoName = makeVersionName(previous.phone_model || "");
+    versions[index] = {
+      ...previous,
+      phone_model: phoneModel,
+      version_name: !previous.version_name || previous.version_name === previousAutoName
+        ? makeVersionName(phoneModel)
+        : previous.version_name,
+    };
+    setForm({
+      ...form,
+      versions,
+      compatible_models: phoneModel.trim()
+        ? Array.from(new Set([...(form.compatible_models || []), phoneModel.trim()]))
+        : form.compatible_models,
+    });
+  };
+
+  const removeVersion = (index) => {
+    setForm({ ...form, versions: (form.versions || []).filter((_, versionIndex) => versionIndex !== index) });
+  };
+
+  const duplicateVersion = (index) => {
+    const versions = [...(form.versions || [])];
+    const copy = { ...normalizeVersion(versions[index], versions.length), id: undefined, sku: "", phone_model: "", version_name: `${versions[index]?.version_name || form.name} Copy` };
+    versions.splice(index + 1, 0, copy);
+    setForm({ ...form, versions });
+  };
+
+  const addBulkVersions = () => {
+    if (!bulkBrand || !bulkFamily || bulkModels.length === 0) return;
+    const existing = new Set((form.versions || []).map(version => String(version.phone_model || "").toLowerCase()));
+    const generated = bulkModels
+      .filter(model => !existing.has(model.toLowerCase()))
+      .map((model, offset) => normalizeVersion({
+        brand: bulkBrand,
+        product_family: bulkFamily,
+        phone_model: model,
+        version_name: makeVersionName(model),
+      }, (form.versions || []).length + offset));
+    if (!generated.length) return;
+    setForm({
+      ...form,
+      brand: form.brand || bulkBrand,
+      product_family: form.product_family || bulkFamily,
+      compatible_models: Array.from(new Set([...(form.compatible_models || []), ...generated.map(version => version.phone_model)])),
+      versions: [...(form.versions || []), ...generated],
+    });
+    setBulkModels([]);
   };
 
   const removeMainImageFile = () => setImageFile(null);
@@ -177,29 +275,31 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
             <div style={{ display: "flex", gap: "8px" }}>
               <select 
                 value={form.category || ""} 
-                onChange={e => setForm({...form, category: e.target.value})} 
+                onChange={e => {
+                  const nextCategory = e.target.value;
+                  const nextSupportsVersions = deviceCategoryPatterns.some((pattern) => nextCategory.trim().toLowerCase().includes(pattern));
+                  if (supportsDeviceVersions && !nextSupportsVersions && (form.versions || []).length > 0) {
+                    const confirmed = window.confirm("تغيير هذا القسم إلى قسم عادي سيؤدي إلى إزالة إصدارات الأجهزة لهذا المنتج. هل أنت متاكد من المتابعة؟");
+                    if (!confirmed) return;
+                  }
+                  setForm({
+                    ...form,
+                    category: nextCategory,
+                    product_type: nextSupportsVersions ? "device_versions" : "simple",
+                    versions: nextSupportsVersions ? (form.versions || []) : [],
+                    brand: nextSupportsVersions ? form.brand : "",
+                    product_family: nextSupportsVersions ? form.product_family : "",
+                    compatible_models: nextSupportsVersions ? (form.compatible_models || []) : [],
+                  });
+                }}
+                required
                 style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", color: "var(--text)" }}
               >
                 <option value="">-- اختر القسم --</option>
                 {sections.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <div style={{ display: "flex", gap: "4px" }}>
-                <input 
-                  type="text" 
-                  placeholder="قسم جديد" 
-                  value={newSection} 
-                  onChange={e => setNewSection(e.target.value)} 
-                  style={{ width: "100px", padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", background: "#fff", color: "var(--text)" }} 
-                />
-                <button 
-                  type="button" 
-                  onClick={handleAddSection} 
-                  style={{ padding: "0 12px", borderRadius: "8px", border: "none", background: "#0070f3", color: "#fff", cursor: "pointer", fontWeight: "bold" }}
-                >
-                  +
-                </button>
-              </div>
             </div>
+            {!sections.length && <span style={{ color: "#c52d45", fontSize: "0.82rem" }}>أضف قسماً من تبويب الأقسام أولاً.</span>}
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             SKU
@@ -210,11 +310,11 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             السعر (EGP)
-            <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)" }} />
+            <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required={!supportsDeviceVersions} style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)" }} />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             الكمية بالمخزن (Stock)
-            <input type="number" min="0" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} required style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)" }} />
+            <input type="number" min="0" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: e.target.value})} required={!supportsDeviceVersions} style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--panel-soft)", color: "var(--text)" }} />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600" }}>
             شارة المنتج (Badge)
@@ -233,6 +333,7 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
         </label>
 
         {/* Brands & Models Hierarchy */}
+        {supportsDeviceVersions && (
         <div style={{ padding: "20px", background: "var(--panel-soft)", borderRadius: "16px", border: "1px solid var(--line)" }}>
           <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem" }}>الأجهزة المتوافقة (Brand & Models)</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
@@ -265,6 +366,129 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
                 {selectedBrand?.families.map(f => <option key={f.family} value={f.family} />)}
               </datalist>
             </label>
+          </div>
+
+          <div className="product-versions-panel">
+            <div className="product-versions-header">
+              <h3>Product Versions</h3>
+              <button type="button" onClick={addVersion}>Add Version</button>
+            </div>
+
+            <div className="product-versions-bulk">
+              <select value={bulkBrand} onChange={(event) => { setBulkBrand(event.target.value); setBulkFamily(""); setBulkModels([]); }}>
+                <option value="">Brand</option>
+                {brandsData.map((brand) => <option key={brand.brand} value={brand.brand}>{brand.brand}</option>)}
+              </select>
+              <select value={bulkFamily} onChange={(event) => { setBulkFamily(event.target.value); setBulkModels([]); }}>
+                <option value="">Product family</option>
+                {bulkSelectedBrand?.families.map((family) => <option key={family.family} value={family.family}>{family.family}</option>)}
+              </select>
+              <select
+                multiple
+                value={bulkModels}
+                onChange={(event) => setBulkModels(Array.from(event.target.selectedOptions).map((option) => option.value))}
+              >
+                {bulkAvailableModels.map((model) => <option key={model} value={model}>{model}</option>)}
+              </select>
+              <button type="button" onClick={addBulkVersions}>Add Multiple Versions</button>
+            </div>
+
+            {(form.versions || []).length === 0 ? (
+              <div className="product-versions-empty">Add at least one phone-model version before saving.</div>
+            ) : (
+              <div className="product-versions-list">
+                {(form.versions || []).map((rawVersion, index) => {
+                  const version = normalizeVersion(rawVersion, index);
+                  const versionBrand = brandsData.find(b => b.brand === version.brand) || null;
+                  const versionFamily = versionBrand?.families.find(f => f.family === version.product_family) || null;
+                  return (
+                    <details className="product-version-card" key={version.id || `version-${index}`} open={index < 2}>
+                      <summary>
+                        <span>{version.version_name || `Version ${index + 1}`}</span>
+                        <strong>{version.stock_quantity || 0} in stock</strong>
+                      </summary>
+                      <div className="product-version-fields">
+                        <label>
+                          Version name
+                          <input value={version.version_name || ""} onChange={(event) => updateVersion(index, "version_name", event.target.value)} required />
+                        </label>
+                        <label>
+                          Brand
+                          <input list="brands-list" value={version.brand || ""} onChange={(event) => updateVersion(index, "brand", event.target.value)} required />
+                        </label>
+                        <label>
+                          Product family
+                          <input list={`version-families-${index}`} value={version.product_family || ""} onChange={(event) => updateVersion(index, "product_family", event.target.value)} required />
+                          <datalist id={`version-families-${index}`}>
+                            {versionBrand?.families.map((family) => <option key={family.family} value={family.family} />)}
+                          </datalist>
+                        </label>
+                        <label>
+                          Phone model
+                          <input
+                            list={`version-models-${index}`}
+                            value={version.phone_model || ""}
+                            onChange={(event) => updateVersionPhoneModel(index, event.target.value)}
+                            required
+                          />
+                          <datalist id={`version-models-${index}`}>
+                            {Array.from(new Set([...(versionFamily?.models || []), ...availableModels])).map(model => <option key={model} value={model} />)}
+                          </datalist>
+                        </label>
+                        <label>
+                          SKU
+                          <input value={version.sku || ""} onChange={(event) => updateVersion(index, "sku", event.target.value)} required />
+                        </label>
+                        <label>
+                          Barcode
+                          <input value={version.barcode || ""} onChange={(event) => updateVersion(index, "barcode", event.target.value)} />
+                        </label>
+                        <label>
+                          Price
+                          <input type="number" min="0" step="0.01" value={version.price ?? ""} onChange={(event) => updateVersion(index, "price", event.target.value)} required />
+                        </label>
+                        <label>
+                          Compare-at price
+                          <input type="number" min="0" step="0.01" value={version.compare_at_price ?? ""} onChange={(event) => updateVersion(index, "compare_at_price", event.target.value)} />
+                        </label>
+                        <label>
+                          Stock
+                          <input type="number" min="0" value={version.stock_quantity ?? ""} onChange={(event) => updateVersion(index, "stock_quantity", event.target.value)} required />
+                        </label>
+                        <label>
+                          Sort order
+                          <input type="number" min="0" value={version.sort_order ?? index} onChange={(event) => updateVersion(index, "sort_order", event.target.value)} />
+                        </label>
+                        <label>
+                          Main image
+                          <input type="file" accept="image/*" onChange={(event) => updateVersion(index, "_mainImageFile", event.target.files?.[0] || null)} />
+                        </label>
+                        <label>
+                          Gallery images
+                          <input type="file" accept="image/*" multiple onChange={(event) => updateVersion(index, "_galleryFiles", Array.from(event.target.files || []))} />
+                        </label>
+                        <label className="product-version-toggle">
+                          <input type="checkbox" checked={version.status !== "inactive"} onChange={(event) => updateVersion(index, "status", event.target.checked ? "active" : "inactive")} />
+                          Active
+                        </label>
+                      </div>
+                      {(version.main_image_url || version._mainImageFile || (version.images || []).length > 0) && (
+                        <div className="product-version-preview">
+                          {(version._mainImageFile || version.main_image_url) && (
+                            <img src={version._mainImageFile ? URL.createObjectURL(version._mainImageFile) : version.main_image_url} alt="" />
+                          )}
+                          {(version.images || []).map((image, imageIndex) => <img key={`${image}-${imageIndex}`} src={image} alt="" />)}
+                        </div>
+                      )}
+                      <div className="product-version-actions">
+                        <button type="button" onClick={() => duplicateVersion(index)}>Duplicate</button>
+                        <button type="button" className="danger" onClick={() => removeVersion(index)}>Delete</button>
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div style={{ marginTop: "20px" }}>
@@ -315,6 +539,7 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
             </label>
           </div>
         </div>
+        )}
 
         {/* Colors System */}
         <div style={{ padding: "20px", background: "var(--panel-soft)", borderRadius: "16px", border: "1px solid var(--line)" }}>

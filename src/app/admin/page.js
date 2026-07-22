@@ -4,10 +4,9 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AdminOrdersTab from "./AdminOrdersTab";
-import { supabase } from "@/utils/supabase";
 import chatStyles from "@/app/chat/page.module.css";
-import { brandsData, FAMOUS_COLORS } from "@/utils/brandsData";
 import ProductEditor from "./ProductEditor";
+import CategoriesTab from "./CategoriesTab";
 
 const ORDER_STATUSES = [
   "new",
@@ -42,6 +41,7 @@ export default function AdminPage() {
     customers: [],
   });
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [memoChats, setMemoChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -79,6 +79,8 @@ export default function AdminPage() {
     brand: "",
     product_family: "",
     compatible_models: [],
+    versions: [],
+    product_type: "simple",
     tags: "", 
     sku: "",
     price: "",
@@ -94,6 +96,17 @@ export default function AdminPage() {
   const [productForm, setProductForm] = useState(initialProductForm);
   const [imageFile, setImageFile] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
+
+  const loadCategories = async () => {
+    const response = await fetch("/api/store-categories?admin=1");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || "فشل تحميل الأقسام.");
+    }
+    const nextCategories = Array.isArray(data.categories) ? data.categories : [];
+    setCategories(nextCategories);
+    setSections(nextCategories.filter((category) => category.is_active !== false).map((category) => category.name));
+  };
 
   // Check admin session and load initial data
   const loadDashboardData = async (isRefresh = false) => {
@@ -117,19 +130,21 @@ export default function AdminPage() {
       // 2. Fetch products
       const prodRes = await fetch("/api/store-products");
       const prodData = await prodRes.json().catch(() => ({}));
-      let uniqueCategories = [];
       if (prodRes.ok && prodData.products) {
         setProducts(prodData.products);
-        uniqueCategories = Array.from(new Set(prodData.products.map(p => p.category).filter(Boolean)));
         if (prodData.products.length > 0 && !posForm.productId) {
           setPosForm((prev) => ({ ...prev, productId: prodData.products[0].id }));
         }
       }
 
-      // 2.5 Fetch Product Sections
-      const { data: secData } = await supabase.from("product_sections").select("name");
-      const dbCategories = secData ? secData.map(s => s.name) : [];
-      setSections(Array.from(new Set([...dbCategories, ...uniqueCategories])));
+      // 2.5 Fetch categories managed by the dedicated admin tab
+      try {
+        await loadCategories();
+      } catch (categoryError) {
+        console.error("Error loading categories:", categoryError);
+        setCategories([]);
+        setSections([]);
+      }
 
       // 3. Fetch registered profiles and roles
       const usersRes = await fetch("/api/admin/users");
@@ -301,6 +316,10 @@ export default function AdminPage() {
     e.preventDefault();
     setStatusMessage("جارٍ حفظ المنتج...");
     try {
+      if (!productForm.category || !sections.includes(productForm.category)) {
+        throw new Error("اختر قسماً محفوظاً من تبويب الأقسام.");
+      }
+
       const fileToUrlMap = {};
       let uploadedUrl = productForm.image;
       if (productForm.image) fileToUrlMap[productForm.image] = productForm.image;
@@ -346,15 +365,77 @@ export default function AdminPage() {
         parsedTags = parsedTags.split(",").map(t => t.trim()).filter(Boolean);
       }
 
+      const deviceCategoryPatterns = [
+        "phone cases",
+        "phone covers",
+        "cases",
+        "covers",
+        "screen protectors",
+        "screen protection",
+        "كفر",
+        "كفرات",
+        "حماية الشاشة",
+        "اسكرينة",
+        "سكرينة",
+      ];
+      const supportsDeviceVersions = deviceCategoryPatterns.some((pattern) =>
+        String(productForm.category || "").trim().toLowerCase().includes(pattern),
+      );
+      const resolvedVersions = [];
+      if (supportsDeviceVersions) {
+        if (!Array.isArray(productForm.versions) || productForm.versions.length === 0) {
+          throw new Error("Add at least one phone-model version before saving this product.");
+        }
+        setStatusMessage("جاري رفع صور إصدارات المنتج...");
+        for (const version of productForm.versions) {
+          let mainImageUrl = version.main_image_url || "";
+          if (version._mainImageFile) {
+            mainImageUrl = await uploadProductImage(version._mainImageFile, `${productForm.name}-${version.phone_model}`);
+            if (!mainImageUrl) throw new Error(`Failed to upload version image for ${version.phone_model || version.version_name}.`);
+          }
+
+          const versionImages = Array.isArray(version.images) ? [...version.images] : [];
+          if (Array.isArray(version._galleryFiles)) {
+            for (const file of version._galleryFiles) {
+              const imageUrl = await uploadProductImage(file, `${productForm.name}-${version.phone_model}`);
+              if (imageUrl) versionImages.push(imageUrl);
+            }
+          }
+
+          resolvedVersions.push({
+            id: version.id,
+            version_name: version.version_name,
+            brand: version.brand,
+            product_family: version.product_family,
+            phone_model: version.phone_model,
+            sku: version.sku,
+            barcode: version.barcode,
+            price: version.price,
+            compare_at_price: version.compare_at_price,
+            stock_quantity: version.stock_quantity,
+            main_image_url: mainImageUrl,
+            images: versionImages,
+            status: version.status || "active",
+            sort_order: version.sort_order,
+          });
+        }
+      }
+
       const cleanPayload = {
         ...productForm,
+        product_type: supportsDeviceVersions ? "device_versions" : "simple",
         image: uploadedUrl,
         images: uploadedGallery,
         colors: resolvedColors,
         tags: parsedTags,
-        price: Number(productForm.price),
-        stock_quantity: Number(productForm.stock_quantity),
+        price: Number(productForm.price || 0),
+        stock_quantity: Number(productForm.stock_quantity || 0),
         featured: productForm.featured === "true",
+        compatible_models: Array.from(new Set([
+          ...(productForm.compatible_models || []),
+          ...resolvedVersions.map((version) => String(version.phone_model || "").trim()).filter(Boolean),
+        ])),
+        versions: supportsDeviceVersions ? resolvedVersions : [],
       };
 
       const res = await fetch("/api/store-product", {
@@ -365,12 +446,6 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save product");
-
-      // Auto-save category/section if new
-      if (cleanPayload.category && !sections.includes(cleanPayload.category)) {
-        await supabase.from("product_sections").insert([{ name: cleanPayload.category }]).catch(() => {});
-        setSections([...sections, cleanPayload.category]);
-      }
 
       setStatusMessage("تم حفظ المنتج بنجاح في قاعدة البيانات.");
       setImageFile(null);
@@ -384,28 +459,39 @@ export default function AdminPage() {
   };
 
   // Pre-fill Product Form for Edit
-  const editProduct = (product) => {
+  const editProduct = async (product) => {
+    setStatusMessage("Loading product versions...");
+    let detailedProduct = product;
+    try {
+      const response = await fetch(`/api/store-product?id=${encodeURIComponent(product.id)}`);
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.product) detailedProduct = data.product;
+    } catch {}
+
     setProductForm({
-      id: product.id || "",
-      name: product.name || "",
-      category: product.category || "",
-      brand: product.brand || "",
-      product_family: product.product_family || "",
-      sku: product.sku || "",
-      price: product.price || "",
-      stock_quantity: product.stock_quantity || "0",
-      badge: product.badge || "",
-      compatible_models: Array.isArray(product.compatible_models) ? product.compatible_models : [],
-      colors: Array.isArray(product.colors) ? product.colors : [],
-      tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
-      description: product.description || "",
-      featured: product.featured ? "true" : "false",
-      status: product.status || "public",
-      image: product.image || "",
-      images: Array.isArray(product.images) ? product.images : [],
+      id: detailedProduct.id || "",
+      name: detailedProduct.name || "",
+      category: detailedProduct.category || "",
+      brand: detailedProduct.brand || "",
+      product_family: detailedProduct.product_family || "",
+      product_type: detailedProduct.product_type || "simple",
+      sku: detailedProduct.sku || "",
+      price: detailedProduct.price || "",
+      stock_quantity: detailedProduct.stock_quantity || "0",
+      badge: detailedProduct.badge || "",
+      compatible_models: Array.isArray(detailedProduct.compatible_models) ? detailedProduct.compatible_models : [],
+      versions: Array.isArray(detailedProduct.versions) ? detailedProduct.versions : [],
+      colors: Array.isArray(detailedProduct.colors) ? detailedProduct.colors : [],
+      tags: Array.isArray(detailedProduct.tags) ? detailedProduct.tags.join(", ") : "",
+      description: detailedProduct.description || "",
+      featured: detailedProduct.featured ? "true" : "false",
+      status: detailedProduct.status || "public",
+      image: detailedProduct.image || "",
+      images: Array.isArray(detailedProduct.images) ? detailedProduct.images : [],
     });
     setImageFile(null);
     setGalleryFiles([]);
+    setStatusMessage("");
     setActiveTab("product_editor");
   };
 
@@ -672,6 +758,17 @@ export default function AdminPage() {
                 <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/>
               </svg>
               <span>المنتجات</span>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-item ${activeTab === "categories" ? "active" : ""}`}
+              onClick={() => { setActiveTab("categories"); setSelectedChat(null); }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/>
+              </svg>
+              <span>الأقسام</span>
             </button>
 
             <button 
@@ -1014,6 +1111,14 @@ export default function AdminPage() {
             </div>
           )}
 
+          {activeTab === "categories" && (
+            <CategoriesTab
+              categories={categories}
+              onSaved={loadCategories}
+              setStatusMessage={setStatusMessage}
+            />
+          )}
+
           {activeTab === "product_editor" && (
             <div className="tab-pane">
               <ProductEditor 
@@ -1024,7 +1129,6 @@ export default function AdminPage() {
                 galleryFiles={galleryFiles}
                 setGalleryFiles={setGalleryFiles}
                 sections={sections}
-                setSections={setSections}
                 onSubmit={handleProductSubmit}
                 onDelete={async (id) => {
                   await handleDeleteProduct(id);

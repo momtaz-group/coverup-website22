@@ -5,15 +5,20 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const CartContext = createContext();
 
 function productSnapshot(product) {
+  const version = product.selectedVersion || null;
   return {
     id: product.id,
-    name: product.name,
+    name: version?.version_name || product.name,
     category: product.category,
-    price: Number(product.price || 0),
-    image: product.image || "",
-    stock_quantity: Number(product.stock_quantity || 0),
-    is_in_stock: product.is_in_stock !== false,
+    price: Number(version?.price ?? product.price ?? 0),
+    image: version?.main_image_url || product.image || "",
+    stock_quantity: Number(version?.stock_quantity ?? product.stock_quantity ?? 0),
+    is_in_stock: version ? (version.status === "active" && Number(version.stock_quantity || 0) > 0) : product.is_in_stock !== false,
     selectedColor: product.selectedColor || null,
+    selectedVersion: version,
+    product_version_id: version?.id || product.product_version_id || null,
+    phone_model: version?.phone_model || product.phone_model || "",
+    sku: version?.sku || product.sku || "",
   };
 }
 
@@ -48,7 +53,12 @@ export function CartProvider({ children }) {
     }
 
     const color = product.selectedColor || null;
-    const cartKey = color ? `${product.id}::${color.hex}` : product.id;
+    const version = product.selectedVersion || null;
+    const cartKey = version?.id
+      ? `${product.id}::version::${version.id}${color ? `::${color.hex}` : ""}`
+      : color
+        ? `${product.id}::${color.hex}`
+        : product.id;
 
     const nextCart = { ...cart };
     const current = nextCart[cartKey] || { quantity: 0, snapshot: productSnapshot(product) };

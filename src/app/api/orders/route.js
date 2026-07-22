@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   createOrder,
+  getProductVersionById,
   getProducts,
   requireAdmin,
   reserveInventoryForOrder,
@@ -130,6 +131,57 @@ function normalizeItems(items, products) {
   });
 }
 
+async function normalizeItemsWithVersions(items, products) {
+  const normalized = [];
+  for (const item of items) {
+    const baseId = cleanText(item.id, 120).split("::")[0];
+    const product = products.find((entry) => entry.id === baseId);
+    if (!product) {
+      throw new Error("A product in the cart is no longer available.");
+    }
+
+    const versionId = cleanText(item.product_version_id || item.version_id, 80);
+    const version = versionId ? await getProductVersionById(versionId, { service: true }) : null;
+    if ((product.product_type === "device_versions" || versionId) && !version) {
+      throw new Error("Select a phone model for every phone case or screen protector.");
+    }
+    if (version && version.product_id !== product.id) {
+      throw new Error("Selected product version does not belong to this product.");
+    }
+
+    const quantity = Math.max(1, Number(item.quantity || 0));
+    const stockSource = version || product;
+    if (version ? version.status !== "active" : product.is_in_stock === false) {
+      throw new Error(`${version?.version_name || product.name} is no longer available.`);
+    }
+    if (quantity > availableStock(stockSource)) {
+      throw new Error(`Requested quantity for ${version?.version_name || product.name} is not available.`);
+    }
+
+    const price = Number(version?.price ?? product.price ?? 0);
+    normalized.push({
+      id: product.id,
+      product_version_id: version?.id || null,
+      name: version?.version_name || product.name,
+      phone_model: version?.phone_model || cleanText(item.phone_model, 120),
+      sku: version?.sku || product.sku || "",
+      price,
+      quantity,
+      image: version?.main_image_url || product.image || "",
+      line_total: price * quantity,
+      color: item.color || null,
+      family_member: item.family_member || null,
+      phone: item.phone || null,
+      service_type: cleanText(item.service_type, 80),
+      service_label: cleanText(item.service_label, 120),
+      auto_choose: Boolean(item.auto_choose),
+      representative_note: cleanText(item.representative_note, 240),
+      source: item.family_member ? "family_representative" : "",
+    });
+  }
+  return normalized;
+}
+
 export async function POST(request) {
   try {
     // Rate limit: max 10 orders per minute per IP
@@ -161,7 +213,7 @@ export async function POST(request) {
     }
 
     const products = await getProducts(items.map((item) => cleanText(item.id, 120).split("::")[0]));
-    const normalizedItems = normalizeItems(items, products);
+    const normalizedItems = await normalizeItemsWithVersions(items, products);
     const subtotal = normalizedItems.reduce((sum, item) => sum + item.line_total, 0);
     const discount = applyCoupon(subtotal, body.discountCode);
     const method = isPosOrder ? "pickup" : cleanText(body.deliveryMethod, 80) || "delivery";

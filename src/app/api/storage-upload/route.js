@@ -49,7 +49,7 @@ export async function POST(request) {
       return NextResponse.json({ message: "حجم الملف يتجاوز الحد المسموح (10MB)." }, { status: 413 });
     }
 
-    if (kind === "product") {
+    if (kind === "product" || kind === "category") {
       const adminCheck = requireAdmin(request);
       if (!adminCheck.authorized) {
         return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
@@ -63,7 +63,9 @@ export async function POST(request) {
       const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
 
       const fileName = `${Date.now()}-${randomUUID().slice(0, 8)}.webp`;
-      const path = `${productName}/${fileName}`;
+      const path = kind === "category"
+        ? `categories/${productName}/${fileName}`
+        : `products/${productName}/${fileName}`;
       const bucketName = R2_BUCKET_NAME || "coverup";
 
       try {
@@ -79,6 +81,10 @@ export async function POST(request) {
         const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL.replace(/\/$/, "")}/${path}` : `https://pub-${R2_ACCOUNT_ID}.r2.dev/${path}`;
         return NextResponse.json({ url: publicUrl, path });
       } catch (r2Error) {
+        if (kind === "category") {
+          console.error("R2 category upload failed:", r2Error);
+          return NextResponse.json({ message: "فشل رفع صورة القسم إلى Cloudflare R2." }, { status: 502 });
+        }
         console.warn("R2 upload failed, falling back to local storage:", r2Error);
         
         const fs = require("node:fs");
