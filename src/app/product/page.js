@@ -45,12 +45,19 @@ function getColorImages(color, product, activeVersion) {
   rawList.forEach((item) => {
     if (!item) return;
     if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://") || item.startsWith("/"))) {
+      if (activeVersion && product) {
+        if (item === product.image || (Array.isArray(product.images) && product.images.includes(item))) {
+          return;
+        }
+      }
       resolvedUrls.push(item);
-    } else if (item === "main_cover" && product?.image) {
+    } else if (item === "main_cover" && !activeVersion && product?.image) {
       resolvedUrls.push(product.image);
     } else if (item === "version_cover" && activeVersion?.main_image_url) {
-      resolvedUrls.push(activeVersion.main_image_url);
-    } else if (typeof item === "string" && item.startsWith("img_") && product?.images) {
+      if (!product || activeVersion.main_image_url !== product.image) {
+        resolvedUrls.push(activeVersion.main_image_url);
+      }
+    } else if (typeof item === "string" && item.startsWith("img_") && !activeVersion && product?.images) {
       const idx = parseInt(item.replace("img_", ""), 10);
       if (!isNaN(idx) && product.images[idx]) {
         resolvedUrls.push(product.images[idx]);
@@ -58,7 +65,9 @@ function getColorImages(color, product, activeVersion) {
     } else if (typeof item === "string" && item.startsWith("ver_") && activeVersion?.images) {
       const idx = parseInt(item.replace("ver_", ""), 10);
       if (!isNaN(idx) && activeVersion.images[idx]) {
-        resolvedUrls.push(activeVersion.images[idx]);
+        if (!product || !Array.isArray(product.images) || !product.images.includes(activeVersion.images[idx])) {
+          resolvedUrls.push(activeVersion.images[idx]);
+        }
       }
     }
   });
@@ -87,6 +96,13 @@ function ProductDetailContent() {
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
   const [colorError, setColorError] = useState("");
+
+  const isMainProductImage = (url) => {
+    if (!product || !url) return false;
+    if (url === product.image) return true;
+    if (Array.isArray(product.images) && product.images.includes(url)) return true;
+    return false;
+  };
 
   const handleMouseMove = (e) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -133,12 +149,21 @@ function ProductDetailContent() {
     const imagesList = [];
 
     if (activeVersion) {
-      // Variant mode: ONLY variant cover, variant gallery, and variant color images!
-      if (activeVersion.main_image_url) imagesList.push(activeVersion.main_image_url);
-      if (Array.isArray(activeVersion.images)) imagesList.push(...activeVersion.images);
+      // Variant mode: ONLY variant-specific cover, gallery, and color images!
+      if (activeVersion.main_image_url && !isMainProductImage(activeVersion.main_image_url)) {
+        imagesList.push(activeVersion.main_image_url);
+      }
+      if (Array.isArray(activeVersion.images)) {
+        activeVersion.images.forEach((img) => {
+          if (img && !isMainProductImage(img)) imagesList.push(img);
+        });
+      }
 
       productColors.forEach((color) => {
-        imagesList.push(...getColorImages(color, null, activeVersion));
+        const colorImgs = getColorImages(color, product, activeVersion);
+        colorImgs.forEach((img) => {
+          if (img && !isMainProductImage(img)) imagesList.push(img);
+        });
       });
     } else if (product) {
       // Main product mode: ONLY main cover, main gallery, and global color images!

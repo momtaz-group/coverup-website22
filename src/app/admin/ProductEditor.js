@@ -55,12 +55,31 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
   const getAllAvailableImages = (currentVersion = null) => {
     const images = [];
 
+    const mainProductImgs = new Set([
+      form.image,
+      ...(imageFile ? [imageFile.name] : []),
+      ...(form.images || []),
+      ...(galleryFiles || []).map(f => f.name),
+    ].filter(Boolean));
+
     if (currentVersion) {
-      // ONLY include this specific variant's images!
-      if (currentVersion.main_image_url) images.push({ id: currentVersion.main_image_url, src: currentVersion.main_image_url, label: "رئيسية هذا الإصدار" });
-      if (currentVersion._mainImageFile) images.push({ id: currentVersion._mainImageFile.name, src: URL.createObjectURL(currentVersion._mainImageFile), label: "ملف غلاف هذا الإصدار" });
-      (currentVersion.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `صورة معرض الإصدار ${i + 1}` }));
-      (currentVersion._galleryFiles || []).forEach((f, i) => images.push({ id: f.name, src: URL.createObjectURL(f), label: `ملف معرض الإصدار ${i + 1}` }));
+      // ONLY include this specific variant's images (excluding main product images)!
+      if (currentVersion.main_image_url && !mainProductImgs.has(currentVersion.main_image_url)) {
+        images.push({ id: currentVersion.main_image_url, src: currentVersion.main_image_url, label: "رئيسية هذا الإصدار" });
+      }
+      if (currentVersion._mainImageFile && !mainProductImgs.has(currentVersion._mainImageFile.name)) {
+        images.push({ id: currentVersion._mainImageFile.name, src: URL.createObjectURL(currentVersion._mainImageFile), label: "ملف غلاف هذا الإصدار" });
+      }
+      (currentVersion.images || []).forEach((img, i) => {
+        if (img && !mainProductImgs.has(img)) {
+          images.push({ id: img, src: img, label: `صورة معرض الإصدار ${i + 1}` });
+        }
+      });
+      (currentVersion._galleryFiles || []).forEach((f, i) => {
+        if (f && !mainProductImgs.has(f.name)) {
+          images.push({ id: f.name, src: URL.createObjectURL(f), label: `ملف معرض الإصدار ${i + 1}` });
+        }
+      });
     } else {
       // Main product images only
       if (form.image) images.push({ id: form.image, src: form.image, label: "الأساسية للمنتج" });
