@@ -7,134 +7,7 @@ import { supabase } from "@/utils/supabase";
 import { useLanguage } from "../../context/LanguageContext";
 import { useCart } from "../../context/CartContext";
 
-const defaultProducts = [
-  {
-    id: "carbon-slide-camera-case",
-    name: "كفر Carbon Slide Camera",
-    name_en: "Carbon Slide Camera Case",
-    category: "كفرات",
-    category_en: "Cases",
-    price: 449,
-    image: "/assets/products/carbon-slide-camera-case.jpeg",
-    badge: "Premium",
-    badge_en: "Premium",
-    description: "كفر شكل كاربون مع حماية متحركة لمنطقة الكاميرا.",
-    description_en: "Carbon texture case with sliding camera cover.",
-    compatible_models: ["iPhone 15 Pro Max", "Samsung S24 Ultra"]
-  },
-  {
-    id: "orange-leopard-camera-case",
-    name: "كفر Leopard Orange",
-    name_en: "Leopard Orange Case",
-    category: "كفرات",
-    category_en: "Cases",
-    price: 399,
-    image: "/assets/products/orange-leopard-camera-case.jpeg",
-    badge: "ستايل",
-    badge_en: "Stylish",
-    description: "كفر ليوبارد بلون برتقالي مع حماية بارزة للكاميرا.",
-    description_en: "Vibrant orange leopard style case with camera protection.",
-    compatible_models: ["iPhone 15 Pro Max", "iPhone 15 Pro"]
-  },
-  {
-    id: "samsung-clear-shockproof-case",
-    name: "كفر Samsung Clear Shockproof",
-    name_en: "Samsung Clear Shockproof Case",
-    category: "كفرات",
-    category_en: "Cases",
-    price: 299,
-    image: "/assets/products/samsung-clear-shockproof-case.jpeg",
-    badge: "شفاف",
-    badge_en: "Clear",
-    description: "كفر شفاف لسامسونج بحماية جوانب وظهر ضد الخدوش.",
-    description_en: "Clear bumper case protecting edges and back from scratches.",
-    compatible_models: ["Samsung S24 Ultra", "Samsung S23 Ultra"]
-  },
-  {
-    id: "black-magsafe-fabric-case",
-    name: "كفر MagSafe Fabric أسود",
-    name_en: "Black MagSafe Fabric Case",
-    category: "كفرات MagSafe",
-    category_en: "MagSafe Cases",
-    price: 549,
-    image: "/assets/products/black-magsafe-fabric-case.jpeg",
-    badge: "MagSafe",
-    badge_en: "MagSafe",
-    description: "كفر قماش بإحساس Premium ودائرة MagSafe للحوامل والشواحن.",
-    description_en: "Premium texture fabric case with built-in MagSafe ring.",
-    compatible_models: ["iPhone 15 Pro Max", "iPhone 14 Pro Max"]
-  },
-  {
-    id: "tempered-glass-screen-protector",
-    name: "اسكرينة Tempered Glass",
-    name_en: "Tempered Glass Screen Protector",
-    category: "حماية الشاشة",
-    category_en: "Screen Protection",
-    price: 199,
-    image: "/assets/products/tempered-glass-screen-protector.jpeg",
-    badge: "حماية",
-    badge_en: "Protection",
-    description: "اسكرينة زجاج حراري لحماية الشاشة من الخدوش والصدمات.",
-    description_en: "Hardened tempered glass to secure screen against impacts.",
-    compatible_models: ["iPhone 15 Pro Max", "Samsung S24 Ultra", "iPhone 15 Pro", "Samsung S23 Ultra"]
-  },
-  {
-    id: "navy-apple-fabric-case",
-    name: "كفر iPhone Fabric Navy",
-    name_en: "iPhone Fabric Case Navy",
-    category: "كفرات",
-    category_en: "Cases",
-    price: 499,
-    image: "/assets/products/navy-apple-fabric-case.jpeg",
-    badge: "أنيق",
-    badge_en: "Elegant",
-    description: "كفر قماش أزرق بإحساس ناعم وشكل مناسب للاستخدام اليومي.",
-    description_en: "Navy blue fabric case with soft texture for daily use.",
-    compatible_models: ["iPhone 15 Pro", "iPhone 15 Pro Max"]
-  },
-  {
-    id: "black-full-glue-screen-protector",
-    name: "اسكرينة Full Glue Black",
-    name_en: "Full Glue Black Screen Protector",
-    category: "حماية الشاشة",
-    category_en: "Screen Protection",
-    price: 249,
-    image: "/assets/products/black-full-glue-screen-protector.jpeg",
-    badge: "Full Glue",
-    badge_en: "Full Glue",
-    description: "اسكرينة كاملة الحواف بلون أسود لتغطية الشاشة بالكامل.",
-    description_en: "Black edge-to-edge glue screen protector for maximum coverage.",
-    compatible_models: ["iPhone 15 Pro Max", "iPhone 15 Pro", "Samsung S24 Ultra"]
-  },
-  {
-    id: "privacy-screen-protector",
-    name: "اسكرينة Privacy",
-    name_en: "Privacy Screen Protector",
-    category: "حماية الشاشة",
-    category_en: "Screen Protection",
-    price: 299,
-    image: "/assets/products/privacy-screen-protector.jpeg",
-    badge: "Privacy",
-    badge_en: "Privacy",
-    description: "حماية شاشة بفلتر خصوصية يقلل الرؤية من الجوانب.",
-    description_en: "Anti-peep privacy filter screen protector.",
-    compatible_models: ["iPhone 15 Pro Max", "Samsung S24 Ultra"]
-  },
-  {
-    id: "brown-magsafe-fabric-case",
-    name: "كفر MagSafe Fabric بني",
-    name_en: "Brown MagSafe Fabric Case",
-    category: "كفرات MagSafe",
-    category_en: "MagSafe Cases",
-    price: 549,
-    image: "/assets/products/brown-magsafe-fabric-case.jpeg",
-    badge: "Premium",
-    badge_en: "Premium",
-    description: "كفر قماش بني بدائرة MagSafe وشكل رسمي نضيف.",
-    description_en: "Premium brown fabric case featuring a MagSafe ring.",
-    compatible_models: ["iPhone 15 Pro Max", "iPhone 15 Pro"]
-  }
-];
+
 
 function ShopContent() {
   const { locale, t } = useLanguage();
@@ -148,7 +21,8 @@ function ShopContent() {
   const urlModel = searchParams.get("model") || "All";
 
   // State
-  const [products, setProducts] = useState(defaultProducts);
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [storeCategories, setStoreCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
@@ -168,27 +42,19 @@ function ShopContent() {
 
   // Load products from DB
   useEffect(() => {
+    setLoadingProducts(true);
     fetch("/api/store-products")
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.products)) {
-          const defaultOrder = defaultProducts.map((p) => p.id);
           const visibleProducts = data.products.filter(p => p.status !== 'hidden');
-          const sorted = [...visibleProducts].sort((a, b) => {
-            const indexA = defaultOrder.indexOf(a.id);
-            const indexB = defaultOrder.indexOf(b.id);
-            const valA = indexA === -1 ? 999 : indexA;
-            const valB = indexB === -1 ? 999 : indexB;
-            return valA - valB;
-          });
-          if (data.configured === false && sorted.length === 0) {
-            setProducts(defaultProducts);
-          } else {
-            setProducts(sorted);
-          }
+          setProducts(visibleProducts);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setLoadingProducts(false);
+      });
 
     fetch("/api/store-categories")
       .then((res) => res.json())
@@ -681,7 +547,14 @@ function ShopContent() {
           </div>
 
           {/* Catalog grid */}
-          {filteredProducts.length > 0 ? (
+          {loadingProducts ? (
+            <div style={{ minHeight: "40vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "40px", height: "40px", border: "3px solid var(--line)", borderTop: "3px solid #0070f3", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              <p style={{ marginTop: "16px", color: "var(--muted)", fontWeight: "bold" }}>
+                {locale === "ar" ? "جارٍ تحميل المنتجات..." : "Loading products..."}
+              </p>
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="amazon-products-grid">
               {filteredProducts.map((p) => {
                 const displayName = locale === "en" && p.name_en ? p.name_en : p.name;

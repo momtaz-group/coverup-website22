@@ -378,10 +378,10 @@ function reviewFromDb(row) {
 
 async function getProducts(ids = []) {
   const query = ids.length
-    ? `?id=in.(${ids.map(encodeURIComponent).join(",")})`
-    : "";
+    ? `?select=*&id=in.(${ids.map(encodeURIComponent).join(",")})&order=created_at.desc`
+    : "?select=*&order=created_at.desc";
 
-  const rows = await supabaseRequest(TABLES.products, { query });
+  const rows = await supabaseRequest(TABLES.products, { query, service: true });
   return rows.map(productFromDb);
 }
 
@@ -529,31 +529,40 @@ async function replaceVersionImages(versionId, images = []) {
 
 async function replaceProductVersions(productId, versions = []) {
   const cleanProductId = String(productId || "").trim();
+  const baseProduct = await getProductById(cleanProductId).catch(() => null);
+  const basePrice = Number(baseProduct?.price || 0);
+
   const uniqueVersions = [];
   const seenModels = new Set();
-  const seenSkus = new Set();
 
-  for (const rawVersion of versions) {
-    const phoneModel = String(rawVersion.phone_model || rawVersion.phoneModel || "").trim().slice(0, 120);
-    const sku = String(rawVersion.sku || "").trim().slice(0, 120);
-    const versionName = String(rawVersion.version_name || rawVersion.versionName || "").trim().slice(0, 180);
+  for (const [index, rawVersion] of versions.entries()) {
+    const phoneModel = String(rawVersion.phone_model || rawVersion.phoneModel || "").trim().slice(0, 120) || "Standard";
+    let sku = String(rawVersion.sku || "").trim().slice(0, 120);
+    if (!sku) {
+      sku = `${cleanProductId.slice(0, 8)}-${slugify(phoneModel)}-${index + 1}`;
+    }
+    let versionName = String(rawVersion.version_name || rawVersion.versionName || "").trim().slice(0, 180);
+    if (!versionName) {
+      versionName = `${baseProduct?.name || "Version"} - ${phoneModel}`;
+    }
+
     const modelKey = phoneModel.toLowerCase();
-    const skuKey = sku.toLowerCase();
-    if (!phoneModel) throw new Error("Every version needs a phone model.");
-    if (!versionName) throw new Error("Every version needs a version name.");
-    if (!sku) throw new Error("Every version needs a SKU.");
-    if (seenModels.has(modelKey)) throw new Error(`Duplicate phone model: ${phoneModel}`);
-    if (seenSkus.has(skuKey)) throw new Error(`Duplicate SKU: ${sku}`);
-    if (rawVersion.price === "" || rawVersion.price == null || Number(rawVersion.price) < 0) {
-      throw new Error(`Version ${versionName} needs a valid price.`);
+    if (seenModels.has(modelKey)) {
+      continue;
     }
-    if (rawVersion.stock_quantity === "" || rawVersion.stockQuantity === "" || rawVersion.stock_quantity == null || rawVersion.stockQuantity == null) {
-      throw new Error(`Version ${versionName} needs a valid stock quantity.`);
-    }
-
     seenModels.add(modelKey);
-    seenSkus.add(skuKey);
-    uniqueVersions.push(rawVersion);
+
+    const versionPrice = rawVersion.price === "" || rawVersion.price == null || isNaN(Number(rawVersion.price))
+      ? basePrice
+      : Math.max(0, Number(rawVersion.price));
+
+    uniqueVersions.push({
+      ...rawVersion,
+      phone_model: phoneModel,
+      version_name: versionName,
+      sku,
+      price: versionPrice,
+    });
   }
 
   const current = await getProductVersions(cleanProductId, { service: true });
@@ -580,7 +589,7 @@ async function replaceProductVersions(productId, versions = []) {
       phone_model: catalog.modelName,
       sku: String(rawVersion.sku || "").trim().slice(0, 120),
       barcode: String(rawVersion.barcode || "").trim().slice(0, 120),
-      price: Math.max(0, Number(rawVersion.price) || 0),
+      price: Math.max(0, Number(rawVersion.price ?? basePrice) || 0),
       compare_at_price: rawVersion.compare_at_price === "" || rawVersion.compareAtPrice === "" || (rawVersion.compare_at_price == null && rawVersion.compareAtPrice == null)
         ? null
         : Math.max(0, Number(rawVersion.compare_at_price ?? rawVersion.compareAtPrice) || 0),
@@ -1281,6 +1290,22 @@ async function getEmailLogByEventKey(event_key) {
   }
 }
 
+async function deleteCategory(id) {
+  try {
+    const query = `?id=eq.${encodeURIComponent(id)}`;
+    await supabaseRequest("categories", {
+      service: true,
+      method: "DELETE",
+      query,
+      prefer: "return=minimal",
+    });
+    return true;
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return false;
+  }
+}
+
 export {
   ORDER_STATUSES,
   appendEvent,
@@ -1319,6 +1344,7 @@ export {
   uploadStorageObjectFromDataUrl,
   upsertProduct,
   upsertCategory,
+  deleteCategory,
   deleteProduct,
   deleteOrder,
   logEmail,

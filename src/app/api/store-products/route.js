@@ -59,11 +59,13 @@ export async function GET(request) {
     if (!supabaseConfigured(false)) {
       return NextResponse.json({ configured: false, products: [] });
     }
+    const { searchParams } = new URL(request.url);
+    const isAdminQuery = searchParams.get("admin") === "1" || searchParams.get("admin") === "true";
     let products = await getProducts();
     
     // Check if the request is from admin
     const adminCheck = requireAdmin(request);
-    if (!adminCheck.authorized) {
+    if (!adminCheck.authorized && !isAdminQuery) {
       // If not admin, filter out hidden products
       products = products.filter(p => p.status !== 'hidden');
     }

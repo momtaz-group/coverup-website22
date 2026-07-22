@@ -140,7 +140,8 @@ export async function POST(request) {
       : await getProductVersions(product.id, { service: true });
     return NextResponse.json({ product: { ...product, versions } });
   } catch (error) {
-    return NextResponse.json({ message: "حدث خطأ أثناء حفظ المنتج." }, { status: 500 });
+    console.error("Error saving product:", error);
+    return NextResponse.json({ message: error.message || "حدث خطأ أثناء حفظ المنتج." }, { status: 400 });
   }
 }
 

@@ -7,6 +7,7 @@ import AdminOrdersTab from "./AdminOrdersTab";
 import chatStyles from "@/app/chat/page.module.css";
 import ProductEditor from "./ProductEditor";
 import CategoriesTab from "./CategoriesTab";
+import FeaturedProductsTab from "./FeaturedProductsTab";
 
 const ORDER_STATUSES = [
   "new",
@@ -32,6 +33,15 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "featured_products") {
+      setSidebarCollapsed(true);
+    } else {
+      setSidebarCollapsed(false);
+    }
+  }, [activeTab]);
 
   // Data states
   const [events, setEvents] = useState({
@@ -305,9 +315,9 @@ export default function AdminPage() {
         }),
       });
       const data = await res.json();
-      return res.ok ? data.url : "";
+      return res.ok && data.url ? data.url : dataUrl;
     } catch {
-      return "";
+      return dataUrl;
     }
   };
 
@@ -688,13 +698,41 @@ export default function AdminPage() {
       
       {/* 1. Header component */}
       <header className="admin-header">
-        <div className="header-left">
+        <div className="header-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            style={{
+              background: "var(--panel-soft)",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontSize: "0.8rem",
+              fontWeight: "bold",
+              color: "#475569",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 0.2s"
+            }}
+            title={sidebarCollapsed ? "توسيع القائمة الجانبية" : "طَي القائمة الجانبية"}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarCollapsed ? (
+                <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
+              ) : (
+                <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+              )}
+            </svg>
+            <span style={{ fontSize: "0.8rem" }}>{sidebarCollapsed ? "توسيع" : "طَي"}</span>
+          </button>
           <Link href="/">
             <img src="/assets/brand/cover-up-symbol.png" alt="Cover Up Logo" className="admin-logo" />
           </Link>
           <span className="admin-subtitle">لوحة تحكم الإدارة</span>
         </div>
-        
+
         <div className="header-right">
           <button 
             type="button" 
@@ -725,7 +763,7 @@ export default function AdminPage() {
       <div className="admin-body">
         
         {/* 2. Sidebar component */}
-        <aside className="admin-sidebar">
+        <aside className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
           <nav className="sidebar-nav">
             <button 
               type="button" 
@@ -769,6 +807,17 @@ export default function AdminPage() {
                 <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/>
               </svg>
               <span>الأقسام</span>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-item ${activeTab === "featured_products" ? "active" : ""}`}
+              onClick={() => { setActiveTab("featured_products"); setSelectedChat(null); }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+              </svg>
+              <span>منتجات مميزة</span>
             </button>
 
             <button 
@@ -1117,6 +1166,10 @@ export default function AdminPage() {
               onSaved={loadCategories}
               setStatusMessage={setStatusMessage}
             />
+          )}
+
+          {activeTab === "featured_products" && (
+            <FeaturedProductsTab setStatusMessage={setStatusMessage} />
           )}
 
           {activeTab === "product_editor" && (
@@ -1481,6 +1534,24 @@ export default function AdminPage() {
           padding: 16px 0;
           box-sizing: border-box;
           flex-shrink: 0;
+          transition: width 0.25s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .admin-sidebar.collapsed {
+          width: 64px;
+        }
+
+        .admin-sidebar.collapsed .nav-item {
+          justify-content: center;
+          padding: 12px;
+        }
+
+        .admin-sidebar.collapsed .nav-item span {
+          display: none;
+        }
+
+        .admin-sidebar.collapsed .sidebar-footer {
+          display: none;
         }
 
         .sidebar-nav {

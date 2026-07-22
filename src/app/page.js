@@ -272,91 +272,38 @@ export default function HomePage() {
     await submitMessage(userMessage);
   };
   
-  // Carousel State & Logic
-  const [carouselProducts, setCarouselProducts] = useState(FEATURED_PRODUCTS);
-  const [activeIndex, setActiveIndex] = useState(2);
-  
-  const handlePrev = () => {
-    setActiveIndex((prev) => (prev - 1 + carouselProducts.length) % carouselProducts.length);
+  const [wishlist, setWishlist] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
+  const toggleWishlist = (id) => {
+    setWishlist((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      try {
+        localStorage.setItem("coverup_wishlist", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
-  const handleNext = () => {
-    setActiveIndex((prev) => (prev + 1) % carouselProducts.length);
-  };
-
-  const getCardStyle = (index) => {
-    let diff = index - activeIndex;
-    const half = Math.floor(carouselProducts.length / 2);
-    if (diff > half) diff -= carouselProducts.length;
-    if (diff < -half) diff += carouselProducts.length;
-
-    const isActive = diff === 0;
-    const absDiff = Math.abs(diff);
-
-    if (absDiff > 2) {
-      return {
-        transform: "translateX(0) scale(0.6)",
-        opacity: 0,
-        zIndex: 0,
-        pointerEvents: "none"
-      };
-    }
-
-    const directionMultiplier = ar ? -1 : 1;
-    const translationX = diff * 130 * directionMultiplier;
-    const scale = isActive ? 1.12 : 1.0 - absDiff * 0.15;
-    const rotateY = diff * -15 * directionMultiplier;
-    const zIndex = 10 - absDiff * 2;
-    const opacity = isActive ? 1 : 0.7 - absDiff * 0.2;
-    const blur = isActive ? 0 : absDiff * 2.5;
-
-    return {
-      transform: `translateX(${translationX}px) scale(${scale}) rotateY(${rotateY}deg)`,
-      zIndex,
-      opacity,
-      filter: blur > 0 ? `blur(${blur}px)` : "none",
-      pointerEvents: isActive ? "auto" : "none",
-      transition: "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)"
-    };
-  };
   const results = useMemo(() => MODELS.filter((model) => `${model.brand} ${model.name}`.toLowerCase().includes(query.toLowerCase())), [query]);
   
   useEffect(() => {
     let active = true;
 
-    // Load dynamic carousel products
-    fetch("/api/store-products")
+    // Load featured products config and items
+    fetch("/api/featured-products")
       .then((res) => res.json())
       .then((data) => {
         if (active && data && Array.isArray(data.products)) {
-          const publicProds = data.products.filter(p => p.status !== "hidden");
-          
-          // Filter products that are marked featured
-          let selected = publicProds.filter(p => p.featured);
-          
-          // If no products are featured, fallback to newest products
-          if (selected.length === 0) {
-            selected = [...publicProds]
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-              .slice(0, 5);
-          }
-
-          if (selected.length > 0) {
-            const mapped = selected.map(p => ({
-              id: p.id,
-              name: p.name,
-              name_en: p.name_en || p.name,
-              image: p.image,
-              category: p.category,
-              category_en: p.category_en || p.category,
-              category_slug: p.category_slug || p.category
-            }));
-            setCarouselProducts(mapped);
-            setActiveIndex(Math.floor(mapped.length / 2));
-          }
+          setFeaturedProducts(data.products);
         }
       })
       .catch(() => {});
+
+    try {
+      const savedWishlist = JSON.parse(localStorage.getItem("coverup_wishlist") || "[]");
+      if (Array.isArray(savedWishlist)) setWishlist(savedWishlist);
+    } catch {}
 
     loadUserPhones()
       .then((data) => {
@@ -902,84 +849,102 @@ export default function HomePage() {
       </div>
     </section>
 
-    {/* Featured Products Cover Flow Carousel */}
-    <section className={styles.featuredSection}>
-      <div className={styles.sectionHeader} style={{ justifyContent: "center", textAlign: "center", flexDirection: "column", marginBottom: "40px" }}>
-        <span className={styles.eyebrow}>{text("FEATURED PRODUCTS", "منتجات مميزة")}</span>
-        <h2 style={{ margin: "12px 0 0", textAlign: "center" }}>{text("Engineered to protect.", "مصممة خصيصاً لحماية جهازك.")}</h2>
+    {/* Featured Products Section */}
+    <section className={styles.featuredSection} style={{ padding: "40px 0", width: "100%" }}>
+      <div style={{ textAlign: "center", marginBottom: "32px", padding: "0 24px" }}>
+        <span style={{ color: "var(--gold)", fontSize: "0.85rem", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", display: "block" }}>
+          {text("FEATURED PRODUCTS", "منتجات مميزة")}
+        </span>
+        <h2 style={{ fontSize: "2rem", fontWeight: "800", margin: "8px 0 0 0", color: "var(--text)", textAlign: "center" }}>
+          {text("Engineered to protect.", "مصممة خصيصاً لحماية جهازك.")}
+        </h2>
       </div>
 
-      <div className={styles.carouselContainer}>
-        <button
-          type="button"
-          className={`${styles.arrowBtn} ${styles.arrowLeft}`}
-          onClick={handlePrev}
-          aria-label={text("Previous product", "المنتج السابق")}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-
-        <div className={styles.carouselStage}>
-          {carouselProducts.map((product, idx) => {
-            const cardStyle = getCardStyle(idx);
-            const isActive = idx === activeIndex;
+      <div style={{
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "0 24px",
+      }}>
+        <div style={{
+          display: "flex",
+          gap: "24px",
+          overflowX: "auto",
+          paddingBottom: "20px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          WebkitOverflowScrolling: "touch",
+          width: "100%",
+        }}>
+          {featuredProducts.map((p) => {
+            const pName = ar ? p.name : (p.name_en || p.name);
+            const pCat = ar ? p.category : (p.category_en || p.category);
+            const isFav = wishlist.includes(p.id);
             return (
-              <div
-                key={product.id}
-                className={`${styles.carouselCard} ${isActive ? styles.cardActive : ""}`}
-                style={cardStyle}
-                onClick={() => setActiveIndex(idx)}
+              <article
+                key={p.id}
+                style={{
+                  background: "var(--panel)",
+                  borderRadius: "20px",
+                  border: "none",
+                  padding: "18px",
+                  position: "relative",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  minWidth: "240px",
+                  maxWidth: "260px",
+                  flexShrink: 0,
+                  boxSizing: "border-box",
+                }}
               >
-                <div className={styles.cardImageWrapper}>
-                  <img
-                    src={product.image}
-                    alt={ar ? product.name : product.name_en}
-                    className={styles.cardImage}
-                    loading="lazy"
-                    decoding="async"
-                  />
+                <button
+                  type="button"
+                  onClick={() => toggleWishlist(p.id)}
+                  style={{
+                    position: "absolute",
+                    top: "14px",
+                    left: ar ? "14px" : "auto",
+                    right: !ar ? "14px" : "auto",
+                    background: "var(--panel)",
+                    border: "1px solid var(--line)",
+                    borderRadius: "50%",
+                    width: "36px",
+                    height: "36px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    zIndex: 2,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  }}
+                  aria-label="Wishlist"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill={isFav ? "#ff4d4d" : "none"} stroke={isFav ? "#ff4d4d" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                  </svg>
+                </button>
+                <Link href={`/product?id=${p.id}`} style={{ display: "block", height: "200px", borderRadius: "14px", overflow: "hidden", background: "transparent", padding: "0" }}>
+                  <img src={p.image} alt={pName} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                </Link>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", fontWeight: "bold" }}>{pCat}</span>
+                  <h3 style={{ fontSize: "14px", margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.4 }}>
+                    <Link href={`/product?id=${p.id}`} style={{ color: "inherit", textDecoration: "none" }}>{pName}</Link>
+                  </h3>
                 </div>
-              </div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#0070f3" }}>
+                  {p.price} EGP
+                </div>
+              </article>
             );
           })}
+          {featuredProducts.length === 0 && (
+            <div style={{ width: "100%", textAlign: "center", padding: "20px", color: "var(--muted)" }}>
+              {text("Loading featured products...", "جارٍ تحميل المنتجات المميزة...")}
+            </div>
+          )}
         </div>
-
-        <button
-          type="button"
-          className={`${styles.arrowBtn} ${styles.arrowRight}`}
-          onClick={handleNext}
-          aria-label={text("Next product", "المنتج التالي")}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-      </div>
-
-      {carouselProducts[activeIndex] && (
-        <div className={styles.infoArea}>
-          <h3 className={styles.productCategory}>
-            {ar ? carouselProducts[activeIndex].category : carouselProducts[activeIndex].category_en}
-          </h3>
-          <Link href={`/products?category=${carouselProducts[activeIndex].category_slug}`} className={styles.shopNowLink}>
-            <span>{text("Shop Now", "اطلب الآن")}</span>
-            <span>{ar ? " ←" : " →"}</span>
-          </Link>
-        </div>
-      )}
-
-      <div className={styles.dotsContainer}>
-        {carouselProducts.map((_, idx) => (
-          <button
-            key={idx}
-            type="button"
-            className={`${styles.dot} ${idx === activeIndex ? styles.dotActive : ""}`}
-            onClick={() => setActiveIndex(idx)}
-            aria-label={`Go to slide ${idx + 1}`}
-          />
-        ))}
       </div>
     </section>
 

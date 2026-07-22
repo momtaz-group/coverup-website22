@@ -4,6 +4,7 @@ import {
   requireAdmin,
   supabaseConfigured,
   upsertCategory,
+  deleteCategory,
 } from "@/utils/store-db";
 
 export async function GET(request) {
@@ -43,6 +44,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const existing = await getCategories({ service: true, includeInactive: true });
     const category = await upsertCategory({
+      id: body.id,
       name: body.name,
       image_url: body.image_url,
       sort_order: body.sort_order ?? existing.length,
@@ -51,5 +53,25 @@ export async function POST(request) {
     return NextResponse.json({ category });
   } catch (error) {
     return NextResponse.json({ message: error.message || "تعذر حفظ القسم." }, { status: 400 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const adminCheck = requireAdmin(request);
+    if (!adminCheck.authorized) {
+      return NextResponse.json({ message: adminCheck.message }, { status: adminCheck.status });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ message: "معرف القسم مطلوب." }, { status: 400 });
+    }
+
+    await deleteCategory(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ message: error.message || "فشل حذف القسم." }, { status: 500 });
   }
 }
