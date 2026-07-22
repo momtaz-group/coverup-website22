@@ -898,32 +898,6 @@ export default function HomePage() {
                   boxSizing: "border-box",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => toggleWishlist(p.id)}
-                  style={{
-                    position: "absolute",
-                    top: "14px",
-                    left: ar ? "14px" : "auto",
-                    right: !ar ? "14px" : "auto",
-                    background: "var(--panel)",
-                    border: "1px solid var(--line)",
-                    borderRadius: "50%",
-                    width: "36px",
-                    height: "36px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    zIndex: 2,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  }}
-                  aria-label="Wishlist"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill={isFav ? "#ff4d4d" : "none"} stroke={isFav ? "#ff4d4d" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                </button>
                 <Link href={`/product?id=${p.id}`} style={{ display: "block", height: "200px", borderRadius: "14px", overflow: "hidden", background: "transparent", padding: "0" }}>
                   <img src={p.image} alt={pName} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </Link>

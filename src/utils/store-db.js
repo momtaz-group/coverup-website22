@@ -395,6 +395,17 @@ async function getProductById(id) {
 }
 
 function productVersionFromDb(row, images = []) {
+  let parsedColors = [];
+  if (row.colors) {
+    if (Array.isArray(row.colors)) {
+      parsedColors = row.colors;
+    } else if (typeof row.colors === "string") {
+      try {
+        parsedColors = JSON.parse(row.colors);
+      } catch {}
+    }
+  }
+
   return {
     id: row.id,
     product_id: row.product_id,
@@ -412,6 +423,7 @@ function productVersionFromDb(row, images = []) {
     stock_quantity: Number(row.stock_quantity || 0),
     main_image_url: publicProductImage(row.product_id, row.main_image_url || ""),
     images: publicImages(row.product_id, images),
+    colors: parsedColors,
     status: row.status || (row.is_active === false ? "inactive" : "active"),
     is_active: row.status ? row.status === "active" : row.is_active !== false,
     sort_order: Number(row.sort_order || 0),
@@ -597,6 +609,9 @@ async function replaceProductVersions(productId, versions = []) {
       main_image_url: String(rawVersion.main_image_url || rawVersion.mainImageUrl || "").trim(),
       status: rawVersion.status === "inactive" || rawVersion.is_active === false ? "inactive" : "active",
       is_active: rawVersion.status !== "inactive" && rawVersion.is_active !== false,
+      colors: Array.isArray(rawVersion.colors)
+        ? JSON.stringify(rawVersion.colors)
+        : (typeof rawVersion.colors === "string" ? rawVersion.colors : null),
       sort_order: Math.max(0, Number(rawVersion.sort_order ?? rawVersion.sortOrder ?? index) || 0),
       deleted_at: null,
       updated_at: new Date().toISOString(),

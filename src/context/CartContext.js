@@ -6,15 +6,27 @@ const CartContext = createContext();
 
 function productSnapshot(product) {
   const version = product.selectedVersion || null;
+  const color = product.selectedColor || null;
+
+  let image = product.image || "";
+  if (!image && color) {
+    image = color.image || (Array.isArray(color.images) && color.images[0]) || "";
+  }
+  if (!image && version) {
+    image = version.main_image_url || (Array.isArray(version.images) && version.images[0]) || "";
+  }
+
+  const name = version?.version_name || product.name;
+
   return {
     id: product.id,
-    name: version?.version_name || product.name,
+    name,
     category: product.category,
     price: Number(version?.price ?? product.price ?? 0),
-    image: version?.main_image_url || product.image || "",
+    image,
     stock_quantity: Number(version?.stock_quantity ?? product.stock_quantity ?? 0),
     is_in_stock: version ? (version.status === "active" && Number(version.stock_quantity || 0) > 0) : product.is_in_stock !== false,
-    selectedColor: product.selectedColor || null,
+    selectedColor: color,
     selectedVersion: version,
     product_version_id: version?.id || product.product_version_id || null,
     phone_model: version?.phone_model || product.phone_model || "",

@@ -159,6 +159,9 @@ async function normalizeItemsWithVersions(items, products) {
     }
 
     const price = Number(version?.price ?? product.price ?? 0);
+    const itemImage = (item.image && typeof item.image === "string") ? item.image : (version?.main_image_url || product.image || "");
+    const itemColor = item.color || item.selectedColor || null;
+
     normalized.push({
       id: product.id,
       product_version_id: version?.id || null,
@@ -167,9 +170,9 @@ async function normalizeItemsWithVersions(items, products) {
       sku: version?.sku || product.sku || "",
       price,
       quantity,
-      image: version?.main_image_url || product.image || "",
+      image: itemImage,
       line_total: price * quantity,
-      color: item.color || null,
+      color: itemColor,
       family_member: item.family_member || null,
       phone: item.phone || null,
       service_type: cleanText(item.service_type, 80),

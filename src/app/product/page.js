@@ -33,12 +33,37 @@ function normalizeProductColor(value, index) {
   };
 }
 
-function getColorImages(color) {
+function getColorImages(color, product, activeVersion) {
   if (!color) return [];
-  return Array.from(new Set([
+  const rawList = [
     color.image,
-    ...(Array.isArray(color.images) ? color.images : []),
-  ].filter(Boolean)));
+    ...(Array.isArray(color.images) ? color.images : [])
+  ].filter(Boolean);
+
+  const resolvedUrls = [];
+
+  rawList.forEach((item) => {
+    if (!item) return;
+    if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://") || item.startsWith("/"))) {
+      resolvedUrls.push(item);
+    } else if (item === "main_cover" && product?.image) {
+      resolvedUrls.push(product.image);
+    } else if (item === "version_cover" && activeVersion?.main_image_url) {
+      resolvedUrls.push(activeVersion.main_image_url);
+    } else if (typeof item === "string" && item.startsWith("img_") && product?.images) {
+      const idx = parseInt(item.replace("img_", ""), 10);
+      if (!isNaN(idx) && product.images[idx]) {
+        resolvedUrls.push(product.images[idx]);
+      }
+    } else if (typeof item === "string" && item.startsWith("ver_") && activeVersion?.images) {
+      const idx = parseInt(item.replace("ver_", ""), 10);
+      if (!isNaN(idx) && activeVersion.images[idx]) {
+        resolvedUrls.push(activeVersion.images[idx]);
+      }
+    }
+  });
+
+  return Array.from(new Set(resolvedUrls));
 }
 
 function ProductDetailContent() {
@@ -71,39 +96,62 @@ function ProductDetailContent() {
   };
 
   const productColors = useMemo(() => {
-    if (!product || !product.colors) return [];
-    if (Array.isArray(product.colors)) {
-      return product.colors.map(normalizeProductColor);
+    if (!product) return [];
+    const activeVersion = (product.versions || []).find((version) => version.id === activeVersionId) || null;
+
+    let rawColors = null;
+    if (activeVersion) {
+      if (Array.isArray(activeVersion.colors) && activeVersion.colors.length > 0) {
+        rawColors = activeVersion.colors;
+      } else if (typeof activeVersion.colors === "string" && activeVersion.colors.trim()) {
+        try {
+          const parsed = JSON.parse(activeVersion.colors);
+          if (Array.isArray(parsed) && parsed.length > 0) rawColors = parsed;
+          else rawColors = activeVersion.colors;
+        } catch {
+          rawColors = activeVersion.colors;
+        }
+      }
     }
-    if (typeof product.colors === 'string') {
-      return product.colors.split(/[,\n]/).map(normalizeProductColor);
+
+    if (!rawColors || (Array.isArray(rawColors) && rawColors.length === 0)) {
+      rawColors = product.colors;
+    }
+
+    if (!rawColors) return [];
+    if (Array.isArray(rawColors)) {
+      return rawColors.map(normalizeProductColor).filter(Boolean);
+    }
+    if (typeof rawColors === 'string') {
+      return rawColors.split(/[,\n]/).map(normalizeProductColor).filter(Boolean);
     }
     return [];
-  }, [product]);
-
-  const defaultGalleryImages = useMemo(() => {
-    if (!product) return [];
-    const allImages = [
-      product.image,
-      ...(Array.isArray(product.images) ? product.images : [])
-    ];
-    productColors.forEach((color) => {
-      allImages.push(...getColorImages(color));
-    });
-    return Array.from(new Set(allImages.filter(Boolean)));
-  }, [product, productColors]);
+  }, [product, activeVersionId]);
 
   const galleryImages = useMemo(() => {
-    const activeVersion = (product?.versions || []).find((version) => version.id === activeVersionId) || null;
+    const activeVersion = (product?.versions || []).find((version) => version && version.id === activeVersionId) || null;
+    const imagesList = [];
+
     if (activeVersion) {
-      const versionImages = [
-        activeVersion.main_image_url,
-        ...(Array.isArray(activeVersion.images) ? activeVersion.images : []),
-      ].filter(Boolean);
-      if (versionImages.length) return Array.from(new Set(versionImages));
+      // Variant mode: ONLY variant cover, variant gallery, and variant color images!
+      if (activeVersion.main_image_url) imagesList.push(activeVersion.main_image_url);
+      if (Array.isArray(activeVersion.images)) imagesList.push(...activeVersion.images);
+
+      productColors.forEach((color) => {
+        imagesList.push(...getColorImages(color, null, activeVersion));
+      });
+    } else if (product) {
+      // Main product mode: ONLY main cover, main gallery, and global color images!
+      if (product.image) imagesList.push(product.image);
+      if (Array.isArray(product.images)) imagesList.push(...product.images);
+
+      productColors.forEach((color) => {
+        imagesList.push(...getColorImages(color, product, null));
+      });
     }
-    return defaultGalleryImages;
-  }, [activeVersionId, defaultGalleryImages, product]);
+
+    return Array.from(new Set(imagesList.filter(Boolean)));
+  }, [activeVersionId, product, productColors]);
 
 
   useEffect(() => {
@@ -268,14 +316,23 @@ function ProductDetailContent() {
   const displayDesc = locale === "en" && product.description_en ? product.description_en : product.description;
   const displayBadge = locale === "en" && product.badge_en ? product.badge_en : product.badge;
   const displayCategory = locale === "en" && product.category_en ? product.category_en : product.category;
-  const activeVersion = (product.versions || []).find((version) => version.id === activeVersionId) || null;
-  const isVersionedProduct = product.product_type === "device_versions" || (product.versions || []).length > 0;
+  const isCoverCategory = ["phone cases", "phone covers", "cases", "covers", "كفر", "كفرات"].some(p =>
+    String(displayCategory || product?.category || "").trim().toLowerCase().includes(p)
+  );
+  const activeVersion = (product.versions || []).find((version) => version && version.id === activeVersionId) || null;
+  const isVersionedProduct = product.product_type === "device_versions" || (product.versions || []).filter(Boolean).length > 0;
   const effectiveName = activeVersion?.version_name || displayName;
   const effectivePrice = activeVersion ? Number(activeVersion.price || 0) : Number(product.price || 0);
   const effectiveCompareAt = activeVersion?.compare_at_price ? Number(activeVersion.compare_at_price) : 0;
-  const effectiveStock = activeVersion ? Number(activeVersion.stock_quantity || 0) : Number(product.stock_quantity || 0);
+  const effectiveStock = activeVersion
+    ? Number(activeVersion.stock_quantity || 0)
+    : (isVersionedProduct
+        ? (product.versions || []).reduce((sum, v) => sum + (v && v.status !== "inactive" ? Number(v.stock_quantity || 0) : 0), 0)
+        : Number(product.stock_quantity || 0));
   const effectiveSku = activeVersion?.sku || product.sku || "";
-  const canAddProduct = isVersionedProduct ? Boolean(activeVersion && activeVersion.status !== "inactive" && effectiveStock > 0) : product.is_in_stock !== false;
+  const canAddProduct = isVersionedProduct
+    ? (activeVersion ? (activeVersion.status !== "inactive" && Number(activeVersion.stock_quantity || 0) > 0) : (product.versions || []).some(v => v && v.status !== "inactive" && Number(v.stock_quantity || 0) > 0))
+    : (product.is_in_stock !== false && Number(product.stock_quantity || 0) > 0);
 
   const handleAddToCart = () => {
     if (isVersionedProduct && !activeVersion) {
@@ -305,168 +362,283 @@ function ProductDetailContent() {
 
   return (
     <main className="apple-product-page" style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'var(--font-sans)' }}>
+      {/* Embedded JSON Matrix Table of Product Variants & Linked Colors */}
+      {isVersionedProduct && (product.versions || []).length > 0 && (
+        <script
+          id="product-variants-matrix-json"
+          type="application/json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              (product.versions || []).map((v) => ({
+                id: v.id,
+                phone_model: v.phone_model,
+                version_name: v.version_name,
+                price: v.price,
+                compare_at_price: v.compare_at_price,
+                stock_quantity: v.stock_quantity,
+                status: v.status,
+                main_image_url: v.main_image_url,
+                images: v.images || [],
+                colors: (v.colors || []).map((c) => ({
+                  name: c.name,
+                  hex: c.hex,
+                  image: c.image || null,
+                  images: c.images || [],
+                })),
+              })),
+              null,
+              2
+            ),
+          }}
+        />
+      )}
+
       {/* Hero Section */}
-      <section className="apple-product-hero" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '48px', marginBottom: '64px', alignItems: 'start' }}>
-        
-        {/* Info Column (Left typically, but standard flow puts it first in DOM. We can use dir='ltr'/'rtl' to manage right/left natively) */}
-        <div className="apple-product-info" style={{ display: 'flex', flexDirection: 'column', gap: '24px', order: locale === "ar" ? 2 : 1 }}>
-          <div>
-            {displayBadge && <span style={{ background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px', display: 'inline-block' }}>{displayBadge}</span>}
-            <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{effectiveName}</h1>
-            <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
-            {product.compatible_models && product.compatible_models.length > 1 && (
-              <div style={{ marginTop: '16px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--muted)', display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                  {locale === "ar" ? "متوافق مع:" : "Compatible with:"}
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {product.compatible_models.map((model, idx) => (
-                    <span key={idx} style={{ padding: '6px 12px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
-                      {model}
+      <section className="apple-product-hero" style={{ marginBottom: '64px' }}>
+        <div className="apple-product-details-column">
+          {/* Title & Header Block */}
+          <div className="apple-product-title-header" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              {displayBadge && <span style={{ background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px', display: 'inline-block' }}>{displayBadge}</span>}
+              <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{effectiveName}</h1>
+              <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
+              {!isCoverCategory && product.compatible_models && product.compatible_models.length > 1 && (
+                <div style={{ marginTop: '16px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--muted)', display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    {locale === "ar" ? "متوافق مع:" : "Compatible with:"}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {product.compatible_models.map((model, idx) => (
+                      <span key={idx} style={{ padding: '6px 12px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
+                        {model}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Options & Actions Block */}
+          <div className="apple-product-options-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {isVersionedProduct && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Apple-designed Guidance CTA Card */}
+                <div style={{
+                  background: 'var(--panel-soft)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '18px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      background: '#0070f3',
+                      color: '#ffffff',
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      letterSpacing: '0.02em'
+                    }}>
+                      {locale === "ar" ? "تأكيد التوافق الدقيق" : "Exact Model Compatibility"}
                     </span>
-                  ))}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: 'var(--text)', lineHeight: 1.4 }}>
+                    {locale === "ar" ? "يتوفر هذا المنتج بعدة إصدارات مخصصة لمختلف أجهزة الموبايل." : "This product is available in custom fits for multiple phone models."}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                    {locale === "ar"
+                      ? "يرجى تحديد موديل هاتفك من القائمة أدناه لمعاينة التوافق والدقة المتناهية للتصميم 👇"
+                      : "Please select your exact phone model from the list below to verify compatibility 👇"}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "اختر موديل الهاتف:" : "Choose phone model:"}</span>
+                  <select
+                    value={activeVersionId}
+                    onChange={(event) => {
+                      const version = (product.versions || []).find((item) => item && item.id === event.target.value) || null;
+                      setActiveVersionId(event.target.value);
+                      setColorError("");
+                      if (version) {
+                        const nextImage = version.main_image_url || (Array.isArray(version.images) && version.images.length > 0 ? version.images[0] : "");
+                        if (nextImage) setMainImage(nextImage);
+                      } else if (product?.image) {
+                        setMainImage(product.image);
+                      }
+                    }}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--panel)', color: 'var(--text)', fontWeight: '700' }}
+                  >
+                    <option value="">{locale === "ar" ? "اختر الموديل" : "Select model"}</option>
+                    {(product.versions || []).map((version) => (
+                      <option key={version.id} value={version.id} disabled={version.status === "inactive" || Number(version.stock_quantity || 0) <= 0}>
+                        {version.phone_model} - {formatMoney(Number(version.price || 0))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+            )}
+
+            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0070f3' }}>
+              {formatMoney(effectivePrice)} {effectiveCompareAt > effectivePrice && <span style={{ fontSize: '16px', color: 'var(--muted)', textDecoration: 'line-through', marginInlineStart: '8px' }}>{formatMoney(effectiveCompareAt)}</span>} <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 'normal' }}>{locale === "ar" ? "شامل ضريبة القيمة المضافة" : "VAT included"}</span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', background: 'var(--input-bg)', padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "حالة المخزون" : "Availability"}</span>
+                <strong style={{ fontSize: '14px', color: !canAddProduct ? '#ff4d4d' : '#4caf50' }}>
+                  {!canAddProduct ? (locale === "ar" ? "نفد من المخزون" : "Out of stock") : (locale === "ar" ? `متوفر - ${effectiveStock} قطعة` : `In stock - ${effectiveStock} available`)}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: locale === 'en' ? '1px solid var(--line)' : 'none', borderRight: locale === 'ar' ? '1px solid var(--line)' : 'none', paddingLeft: locale === 'en' ? '16px' : 0, paddingRight: locale === 'ar' ? '16px' : 0 }}>
+                <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "رمز المنتج" : "SKU"}</span>
+                <strong style={{ fontSize: '14px' }}>{effectiveSku || (locale === "ar" ? "بدون" : "None")}</strong>
+              </div>
+            </div>
+
+            {productColors.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "الألوان المتاحة:" : "Available Colors:"}</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {productColors.map((color, idx) => {
+                    const isSelected = activeColor && (color.name ? activeColor.name === color.name : activeColor.hex === color.hex);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        title={color.name}
+                        onClick={() => {
+                          const activeVer = (product?.versions || []).find((v) => v && v.id === activeVersionId) || null;
+                          const colorImages = getColorImages(color, activeVer ? null : product, activeVer);
+                          if (colorImages.length > 0) {
+                            setMainImage(colorImages[0]);
+                          } else if (activeVer) {
+                            setMainImage(activeVer.main_image_url || (Array.isArray(activeVer.images) ? activeVer.images[0] : ""));
+                          } else if (product?.image) {
+                            setMainImage(product.image);
+                          }
+                          setActiveColor(color);
+                          setColorError("");
+                        }}
+                        style={{
+                          width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
+                          background: color.hex,
+                          border: isSelected ? '3px solid #0070f3' : '1px solid rgba(0,0,0,0.15)',
+                          outline: isSelected ? '2px solid rgba(0, 112, 243, 0.3)' : 'none',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                          display: 'flex', justifyContent: 'center', alignItems: 'center'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.15)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
-          </div>
 
-          {isVersionedProduct && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "اختر موديل الهاتف:" : "Choose phone model:"}</span>
-              <select
-                value={activeVersionId}
-                onChange={(event) => {
-                  const version = (product.versions || []).find((item) => item.id === event.target.value) || null;
-                  setActiveVersionId(event.target.value);
-                  setColorError("");
-                  if (version) {
-                    const nextImage = version.main_image_url || (Array.isArray(version.images) ? version.images[0] : "") || product.image;
-                    setMainImage(nextImage);
-                  }
-                }}
-                style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--panel)', color: 'var(--text)', fontWeight: '700' }}
-              >
-                <option value="">{locale === "ar" ? "اختر الموديل" : "Select model"}</option>
-                {(product.versions || []).map((version) => (
-                  <option key={version.id} value={version.id} disabled={version.status === "inactive" || Number(version.stock_quantity || 0) <= 0}>
-                    {version.phone_model} - {formatMoney(Number(version.price || 0))}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0070f3' }}>
-            {formatMoney(effectivePrice)} {effectiveCompareAt > effectivePrice && <span style={{ fontSize: '16px', color: 'var(--muted)', textDecoration: 'line-through', marginInlineStart: '8px' }}>{formatMoney(effectiveCompareAt)}</span>} <span style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 'normal' }}>{locale === "ar" ? "شامل ضريبة القيمة المضافة" : "VAT included"}</span>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', background: 'var(--input-bg)', padding: '16px', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "حالة المخزون" : "Availability"}</span>
-              <strong style={{ fontSize: '14px', color: !canAddProduct ? '#ff4d4d' : '#4caf50' }}>
-                {!canAddProduct ? (locale === "ar" ? "نفد من المخزون" : "Out of stock") : (locale === "ar" ? `متوفر - ${effectiveStock} قطعة` : `In stock - ${effectiveStock} available`)}
-              </strong>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: locale === 'en' ? '1px solid var(--line)' : 'none', borderRight: locale === 'ar' ? '1px solid var(--line)' : 'none', paddingLeft: locale === 'en' ? '16px' : 0, paddingRight: locale === 'ar' ? '16px' : 0 }}>
-              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{locale === "ar" ? "رمز المنتج" : "SKU"}</span>
-              <strong style={{ fontSize: '14px' }}>{effectiveSku || (locale === "ar" ? "بدون" : "None")}</strong>
-            </div>
-          </div>
-
-          {productColors.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "الألوان المتاحة:" : "Available Colors:"}</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                {productColors.map((color, idx) => {
-                  const isSelected = activeColor && (color.name ? activeColor.name === color.name : activeColor.hex === color.hex);
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      title={color.name}
-                      onClick={() => {
-                        const colorImages = getColorImages(color);
-                        if (colorImages.length > 0) {
-                          setMainImage(colorImages[0]);
-                        } else if (product.image) {
-                          setMainImage(product.image);
-                        }
-                        setActiveColor(color);
-                        setColorError("");
-                      }}
-                      style={{
-                        width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-                        background: color.hex, 
-                        border: isSelected ? '3px solid #0070f3' : '1px solid rgba(0,0,0,0.15)',
-                        outline: isSelected ? '2px solid rgba(0, 112, 243, 0.3)' : 'none',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        display: 'flex', justifyContent: 'center', alignItems: 'center'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.15)';
-                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                      }}
-                    />
-                  );
-                })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
+              {/* Quantity Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', padding: '4px' }}>
+                <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ background: 'transparent', border: 'none', fontSize: '20px', width: '36px', height: '36px', cursor: 'pointer', color: 'var(--text)' }}>-</button>
+                <span style={{ width: '36px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>{quantity}</span>
+                <button type="button" onClick={() => setQuantity(quantity + 1)} style={{ background: 'transparent', border: 'none', fontSize: '20px', width: '36px', height: '36px', cursor: 'pointer', color: 'var(--text)' }}>+</button>
               </div>
-            </div>
-          )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-            {/* Quantity Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', padding: '4px' }}>
-              <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ background: 'transparent', border: 'none', fontSize: '20px', width: '36px', height: '36px', cursor: 'pointer', color: 'var(--text)' }}>-</button>
-              <span style={{ width: '36px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>{quantity}</span>
-              <button type="button" onClick={() => setQuantity(quantity + 1)} style={{ background: 'transparent', border: 'none', fontSize: '20px', width: '36px', height: '36px', cursor: 'pointer', color: 'var(--text)' }}>+</button>
+              {/* Wishlist Button */}
+              <button
+                type="button"
+                onClick={() => toggleWishlist(product.id)}
+                style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill={isFavorite ? "#ff4d4d" : "none"} stroke={isFavorite ? "#ff4d4d" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+              </button>
             </div>
-            
-            {/* Wishlist Button */}
-            <button 
-              type="button" 
-              onClick={() => toggleWishlist(product.id)}
-              style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+
+            {colorError && (
+              <div style={{ color: '#ff4d4d', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>⚠️</span> {colorError}
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={!canAddProduct}
+              onClick={handleAddToCart}
+              style={{
+                width: '100%',
+                padding: '16px 28px',
+                borderRadius: '9999px',
+                border: 'none',
+                background: canAddProduct
+                  ? 'linear-gradient(135deg, #0071e3 0%, #0077ed 100%)'
+                  : 'var(--muted)',
+                color: '#ffffff',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: !canAddProduct ? 'not-allowed' : 'pointer',
+                opacity: !canAddProduct ? 0.55 : 1,
+                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: canAddProduct ? '0 8px 24px rgba(0, 113, 227, 0.35)' : 'none',
+                marginTop: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                letterSpacing: '-0.01em',
+              }}
+              onMouseEnter={(e) => {
+                if (canAddProduct) {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 113, 227, 0.45)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (canAddProduct) {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 113, 227, 0.35)';
+                }
+              }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill={isFavorite ? "#ff4d4d" : "none"} stroke={isFavorite ? "#ff4d4d" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
               </svg>
+              <span>{locale === "ar" ? "أضف إلى السلة" : "Add to Cart"}</span>
             </button>
           </div>
-
-          {colorError && (
-            <div style={{ color: '#ff4d4d', fontSize: '14px', fontWeight: 'bold', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>⚠️</span> {colorError}
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={!canAddProduct}
-            onClick={handleAddToCart}
-            style={{ width: '100%', padding: '18px', borderRadius: '16px', border: 'none', background: '#0070f3', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: !canAddProduct ? 'not-allowed' : 'pointer', opacity: !canAddProduct ? 0.5 : 1, transition: 'all 0.3s', boxShadow: '0 8px 24px rgba(0, 112, 243, 0.4)', marginTop: '8px' }}
-          >
-            {locale === "ar" ? "أضف إلى السلة" : "Add to Cart"}
-          </button>
         </div>
 
-        {/* Gallery Column (Right typically, order 2 in standard DOM, or order 1 in AR if we want it on the right) */}
-        <div className="apple-product-gallery" style={{ display: 'flex', flexDirection: 'column', gap: '16px', order: locale === "ar" ? 1 : 2 }}>
-          <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px', overflow: 'hidden' }}>
+        {/* Gallery Column (Main Image & Thumbnails) */}
+        <div className="apple-product-gallery" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'var(--panel)', borderRadius: '24px', padding: '16px', border: '1px solid var(--line)', boxShadow: '0 12px 40px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '360px', overflow: 'hidden' }}>
              {mainImage ? (
-               <div 
+               <div
                  onMouseMove={handleMouseMove}
                  onMouseEnter={() => setIsZoomed(true)}
                  onMouseLeave={() => setIsZoomed(false)}
-                 style={{ 
-                   position: 'relative', 
-                   width: '100%', 
-                   height: '100%', 
-                   overflow: 'hidden', 
+                 style={{
+                   position: 'relative',
+                   width: '100%',
+                   height: '100%',
+                   overflow: 'hidden',
                    cursor: 'zoom-in',
                    borderRadius: '16px',
                    display: 'flex',
@@ -474,33 +646,33 @@ function ProductDetailContent() {
                    alignItems: 'center'
                  }}
                >
-                 <img 
-                   src={mainImage} 
+                 <img
+                   src={mainImage}
                    alt={effectiveName}
-                   decoding="async" 
-                   style={{ 
-                     width: '100%', 
-                     height: 'auto', 
-                     maxHeight: '500px', 
-                     objectFit: 'contain', 
+                   decoding="async"
+                   style={{
+                     width: '100%',
+                     height: 'auto',
+                     maxHeight: '500px',
+                     objectFit: 'contain',
                      transform: isZoomed ? 'scale(2.2)' : 'scale(1)',
                      transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
                      transition: isZoomed ? 'none' : 'transform 0.3s ease',
                      borderRadius: '16px'
-                   }} 
+                   }}
                  />
                </div>
              ) : (
                <span style={{ color: 'var(--muted)' }}>No Image</span>
              )}
           </div>
-          
+
           {galleryImages.length > 1 && (
             <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
               {galleryImages.map((img, idx) => (
-                <button 
-                  key={idx} 
-                  type="button" 
+                <button
+                  key={idx}
+                  type="button"
                   onClick={() => setMainImage(img)}
                   style={{ width: '80px', height: '80px', flexShrink: 0, borderRadius: '12px', border: mainImage === img ? '2px solid #0070f3' : '1px solid var(--line)', background: 'var(--panel)', padding: '4px', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
@@ -515,7 +687,6 @@ function ProductDetailContent() {
       {/* Description Section */}
       {displayDesc && (
         <section className="apple-product-description" style={{ marginBottom: '64px', background: 'var(--panel)', padding: '40px', borderRadius: '24px', border: '1px solid var(--line)', boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}>
-          <h2 style={{ fontSize: '22px', marginBottom: '24px', borderBottom: '1px solid var(--line)', paddingBottom: '16px' }}>{locale === "ar" ? "التفاصيل الوصفية" : "Description"}</h2>
           <div style={{ fontSize: '16px', lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-line' }}>
             {displayDesc}
           </div>

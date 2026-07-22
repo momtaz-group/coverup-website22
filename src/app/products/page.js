@@ -24,6 +24,7 @@ function ShopContent() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [storeCategories, setStoreCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [searchQuery, setSearchQuery] = useState(urlSearch);
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [selectedModel, setSelectedModel] = useState(urlModel);
@@ -40,9 +41,10 @@ function ShopContent() {
     setSelectedModel(urlModel);
   }, [urlSearch, urlCategory, urlModel]);
 
-  // Load products from DB
+  // Load products & categories from DB
   useEffect(() => {
     setLoadingProducts(true);
+    setLoadingCategories(true);
     fetch("/api/store-products")
       .then((res) => res.json())
       .then((data) => {
@@ -63,7 +65,8 @@ function ShopContent() {
           setStoreCategories(data.categories.filter((category) => category.name && category.image_url));
         }
       })
-      .catch(() => setStoreCategories([]));
+      .catch(() => setStoreCategories([]))
+      .finally(() => setLoadingCategories(false));
 
     const loadWishlist = async () => {
       let localWish = [];
@@ -363,19 +366,36 @@ function ShopContent() {
       </section>
 
       <section className="store-category-strip" aria-label={locale === "ar" ? "تصنيفات المتجر" : "Store categories"}>
-        {categoryTiles.map((item) => (
-          <button
-            key={item.image}
-            type="button"
-            className={`store-category-tile ${selectedCategory === item.category ? "is-active" : ""}`}
-            onClick={() => handleCategoryChange(item.category)}
-          >
-            <span className="store-category-image">
-              <img src={item.image} alt="" loading="lazy" decoding="async" />
-            </span>
-            <span>{item.title}</span>
-          </button>
-        ))}
+        {loadingCategories ? (
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="store-category-tile"
+              style={{
+                width: "90px",
+                height: "90px",
+                borderRadius: "18px",
+                background: "var(--panel-soft)",
+                opacity: 0.6,
+                border: "1px solid var(--line)"
+              }}
+            />
+          ))
+        ) : (
+          categoryTiles.map((item) => (
+            <button
+              key={item.image || item.category}
+              type="button"
+              className={`store-category-tile ${selectedCategory === item.category ? "is-active" : ""}`}
+              onClick={() => handleCategoryChange(item.category)}
+            >
+              <span className="store-category-image">
+                <img src={item.image} alt="" loading="lazy" decoding="async" />
+              </span>
+              <span>{item.title}</span>
+            </button>
+          ))
+        )}
       </section>
 
       {/* Category Tabs under Search Bar */}

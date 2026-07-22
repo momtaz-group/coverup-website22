@@ -412,6 +412,37 @@ export default function AdminPage() {
             }
           }
 
+          const versionFileToUrlMap = {};
+          if (mainImageUrl) versionFileToUrlMap[mainImageUrl] = mainImageUrl;
+          versionImages.forEach(url => { versionFileToUrlMap[url] = url; });
+
+          const versionColors = [];
+          for (const c of (version.colors || [])) {
+            let colorFileUrl = c.custom_preview || null;
+            if (c._colorFile) {
+              colorFileUrl = await uploadProductImage(c._colorFile, `${productForm.name}-${version.phone_model}-${c.name}`);
+            }
+
+            let finalImages = [];
+            if (Array.isArray(c.images)) {
+              finalImages = c.images.map(ref => versionFileToUrlMap[ref] || ref).filter(Boolean);
+            } else if (c.image) {
+              finalImages = [versionFileToUrlMap[c.image] || c.image].filter(Boolean);
+            }
+
+            if (colorFileUrl) {
+              finalImages = Array.from(new Set([colorFileUrl, ...finalImages]));
+            }
+
+            versionColors.push({
+              ...c,
+              image: finalImages[0] || colorFileUrl || null,
+              images: finalImages,
+              _colorFile: undefined,
+              custom_preview: colorFileUrl || c.custom_preview || undefined,
+            });
+          }
+
           resolvedVersions.push({
             id: version.id,
             version_name: version.version_name,
@@ -425,6 +456,7 @@ export default function AdminPage() {
             stock_quantity: version.stock_quantity,
             main_image_url: mainImageUrl,
             images: versionImages,
+            colors: versionColors,
             status: version.status || "active",
             sort_order: version.sort_order,
           });

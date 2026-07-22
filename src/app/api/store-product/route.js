@@ -134,6 +134,12 @@ export async function POST(request) {
       return NextResponse.json({ message: "Add at least one product version for this category before saving." }, { status: 400 });
     }
 
+    if (shouldUseVersions && versionsInput.length > 0) {
+      const calculatedTotalStock = versionsInput.reduce((sum, v) => sum + (v.status !== "inactive" ? Math.max(0, Number(v.stock_quantity ?? v.stockQuantity ?? 0)) : 0), 0);
+      cleanedProduct.stock_quantity = calculatedTotalStock;
+      cleanedProduct.is_in_stock = calculatedTotalStock > 0;
+    }
+
     const product = await upsertProduct(cleanedProduct);
     const versions = shouldUseVersions && Object.hasOwn(rawProduct, "versions")
       ? await replaceProductVersions(product.id, Array.isArray(rawProduct.versions) ? rawProduct.versions : [])

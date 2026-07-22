@@ -12,6 +12,9 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
   const [variantModalFamily, setVariantModalFamily] = useState(form.product_family || "");
   const [variantModalSearch, setVariantModalSearch] = useState("");
   const [variantModalSelectedModels, setVariantModalSelectedModels] = useState([]);
+  const [customVariantBrand, setCustomVariantBrand] = useState("");
+  const [customVariantFamily, setCustomVariantFamily] = useState("");
+  const [customVariantModel, setCustomVariantModel] = useState("");
 
   // Per-variant color creation temp state
   const [variantColorHexMap, setVariantColorHexMap] = useState({});
@@ -48,33 +51,23 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
     );
   }, [modalAvailableModels, variantModalSearch]);
 
-  // Helper to gather all available images from product and all variants
+  // Helper to gather available images specifically for color linking
   const getAllAvailableImages = (currentVersion = null) => {
     const images = [];
 
-    // Main product images
-    if (form.image) images.push({ id: form.image, src: form.image, label: "الأساسية للمنتج" });
-    if (imageFile) images.push({ id: imageFile.name, src: URL.createObjectURL(imageFile), label: "ملف رئيسي للمنتج" });
-    (form.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `معرض المنتج ${i + 1}` }));
-    (galleryFiles || []).forEach((f, i) => images.push({ id: f.name, src: URL.createObjectURL(f), label: `ملف معرض المنتج ${i + 1}` }));
-
-    // Current version specific images
     if (currentVersion) {
-      if (currentVersion.main_image_url) images.push({ id: currentVersion.main_image_url, src: currentVersion.main_image_url, label: "رئيسية الإصدار" });
-      if (currentVersion._mainImageFile) images.push({ id: currentVersion._mainImageFile.name, src: URL.createObjectURL(currentVersion._mainImageFile), label: "ملف رئيسي للإصدار" });
-      (currentVersion.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `معرض الإصدار ${i + 1}` }));
+      // ONLY include this specific variant's images!
+      if (currentVersion.main_image_url) images.push({ id: currentVersion.main_image_url, src: currentVersion.main_image_url, label: "رئيسية هذا الإصدار" });
+      if (currentVersion._mainImageFile) images.push({ id: currentVersion._mainImageFile.name, src: URL.createObjectURL(currentVersion._mainImageFile), label: "ملف غلاف هذا الإصدار" });
+      (currentVersion.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `صورة معرض الإصدار ${i + 1}` }));
       (currentVersion._galleryFiles || []).forEach((f, i) => images.push({ id: f.name, src: URL.createObjectURL(f), label: `ملف معرض الإصدار ${i + 1}` }));
+    } else {
+      // Main product images only
+      if (form.image) images.push({ id: form.image, src: form.image, label: "الأساسية للمنتج" });
+      if (imageFile) images.push({ id: imageFile.name, src: URL.createObjectURL(imageFile), label: "ملف رئيسي للمنتج" });
+      (form.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `معرض المنتج ${i + 1}` }));
+      (galleryFiles || []).forEach((f, i) => images.push({ id: f.name, src: URL.createObjectURL(f), label: `ملف معرض المنتج ${i + 1}` }));
     }
-
-    // Other versions' images
-    (form.versions || []).forEach((v, vIdx) => {
-      if (v !== currentVersion) {
-        const vLabel = v.phone_model || `إصدار ${vIdx + 1}`;
-        if (v.main_image_url) images.push({ id: v.main_image_url, src: v.main_image_url, label: `${vLabel} (رئيسية)` });
-        if (v._mainImageFile) images.push({ id: v._mainImageFile.name, src: URL.createObjectURL(v._mainImageFile), label: `${vLabel} (ملف)` });
-        (v.images || []).forEach((img, i) => images.push({ id: img, src: img, label: `${vLabel} (معرض ${i + 1})` }));
-      }
-    });
 
     const seen = new Set();
     return images.filter(img => {
@@ -166,6 +159,31 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
     } else {
       setVariantModalSelectedModels([...modalFilteredModels]);
     }
+  };
+
+  // Add manual custom variant (independent brand/family/model)
+  const handleAddManualCustomVariant = () => {
+    const targetModel = customVariantModel.trim();
+    if (!targetModel) return;
+    const targetBrand = customVariantBrand.trim() || variantModalBrand || form.brand || "";
+    const targetFamily = customVariantFamily.trim() || variantModalFamily || form.product_family || "";
+
+    const newVersion = normalizeVersion({
+      brand: targetBrand,
+      product_family: targetFamily,
+      phone_model: targetModel,
+      version_name: makeVersionName(targetModel),
+    }, (form.versions || []).length);
+
+    setForm({
+      ...form,
+      brand: form.brand || targetBrand,
+      product_family: form.product_family || targetFamily,
+      versions: [...(form.versions || []), newVersion],
+    });
+
+    setCustomVariantModel("");
+    setVariantModalOpen(false);
   };
 
   // Add selected variants from modal into form.versions
@@ -449,32 +467,31 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
             الماركة (Brand)
-            <input
-              type="text"
-              list="brands-list"
+            <select
               value={form.brand || ""}
-              onChange={e => setForm({...form, brand: e.target.value})}
-              placeholder="اكتب اسم الماركة أو اختر من القائمة"
+              onChange={e => {
+                const brandName = e.target.value;
+                const brandObj = brandsData.find(b => b.brand === brandName);
+                const firstFamily = brandObj?.families[0]?.family || "";
+                setForm({...form, brand: brandName, product_family: firstFamily});
+              }}
               style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
-            />
-            <datalist id="brands-list">
-              {brandsData.map(b => <option key={b.brand} value={b.brand} />)}
-            </datalist>
+            >
+              <option value="">-- اختر الماركة (Brand) --</option>
+              {brandsData.map(b => <option key={b.brand} value={b.brand}>{b.brand}</option>)}
+            </select>
           </label>
 
           <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
-            نوع المنتج / عائلة الأجهزة (Product Family)
-            <input
-              type="text"
-              list="families-list"
+            عائلة الأجهزة (Product Family)
+            <select
               value={form.product_family || ""}
               onChange={e => setForm({...form, product_family: e.target.value})}
-              placeholder="اكتب نوع المنتج أو اختر من القائمة"
               style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
-            />
-            <datalist id="families-list">
-              {selectedBrand?.families.map(f => <option key={f.family} value={f.family} />)}
-            </datalist>
+            >
+              <option value="">-- اختر العائلة / السلسلة (Family) --</option>
+              {(selectedBrand?.families || []).map(f => <option key={f.family} value={f.family}>{f.family}</option>)}
+            </select>
           </label>
         </div>
 
@@ -527,27 +544,47 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.85rem", fontWeight: "600" }}>
                         الماركة (Brand)
-                        <input list="brands-list" value={version.brand || ""} onChange={(event) => updateVersion(index, "brand", event.target.value)} required style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }} />
+                        <select
+                          value={version.brand || ""}
+                          onChange={(event) => {
+                            const bName = event.target.value;
+                            const bObj = brandsData.find(x => x.brand === bName);
+                            const fName = bObj?.families[0]?.family || "";
+                            updateVersion(index, "brand", bName);
+                            updateVersion(index, "product_family", fName);
+                          }}
+                          required
+                          style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }}
+                        >
+                          <option value="">اختر الماركة</option>
+                          {brandsData.map(b => <option key={b.brand} value={b.brand}>{b.brand}</option>)}
+                        </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.85rem", fontWeight: "600" }}>
                         عائلة الأجهزة
-                        <input list={`version-families-${index}`} value={version.product_family || ""} onChange={(event) => updateVersion(index, "product_family", event.target.value)} required style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }} />
-                        <datalist id={`version-families-${index}`}>
-                          {versionBrand?.families.map((family) => <option key={family.family} value={family.family} />)}
-                        </datalist>
+                        <select
+                          value={version.product_family || ""}
+                          onChange={(event) => updateVersion(index, "product_family", event.target.value)}
+                          required
+                          style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }}
+                        >
+                          <option value="">اختر العائلة</option>
+                          {(versionBrand?.families || []).map((family) => <option key={family.family} value={family.family}>{family.family}</option>)}
+                        </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.85rem", fontWeight: "600" }}>
                         موديل الهاتف
-                        <input
-                          list={`version-models-${index}`}
+                        <select
                           value={version.phone_model || ""}
                           onChange={(event) => updateVersionPhoneModel(index, event.target.value)}
                           required
                           style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }}
-                        />
-                        <datalist id={`version-models-${index}`}>
-                          {Array.from(new Set([...(versionFamily?.models || []), ...availableModels])).map(model => <option key={model} value={model} />)}
-                        </datalist>
+                        >
+                          <option value="">اختر موديل الهاتف</option>
+                          {Array.from(new Set([...(versionFamily?.models || []), ...availableModels])).map(model => (
+                            <option key={model} value={model}>{model}</option>
+                          ))}
+                        </select>
                       </label>
                       <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.85rem", fontWeight: "600" }}>
                         SKU (رمز المنتج)
@@ -557,16 +594,118 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
                         الكمية بالمخزن
                         <input type="number" min="0" value={version.stock_quantity ?? ""} onChange={(event) => updateVersion(index, "stock_quantity", event.target.value)} required style={{ padding: "10px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#fff" }} />
                       </label>
-                      {/* Apple Style Variant Image Upload Cards */}
-                      <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem", fontWeight: "600" }}>
-                        الصورة الرئيسية للإصدار
-                        <input type="file" accept="image/*" onChange={(event) => updateVersion(index, "_mainImageFile", event.target.files?.[0] || null)} style={{ fontSize: "0.8rem" }} />
-                      </label>
-                      <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem", fontWeight: "600" }}>
-                        الصور الإضافية للإصدار
-                        <input type="file" accept="image/*" multiple onChange={(event) => updateVersion(index, "_galleryFiles", Array.from(event.target.files || []))} style={{ fontSize: "0.8rem" }} />
-                      </label>
-                      <label className="product-version-toggle" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", fontWeight: "600", marginTop: "24px" }}>
+                      {/* APPLE-DESIGNED VARIANT MEDIA STUDIO */}
+                      <div style={{ gridColumn: "1 / -1", background: "#ffffff", borderRadius: "16px", padding: "18px", border: "1px solid #e5e5ea", display: "flex", flexDirection: "column", gap: "16px", marginTop: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f1f5f9", paddingBottom: "10px" }}>
+                          <div>
+                            <strong style={{ fontSize: "0.95rem", color: "#1d1d1f" }}>استوديو صور هذا الإصدار (Variant Media Studio)</strong>
+                            <p style={{ margin: "2px 0 0 0", fontSize: "0.8rem", color: "#86868b" }}>اختر وعدل واحذف صور هذا الإصدار بحرية.</p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                          {/* Variant Main Cover Image Dropzone */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <span style={{ fontWeight: "700", fontSize: "0.85rem", color: "#1d1d1f" }}>الصورة الرئيسية للإصدار</span>
+                            <label style={{ position: "relative", minHeight: "130px", borderRadius: "14px", border: "2px dashed #0071e3", background: "rgba(0, 113, 227, 0.02)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "14px", cursor: "pointer", transition: "all 0.2s" }}>
+                              <input type="file" accept="image/*" onChange={(event) => updateVersion(index, "_mainImageFile", event.target.files?.[0] || null)} style={{ display: "none" }} />
+                              {(version._mainImageFile || version.main_image_url) ? (
+                                <div style={{ position: "relative", width: "100%", height: "110px", borderRadius: "10px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: "#fbfbfd" }}>
+                                  <img src={version._mainImageFile ? URL.createObjectURL(version._mainImageFile) : version.main_image_url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateVersion(index, "_mainImageFile", null);
+                                      updateVersion(index, "main_image_url", "");
+                                    }}
+                                    style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", color: "#fff", border: "none", width: "26px", height: "26px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}
+                                    title="حذف الصورة الرئيسية للإصدار"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0071e3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="5" ry="5"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                  </svg>
+                                  <span style={{ fontWeight: "700", color: "#0071e3", fontSize: "0.85rem" }}>انقر لرفع صورة الغلاف</span>
+                                </div>
+                              )}
+                            </label>
+                          </div>
+
+                          {/* Variant Gallery Grid & Previews */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <span style={{ fontWeight: "700", fontSize: "0.85rem", color: "#1d1d1f" }}>معرض صور الإصدار</span>
+                            <label style={{ minHeight: "130px", borderRadius: "14px", border: "1px solid #d2d2d7", background: "#fbfbfd", display: "flex", flexDirection: "column", padding: "12px", cursor: "pointer" }}>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(event) => {
+                                  const existing = version._galleryFiles || [];
+                                  const added = Array.from(event.target.files || []);
+                                  updateVersion(index, "_galleryFiles", [...existing, ...added]);
+                                }}
+                                style={{ display: "none" }}
+                              />
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", borderBottom: "1px solid #e5e5ea", paddingBottom: "6px" }}>
+                                <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "#0071e3" }}>+ إضافة صور للمعرض</span>
+                                <span style={{ fontSize: "0.75rem", color: "#86868b" }}>
+                                  {((version.images || version.gallery_images || []).length + (version._galleryFiles || []).length)} صور
+                                </span>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(50px, 1fr))", gap: "8px", maxHeight: "110px", overflowY: "auto" }}>
+                                {/* Saved image URLs */}
+                                {(version.images || version.gallery_images || []).map((imgUrl, imgIdx) => (
+                                  <div key={imgIdx} style={{ position: "relative", width: "50px", height: "50px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e5e5ea", background: "#ffffff" }}>
+                                    <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const currentImgs = Array.from(version.images || version.gallery_images || []);
+                                        currentImgs.splice(imgIdx, 1);
+                                        updateVersion(index, "images", currentImgs);
+                                        updateVersion(index, "gallery_images", currentImgs);
+                                      }}
+                                      style={{ position: "absolute", top: "2px", right: "2px", background: "rgba(220, 38, 38, 0.9)", color: "#fff", border: "none", width: "18px", height: "18px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: "bold" }}
+                                      title="حذف من المعرض"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                                {/* Newly selected files */}
+                                {(version._galleryFiles || []).map((fileObj, fileIdx) => (
+                                  <div key={`new-${fileIdx}`} style={{ position: "relative", width: "50px", height: "50px", borderRadius: "8px", overflow: "hidden", border: "1px solid #0071e3", background: "#ffffff" }}>
+                                    <img src={URL.createObjectURL(fileObj)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const currentFiles = Array.from(version._galleryFiles || []);
+                                        currentFiles.splice(fileIdx, 1);
+                                        updateVersion(index, "_galleryFiles", currentFiles);
+                                      }}
+                                      style={{ position: "absolute", top: "2px", right: "2px", background: "rgba(220, 38, 38, 0.9)", color: "#fff", border: "none", width: "18px", height: "18px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: "bold" }}
+                                      title="إلغاء الصورة الجديدة"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <label className="product-version-toggle" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", fontWeight: "600", marginTop: "12px" }}>
                         <input type="checkbox" checked={version.status !== "inactive"} onChange={(event) => updateVersion(index, "status", event.target.checked ? "active" : "inactive")} />
                         نشط (Active)
                       </label>
@@ -987,6 +1126,44 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
                   لا توجد موديلات مطابقة للبحث.
                 </div>
               )}
+            </div>
+
+            {/* Custom Manual Variant Entry Section */}
+            <div style={{ padding: "16px 24px", background: "#fbfbfd", borderTop: "1px solid #e5e5ea", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#0071e3" }}>
+                + أو أضف ماركة / عائلة / موديل يدوي مخصص (Custom Model / Brand Entry):
+              </span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "10px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="الماركة (اختياري)"
+                  value={customVariantBrand}
+                  onChange={(e) => setCustomVariantBrand(e.target.value)}
+                  style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #d2d2d7", fontSize: "0.85rem" }}
+                />
+                <input
+                  type="text"
+                  placeholder="عائلة المنتج (اختياري)"
+                  value={customVariantFamily}
+                  onChange={(e) => setCustomVariantFamily(e.target.value)}
+                  style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #d2d2d7", fontSize: "0.85rem" }}
+                />
+                <input
+                  type="text"
+                  placeholder="اسم الموديل المخصص *"
+                  value={customVariantModel}
+                  onChange={(e) => setCustomVariantModel(e.target.value)}
+                  style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #d2d2d7", fontSize: "0.85rem" }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddManualCustomVariant}
+                  disabled={!customVariantModel.trim()}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "#0071e3", color: "#fff", fontWeight: "700", fontSize: "0.85rem", cursor: !customVariantModel.trim() ? "not-allowed" : "pointer", opacity: !customVariantModel.trim() ? 0.5 : 1 }}
+                >
+                  إضافة الإصدار المخصص
+                </button>
+              </div>
             </div>
 
             {/* Modal Footer */}
