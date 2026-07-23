@@ -1,10 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { brandsData, FAMOUS_COLORS } from "@/utils/brandsData";
+import { getSectionType } from "@/utils/section-utils";
 
-export default function ProductEditor({ form, setForm, imageFile, setImageFile, galleryFiles, setGalleryFiles, sections, onSubmit, onDelete, onClose }) {
+export default function ProductEditor({ form, setForm, imageFile, setImageFile, galleryFiles, setGalleryFiles, sections = [], categories = [], onSubmit, onDelete, onClose }) {
   const [customModelInput, setCustomModelInput] = useState("");
   const [newColorHex, setNewColorHex] = useState("#000000");
   const [newColorName, setNewColorName] = useState("");
+
+  const sectionType = getSectionType(form.category, categories.length ? categories : sections);
+  const isScreenProtector = sectionType === "screen_protectors";
 
   // Variant Creation Modal State
   const [variantModalOpen, setVariantModalOpen] = useState(false);
@@ -482,37 +486,39 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
           </div>
         </div>
 
-        {/* Brand & Product Family */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
-            الماركة (Brand)
-            <select
-              value={form.brand || ""}
-              onChange={e => {
-                const brandName = e.target.value;
-                const brandObj = brandsData.find(b => b.brand === brandName);
-                const firstFamily = brandObj?.families[0]?.family || "";
-                setForm({...form, brand: brandName, product_family: firstFamily});
-              }}
-              style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
-            >
-              <option value="">-- اختر الماركة (Brand) --</option>
-              {brandsData.map(b => <option key={b.brand} value={b.brand}>{b.brand}</option>)}
-            </select>
-          </label>
+        {/* Brand & Product Family (Hidden for Screen Protectors) */}
+        {!isScreenProtector && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
+              الماركة (Brand)
+              <select
+                value={form.brand || ""}
+                onChange={e => {
+                  const brandName = e.target.value;
+                  const brandObj = brandsData.find(b => b.brand === brandName);
+                  const firstFamily = brandObj?.families[0]?.family || "";
+                  setForm({...form, brand: brandName, product_family: firstFamily});
+                }}
+                style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
+              >
+                <option value="">-- اختر الماركة (Brand) --</option>
+                {brandsData.map(b => <option key={b.brand} value={b.brand}>{b.brand}</option>)}
+              </select>
+            </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
-            عائلة الأجهزة (Product Family)
-            <select
-              value={form.product_family || ""}
-              onChange={e => setForm({...form, product_family: e.target.value})}
-              style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
-            >
-              <option value="">-- اختر العائلة / السلسلة (Family) --</option>
-              {(selectedBrand?.families || []).map(f => <option key={f.family} value={f.family}>{f.family}</option>)}
-            </select>
-          </label>
-        </div>
+            <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
+              عائلة الأجهزة (Product Family)
+              <select
+                value={form.product_family || ""}
+                onChange={e => setForm({...form, product_family: e.target.value})}
+                style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }}
+              >
+                <option value="">-- اختر العائلة / السلسلة (Family) --</option>
+                {(selectedBrand?.families || []).map(f => <option key={f.family} value={f.family}>{f.family}</option>)}
+              </select>
+            </label>
+          </div>
+        )}
 
         {/* Product Variants / Versions Panel */}
         <div className="product-versions-panel" style={{ marginTop: "24px", background: "#ffffff", padding: "24px", borderRadius: "20px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
@@ -859,179 +865,257 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
           )}
         </div>
 
-        {/* Compatible Devices Section specifically for Screen Protectors */}
-        {["screen protectors", "screen protection", "حماية الشاشة", "اسكرينة", "سكرينة"].some(p => String(form.category || "").trim().toLowerCase().includes(p)) && (
-          <div style={{ marginTop: "20px", background: "#ffffff", padding: "24px", borderRadius: "20px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "12px", fontWeight: "600" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "1.05rem", color: "#1d1d1f", fontWeight: "700" }}>الموديلات المتوافقة مع اسكرينة الشاشة (Screen Protector Compatible Devices)</span>
-                <button
-                  type="button"
-                  onClick={handleAddAllCompatibleModels}
-                  style={{ padding: "8px 16px", borderRadius: "10px", border: "none", background: "#0071e3", color: "#ffffff", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
-                >
-                  + إضافة كل موديلات العائلة (Add All Models)
-                </button>
+        {/* Product Variants / Versions Panel (Hidden for Screen Protectors) */}
+        {!isScreenProtector && (
+          <div className="product-versions-panel" style={{ marginTop: "24px", background: "#ffffff", padding: "24px", borderRadius: "20px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+            <div className="product-versions-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "700", color: "#1d1d1f", letterSpacing: "-0.01em" }}>إصدارات المنتج (Product Variants)</h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: "0.85rem", color: "#86868b" }}>تخصيص إصدارات مستقلة لكل موديل هاتف مع ربط الألوان والصور لكل إصدار.</p>
               </div>
-
-              {Array.from(new Set([...(selectedFamily?.models || []), ...(form.compatible_models || [])])).length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", padding: "18px", background: "#fbfbfd", borderRadius: "14px", border: "1px solid #e5e5ea", maxHeight: "200px", overflowY: "auto" }}>
-                  {Array.from(new Set([...(selectedFamily?.models || []), ...(form.compatible_models || [])])).map(model => {
-                    const isSelected = (form.compatible_models || []).includes(model);
-                    return (
-                      <button
-                        key={model}
-                        type="button"
-                        onClick={() => handleToggleModel(model)}
-                        style={{
-                          padding: "8px 16px",
-                          borderRadius: "20px",
-                          fontSize: "0.88rem",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                          transition: "all 0.2s",
-                          border: isSelected ? "2px solid #0071e3" : "1px solid #d2d2d7",
-                          background: isSelected ? "rgba(0, 113, 227, 0.08)" : "#ffffff",
-                          color: isSelected ? "#0071e3" : "#1d1d1f"
-                        }}
-                      >
-                        {model}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-                <input 
-                  type="text"
-                  placeholder="أضف موديل متوافق يدوياً (مثال: Galaxy S24 Ultra / iPhone 16)"
-                  value={customModelInput}
-                  onChange={e => setCustomModelInput(e.target.value)}
-                  style={{ flex: 1, padding: "10px 14px", borderRadius: "10px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f" }}
-                />
-                <button 
-                  type="button" 
-                  onClick={handleAddCustomModel} 
-                  style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: "#0071e3", color: "#ffffff", cursor: "pointer", fontWeight: "600" }}
-                >
-                  إضافة
-                </button>
-              </div>
-            </label>
+              <button
+                type="button"
+                onClick={openVariantModal}
+                style={{ padding: "12px 24px", borderRadius: "12px", border: "none", background: "#0071e3", color: "#ffffff", fontWeight: "600", cursor: "pointer", fontSize: "0.9rem", boxShadow: "0 4px 12px rgba(0, 113, 227, 0.2)" }}
+              >
+                + إضافة إصدار (Add Variant)
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Global Product Colors System */}
-        <div style={{ padding: "24px", background: "#ffffff", borderRadius: "20px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <h3 style={{ margin: "0 0 16px 0", fontSize: "1.2rem", fontWeight: "700", color: "#1d1d1f", letterSpacing: "-0.01em" }}>الألوان الأساسية للمنتج (Global Product Colors)</h3>
-          
-          {/* Selected Colors List */}
-          {form.colors && form.colors.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
-              {form.colors.map((c, index) => {
-                const colorObj = typeof c === "string" ? { name: c, hex: "#ccc" } : c;
-                const globalAvailableImages = getAllAvailableImages();
-                const selectedImageIds = colorObj.images || (colorObj.image ? [colorObj.image] : []);
-
-                return (
-                  <div key={`${colorObj.hex || 'ccc'}-${colorObj.name || ''}-${index}`} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "18px", background: "#fbfbfd", border: "1px solid #e5e5ea", borderRadius: "16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: colorObj.hex || "#ccc", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }} />
-                      <span style={{ fontSize: "1rem", fontWeight: "700", flex: 1, color: "#1d1d1f" }}>{colorObj.name}</span>
-
-                      {/* Custom Image Upload for Global Color */}
-                      <label style={{ cursor: "pointer", background: "rgba(0,113,227,0.08)", color: "#0071e3", padding: "8px 16px", borderRadius: "10px", fontSize: "0.82rem", fontWeight: "700" }}>
-                        + رفع صورة لـ {colorObj.name}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          onChange={(e) => uploadGlobalColorCustomImage(index, e.target.files?.[0])}
-                        />
-                      </label>
-
-                      <button type="button" onClick={() => handleRemoveColor(index)} style={{ background: "none", border: "none", color: "#ff3b30", cursor: "pointer", padding: "4px", fontSize: "1.2rem", fontWeight: "bold" }}>
-                        ✕
-                      </button>
-                    </div>
-
-                    {colorObj.custom_preview && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#ffffff", padding: "8px 14px", borderRadius: "10px", border: "1px solid #e5e5ea" }}>
-                        <img src={colorObj.custom_preview} alt="" style={{ width: "42px", height: "42px", objectFit: "contain", borderRadius: "8px" }} />
-                        <span style={{ fontSize: "0.82rem", color: "#0071e3", fontWeight: "700" }}>صورة مرفوعة مخصصة لهذا اللون</span>
-                      </div>
-                    )}
-                    
-                    {globalAvailableImages.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
-                        <span style={{ fontSize: "0.82rem", fontWeight: "700", color: "#86868b" }}>اختر الصور المرتبطة بهذا اللون من كافة الصور المتاحة بالمنتج والإصدارات:</span>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                          {globalAvailableImages.map((img, imgIdx) => {
-                            const isSelected = selectedImageIds.includes(img.id);
-                            return (
-                              <div
-                                key={`${img.id}-${imgIdx}`}
-                                onClick={() => {
-                                  const nextImages = isSelected ? selectedImageIds.filter(id => id !== img.id) : [...selectedImageIds, img.id];
-                                  const newColors = [...form.colors];
-                                  newColors[index] = { ...colorObj, image: nextImages[0] || null, images: nextImages };
-                                  setForm({ ...form, colors: newColors });
-                                }}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                  padding: "8px 14px",
-                                  background: isSelected ? "rgba(0,113,227,0.08)" : "#ffffff",
-                                  borderRadius: "10px",
-                                  border: isSelected ? "2px solid #0071e3" : "1px solid #d2d2d7",
-                                  cursor: "pointer",
-                                  transition: "all 0.2s"
-                                }}
-                              >
-                                <div style={{ width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", background: "#fff", border: "1px solid #e5e5ea" }}>
-                                  <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                                </div>
-                                <span style={{ fontSize: "0.82rem", color: isSelected ? "#0071e3" : "#1d1d1f", fontWeight: isSelected ? "700" : "500" }}>{img.label}</span>
-                                {isSelected && <span style={{ color: "#0071e3", fontWeight: "700", fontSize: "0.95rem" }}>✓</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: "0.85rem", color: "#86868b" }}>قم برفع صور للمنتج أولاً لربطها بهذا اللون.</span>
-                    )}
-                  </div>
-                );
-              })}
+        {/* Compatible Devices Tag Form Section for Screen Protectors */}
+        {isScreenProtector && (
+          <div style={{ marginTop: "24px", background: "#ffffff", padding: "24px", borderRadius: "20px", border: "1px solid #0071e3", boxShadow: "0 4px 20px rgba(0,113,227,0.06)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "700", color: "#1d1d1f" }}>
+                  الأجهزة المتوافقة (Compatible Phone Models)
+                </h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: "0.85rem", color: "#86868b" }}>
+                  أدخل اسم كل هاتف متوافق مع هذه الاسكرينة واضغط إضافة أو Enter ليظهر كتاغ (Tag).
+                </p>
+              </div>
+              {(form.compatible_models || []).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, compatible_models: [] })}
+                  style={{ background: "none", border: "none", color: "#ff3b30", fontSize: "0.85rem", cursor: "pointer", fontWeight: "600" }}
+                >
+                  مسح جميع التاجات
+                </button>
+              )}
             </div>
-          )}
-          
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} style={{ width: "42px", height: "42px", padding: "0", border: "none", borderRadius: "10px", cursor: "pointer" }} />
-            <input type="text" placeholder="اسم اللون (مثال: أزرق سماوي / Sky Blue)" value={newColorName} onChange={e => setNewColorName(e.target.value)} style={{ flex: 1, padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }} />
-            <button type="button" onClick={() => {
-              if (newColorName.trim()) {
-                handleAddColor({ hex: newColorHex, name: newColorName.trim() });
-                setNewColorName("");
-              }
-            }} style={{ padding: "12px 24px", borderRadius: "12px", border: "none", background: "#0071e3", color: "#ffffff", cursor: "pointer", fontWeight: "600", fontSize: "0.95rem" }}>
-              إضافة اللون
-            </button>
-          </div>
 
-          {/* Quick famous colors */}
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px" }}>
-            {FAMOUS_COLORS.map(fc => (
-              <button key={fc.hex} type="button" onClick={() => handleAddColor(fc)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 14px", borderRadius: "20px", border: "1px solid #d2d2d7", background: "#ffffff", cursor: "pointer", fontWeight: "600" }}>
-                <span style={{ width: "14px", height: "14px", borderRadius: "50%", background: fc.hex, border: "1px solid rgba(0,0,0,0.15)" }} />
-                <span style={{ fontSize: "0.82rem", color: "#1d1d1f" }}>{fc.name}</span>
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+              <input
+                type="text"
+                placeholder="مثال: iPhone 15 Pro Max أو Samsung S24 Ultra..."
+                value={customModelInput}
+                onChange={(e) => setCustomModelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomModel();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  border: "1px solid #d2d2d7",
+                  fontSize: "0.95rem",
+                  color: "#1d1d1f",
+                  outline: "none"
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomModel}
+                style={{
+                  padding: "12px 24px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "#0071e3",
+                  color: "#ffffff",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  fontSize: "0.9rem"
+                }}
+              >
+                + إضافة هاتف
               </button>
-            ))}
+            </div>
+
+            <div style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              padding: "16px",
+              background: "#fbfbfd",
+              borderRadius: "14px",
+              border: "1px solid #e5e5ea",
+              minHeight: "60px",
+              alignItems: "center"
+            }}>
+              {(form.compatible_models || []).length > 0 ? (
+                (form.compatible_models || []).map((model) => (
+                  <span
+                    key={model}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 16px",
+                      borderRadius: "20px",
+                      background: "rgba(0, 113, 227, 0.08)",
+                      border: "1px solid #0071e3",
+                      color: "#0071e3",
+                      fontWeight: "600",
+                      fontSize: "0.9rem"
+                    }}
+                  >
+                    {model}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleModel(model)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#0071e3",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        fontSize: "1.1rem",
+                        lineHeight: 1,
+                        padding: 0
+                      }}
+                      title="حذف هذا الهاتف"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span style={{ color: "#86868b", fontSize: "0.9rem" }}>
+                  لم يتم إضافة أجهزة متوافقة بعد. استخدم الحقل أعلاه لإضافة الهواتف.
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Global Product Colors System (Hidden for Screen Protectors) */}
+        {!isScreenProtector && (
+          <div style={{ padding: "24px", background: "#ffffff", borderRadius: "20px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
+            <h3 style={{ margin: "0 0 16px 0", fontSize: "1.2rem", fontWeight: "700", color: "#1d1d1f", letterSpacing: "-0.01em" }}>الألوان الأساسية للمنتج (Global Product Colors)</h3>
+            
+            {/* Selected Colors List */}
+            {form.colors && form.colors.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+                {form.colors.map((c, index) => {
+                  const colorObj = typeof c === "string" ? { name: c, hex: "#ccc" } : c;
+                  const globalAvailableImages = getAllAvailableImages();
+                  const selectedImageIds = colorObj.images || (colorObj.image ? [colorObj.image] : []);
+
+                  return (
+                    <div key={`${colorObj.hex || 'ccc'}-${colorObj.name || ''}-${index}`} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "18px", background: "#fbfbfd", border: "1px solid #e5e5ea", borderRadius: "16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: colorObj.hex || "#ccc", border: "1px solid rgba(0,0,0,0.15)", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }} />
+                        <span style={{ fontSize: "1rem", fontWeight: "700", flex: 1, color: "#1d1d1f" }}>{colorObj.name}</span>
+
+                        {/* Custom Image Upload for Global Color */}
+                        <label style={{ cursor: "pointer", background: "rgba(0,113,227,0.08)", color: "#0071e3", padding: "8px 16px", borderRadius: "10px", fontSize: "0.82rem", fontWeight: "700" }}>
+                          + رفع صورة لـ {colorObj.name}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: "none" }}
+                            onChange={(e) => uploadGlobalColorCustomImage(index, e.target.files?.[0])}
+                          />
+                        </label>
+
+                        <button type="button" onClick={() => handleRemoveColor(index)} style={{ background: "none", border: "none", color: "#ff3b30", cursor: "pointer", padding: "4px", fontSize: "1.2rem", fontWeight: "bold" }}>
+                          ✕
+                        </button>
+                      </div>
+
+                      {colorObj.custom_preview && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#ffffff", padding: "8px 14px", borderRadius: "10px", border: "1px solid #e5e5ea" }}>
+                          <img src={colorObj.custom_preview} alt="" style={{ width: "42px", height: "42px", objectFit: "contain", borderRadius: "8px" }} />
+                          <span style={{ fontSize: "0.82rem", color: "#0071e3", fontWeight: "700" }}>صورة مرفوعة مخصصة لهذا اللون</span>
+                        </div>
+                      )}
+                      
+                      {globalAvailableImages.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                          <span style={{ fontSize: "0.82rem", fontWeight: "700", color: "#86868b" }}>اختر الصور المرتبطة بهذا اللون من كافة الصور المتاحة بالمنتج والإصدارات:</span>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                            {globalAvailableImages.map((img, imgIdx) => {
+                              const isSelected = selectedImageIds.includes(img.id);
+                              return (
+                                <div
+                                  key={`${img.id}-${imgIdx}`}
+                                  onClick={() => {
+                                    const nextImages = isSelected ? selectedImageIds.filter(id => id !== img.id) : [...selectedImageIds, img.id];
+                                    const newColors = [...form.colors];
+                                    newColors[index] = { ...colorObj, image: nextImages[0] || null, images: nextImages };
+                                    setForm({ ...form, colors: newColors });
+                                  }}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "8px 14px",
+                                    background: isSelected ? "rgba(0,113,227,0.08)" : "#ffffff",
+                                    borderRadius: "10px",
+                                    border: isSelected ? "2px solid #0071e3" : "1px solid #d2d2d7",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s"
+                                  }}
+                                >
+                                  <div style={{ width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", background: "#fff", border: "1px solid #e5e5ea" }}>
+                                    <img src={img.src} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                                  </div>
+                                  <span style={{ fontSize: "0.82rem", color: isSelected ? "#0071e3" : "#1d1d1f", fontWeight: isSelected ? "700" : "500" }}>{img.label}</span>
+                                  {isSelected && <span style={{ color: "#0071e3", fontWeight: "700", fontSize: "0.95rem" }}>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: "0.85rem", color: "#86868b" }}>قم برفع صور للمنتج أولاً لربطها بهذا اللون.</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} style={{ width: "42px", height: "42px", padding: "0", border: "none", borderRadius: "10px", cursor: "pointer" }} />
+              <input type="text" placeholder="اسم اللون (مثال: أزرق سماوي / Sky Blue)" value={newColorName} onChange={e => setNewColorName(e.target.value)} style={{ flex: 1, padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }} />
+              <button type="button" onClick={() => {
+                if (newColorName.trim()) {
+                  handleAddColor({ hex: newColorHex, name: newColorName.trim() });
+                  setNewColorName("");
+                }
+              }} style={{ padding: "12px 24px", borderRadius: "12px", border: "none", background: "#0071e3", color: "#ffffff", cursor: "pointer", fontWeight: "600", fontSize: "0.95rem" }}>
+                إضافة اللون
+              </button>
+            </div>
+
+            {/* Quick famous colors */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px" }}>
+              {FAMOUS_COLORS.map(fc => (
+                <button key={fc.hex} type="button" onClick={() => handleAddColor(fc)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 14px", borderRadius: "20px", border: "1px solid #d2d2d7", background: "#ffffff", cursor: "pointer", fontWeight: "600" }}>
+                  <span style={{ width: "14px", height: "14px", borderRadius: "50%", background: fc.hex, border: "1px solid rgba(0,0,0,0.15)" }} />
+                  <span style={{ fontSize: "0.82rem", color: "#1d1d1f" }}>{fc.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
       </form>
 

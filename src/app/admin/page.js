@@ -1214,6 +1214,7 @@ export default function AdminPage() {
                 galleryFiles={galleryFiles}
                 setGalleryFiles={setGalleryFiles}
                 sections={sections}
+                categories={categories}
                 onSubmit={handleProductSubmit}
                 onDelete={async (id) => {
                   await handleDeleteProduct(id);

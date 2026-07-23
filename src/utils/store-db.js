@@ -679,10 +679,33 @@ async function upsertCategory(category) {
     throw new Error("قسم الكل موجود تلقائياً ولا يحتاج إلى إضافته.");
   }
 
-  const existingRows = await supabaseRequest(TABLES.categories, {
-    service: true,
-    query: `?select=*&name=eq.${encodeURIComponent(name)}&limit=1`,
-  });
+  let existingRow = null;
+  const categoryId = category.id !== undefined && category.id !== null ? String(category.id).trim() : null;
+
+  if (categoryId) {
+    try {
+      const rowsById = await supabaseRequest(TABLES.categories, {
+        service: true,
+        query: `?select=*&id=eq.${encodeURIComponent(categoryId)}&limit=1`,
+      });
+      if (rowsById.length) {
+        existingRow = rowsById[0];
+      }
+    } catch (err) {
+      // If querying by ID fails, fall through to search by name
+    }
+  }
+
+  if (!existingRow) {
+    const rowsByName = await supabaseRequest(TABLES.categories, {
+      service: true,
+      query: `?select=*&name=eq.${encodeURIComponent(name)}&limit=1`,
+    }).catch(() => []);
+    if (rowsByName.length) {
+      existingRow = rowsByName[0];
+    }
+  }
+
   const body = {
     name,
     image_url: imageUrl,
@@ -691,16 +714,36 @@ async function upsertCategory(category) {
     updated_at: new Date().toISOString(),
   };
 
-  const rows = await supabaseRequest(TABLES.categories, existingRows.length ? {
-    service: true,
-    method: "PATCH",
-    query: `?name=eq.${encodeURIComponent(name)}`,
-    body,
-  } : {
-    service: true,
-    method: "POST",
-    body,
-  });
+  let rows = [];
+  if (existingRow) {
+    const oldName = existingRow.name;
+    const matchQuery = existingRow.id !== undefined && existingRow.id !== null
+      ? `?id=eq.${encodeURIComponent(existingRow.id)}`
+      : `?name=eq.${encodeURIComponent(oldName)}`;
+
+    rows = await supabaseRequest(TABLES.categories, {
+      service: true,
+      method: "PATCH",
+      query: matchQuery,
+      body,
+    });
+
+    if (oldName && oldName !== name) {
+      await supabaseRequest(TABLES.products, {
+        service: true,
+        method: "PATCH",
+        query: `?category=eq.${encodeURIComponent(oldName)}`,
+        body: { category: name },
+        prefer: "return=minimal",
+      }).catch(() => {});
+    }
+  } else {
+    rows = await supabaseRequest(TABLES.categories, {
+      service: true,
+      method: "POST",
+      body,
+    });
+  }
 
   return rows[0] ? categoryFromDb(rows[0]) : null;
 }
@@ -1306,19 +1349,34 @@ async function getEmailLogByEventKey(event_key) {
 }
 
 async function deleteCategory(id) {
+  const cleanId = String(id || "").trim();
+  if (!cleanId) {
+    throw new Error("معرف القسم مطلوب.");
+  }
+
+  // Try deleting by ID first (supports UUIDs and integer IDs)
   try {
-    const query = `?id=eq.${encodeURIComponent(id)}`;
-    await supabaseRequest("categories", {
+    const res = await supabaseRequest(TABLES.categories, {
       service: true,
       method: "DELETE",
-      query,
-      prefer: "return=minimal",
+      query: `?id=eq.${encodeURIComponent(cleanId)}`,
+      prefer: "return=representation",
     });
-    return true;
-  } catch (error) {
-    console.error("Error deleting category:", error);
-    return false;
+    if (Array.isArray(res) && res.length > 0) {
+      return res;
+    }
+  } catch (err) {
+    // If deleting by ID fails (e.g. format mismatch), fall through to delete by name
   }
+
+  // Fallback: Delete by name
+  const resByName = await supabaseRequest(TABLES.categories, {
+    service: true,
+    method: "DELETE",
+    query: `?name=eq.${encodeURIComponent(cleanId)}`,
+    prefer: "return=representation",
+  });
+  return resByName;
 }
 
 export {

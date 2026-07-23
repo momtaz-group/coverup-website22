@@ -6,6 +6,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
+import { getSectionType } from "@/utils/section-utils";
 
 function normalizeProductColor(value, index) {
   let color = value;
@@ -86,6 +87,7 @@ function ProductDetailContent() {
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [storeCategories, setStoreCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mainImage, setMainImage] = useState("");
@@ -224,9 +226,15 @@ function ProductDetailContent() {
         .catch(() => ({ reviews: [] })),
       fetch(`/api/store-products`)
         .then((res) => res.json())
-        .catch(() => ({ products: [] }))
+        .catch(() => ({ products: [] })),
+      fetch(`/api/store-categories`)
+        .then((res) => res.json())
+        .catch(() => ({ categories: [] }))
     ])
-      .then(([productData, reviewsData, allProductsData]) => {
+      .then(([productData, reviewsData, allProductsData, categoriesData]) => {
+        if (categoriesData && Array.isArray(categoriesData.categories)) {
+          setStoreCategories(categoriesData.categories);
+        }
         if (productData.product) {
           setProduct(productData.product);
           setReviews(reviewsData.reviews || []);
@@ -341,11 +349,15 @@ function ProductDetailContent() {
   const displayDesc = locale === "en" && product.description_en ? product.description_en : product.description;
   const displayBadge = locale === "en" && product.badge_en ? product.badge_en : product.badge;
   const displayCategory = locale === "en" && product.category_en ? product.category_en : product.category;
-  const isCoverCategory = ["phone cases", "phone covers", "cases", "covers", "كفر", "كفرات"].some(p =>
+  
+  const sectionType = getSectionType(product?.category || displayCategory, storeCategories);
+  const isScreenProtector = sectionType === "screen_protectors";
+  const isCoverCategory = sectionType === "covers" || ["phone cases", "phone covers", "cases", "covers", "كفر", "كفرات"].some(p =>
     String(displayCategory || product?.category || "").trim().toLowerCase().includes(p)
   );
+
   const activeVersion = (product.versions || []).find((version) => version && version.id === activeVersionId) || null;
-  const isVersionedProduct = product.product_type === "device_versions" || (product.versions || []).filter(Boolean).length > 0;
+  const isVersionedProduct = !isScreenProtector && (product.product_type === "device_versions" || (product.versions || []).filter(Boolean).length > 0);
   const effectiveName = activeVersion?.version_name || displayName;
   const effectivePrice = activeVersion ? Number(activeVersion.price || 0) : Number(product.price || 0);
   const effectiveCompareAt = activeVersion?.compare_at_price ? Number(activeVersion.compare_at_price) : 0;
@@ -364,7 +376,7 @@ function ProductDetailContent() {
       setColorError(locale === "ar" ? "الرجاء اختيار موديل الهاتف أولا" : "Please select a phone model first");
       return;
     }
-    if (productColors.length > 1 && !activeColor) {
+    if (!isScreenProtector && productColors.length > 1 && !activeColor) {
       setColorError(locale === "ar" ? "الرجاء اختيار اللون أولاً" : "Please select a color first");
       return;
     }
@@ -427,14 +439,62 @@ function ProductDetailContent() {
               {displayBadge && <span style={{ background: 'rgba(0,112,243,0.1)', color: '#0070f3', padding: '6px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', marginBottom: '12px', display: 'inline-block' }}>{displayBadge}</span>}
               <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{effectiveName}</h1>
               <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
-              {!isCoverCategory && product.compatible_models && product.compatible_models.length > 1 && (
-                <div style={{ marginTop: '16px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--muted)', display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                    {locale === "ar" ? "متوافق مع:" : "Compatible with:"}
-                  </span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              
+              {/* Beautiful Compatible Devices Card for Screen Protectors */}
+              {isScreenProtector && Array.isArray(product.compatible_models) && product.compatible_models.length > 0 && (
+                <div style={{
+                  marginTop: '20px',
+                  background: 'linear-gradient(135deg, rgba(0, 112, 243, 0.05) 0%, rgba(0, 112, 243, 0.01) 100%)',
+                  border: '1.5px solid rgba(0, 112, 243, 0.25)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  boxShadow: '0 8px 24px rgba(0, 112, 243, 0.06)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '10px',
+                      background: 'rgba(0, 112, 243, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0070f3'
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="3" ry="3"></rect>
+                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: '700', color: 'var(--text)' }}>
+                        {locale === "ar" ? "الأجهزة المتوافقة مع هذه الاسكرينة" : "Compatible Phone Models"}
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                        {locale === "ar" ? "تناسب موديلات الهواتف التالية بشكل مثالي:" : "Designed to fit the following phone models:"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                     {product.compatible_models.map((model, idx) => (
-                      <span key={idx} style={{ padding: '6px 12px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '20px', fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
+                      <span
+                        key={idx}
+                        style={{
+                          padding: '6px 14px',
+                          background: 'var(--panel)',
+                          border: '1.5px solid #0070f3',
+                          borderRadius: '20px',
+                          fontSize: '0.85rem',
+                          color: 'var(--text)',
+                          fontWeight: '600',
+                          boxShadow: '0 2px 6px rgba(0, 112, 243, 0.08)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0070f3' }}></span>
                         {model}
                       </span>
                     ))}
@@ -528,7 +588,7 @@ function ProductDetailContent() {
               </div>
             </div>
 
-            {productColors.length > 0 && (
+            {!isScreenProtector && productColors.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{locale === "ar" ? "الألوان المتاحة:" : "Available Colors:"}</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
