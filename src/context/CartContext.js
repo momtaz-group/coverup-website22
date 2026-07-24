@@ -7,6 +7,7 @@ const CartContext = createContext();
 function productSnapshot(product) {
   const version = product.selectedVersion || null;
   const color = product.selectedColor || null;
+  const selectedModel = product.selectedModel || product.phone_model || "";
 
   let image = product.image || "";
   if (!image && color) {
@@ -16,7 +17,8 @@ function productSnapshot(product) {
     image = version.main_image_url || (Array.isArray(version.images) && version.images[0]) || "";
   }
 
-  const name = version?.version_name || product.name;
+  const baseName = version?.version_name || product.name;
+  const name = (selectedModel && !baseName.includes(selectedModel)) ? `${baseName} (${selectedModel})` : baseName;
 
   return {
     id: product.id,
@@ -28,8 +30,9 @@ function productSnapshot(product) {
     is_in_stock: version ? (version.status === "active" && Number(version.stock_quantity || 0) > 0) : product.is_in_stock !== false,
     selectedColor: color,
     selectedVersion: version,
+    selectedModel: selectedModel,
     product_version_id: version?.id || product.product_version_id || null,
-    phone_model: version?.phone_model || product.phone_model || "",
+    phone_model: selectedModel || version?.phone_model || product.phone_model || "",
     sku: version?.sku || product.sku || "",
   };
 }
@@ -66,11 +69,14 @@ export function CartProvider({ children }) {
 
     const color = product.selectedColor || null;
     const version = product.selectedVersion || null;
+    const model = product.selectedModel || product.phone_model || null;
     const cartKey = version?.id
       ? `${product.id}::version::${version.id}${color ? `::${color.hex}` : ""}`
-      : color
-        ? `${product.id}::${color.hex}`
-        : product.id;
+      : model
+        ? `${product.id}::model::${model}${color ? `::${color.hex}` : ""}`
+        : color
+          ? `${product.id}::${color.hex}`
+          : product.id;
 
     const nextCart = { ...cart };
     const current = nextCart[cartKey] || { quantity: 0, snapshot: productSnapshot(product) };

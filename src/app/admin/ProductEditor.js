@@ -405,11 +405,19 @@ export default function ProductEditor({ form, setForm, imageFile, setImageFile, 
             <input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }} />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "8px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
-            المخزون الكلي
-            <input type="number" min="0" value={form.stock_quantity ?? ""} onChange={e => setForm({...form, stock_quantity: e.target.value})} placeholder="0" style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem" }} />
-          </label>
         </div>
+
+        {/* Product Description */}
+        <label style={{ display: "flex", flexDirection: "column", gap: "8px", fontWeight: "600", color: "#1d1d1f", fontSize: "0.9rem" }}>
+          وصف المنتج (Product Description)
+          <textarea
+            rows="4"
+            value={form.description || ""}
+            onChange={e => setForm({...form, description: e.target.value})}
+            placeholder="اكتب وصفاً تفصيلياً للمنتج ومميزاته..."
+            style={{ padding: "12px 14px", borderRadius: "12px", border: "1px solid #d2d2d7", background: "#ffffff", color: "#1d1d1f", outline: "none", fontSize: "0.95rem", resize: "vertical" }}
+          />
+        </label>
 
         {/* APPLE-DESIGNED PRODUCT MEDIA STUDIO */}
         <div style={{ background: "#ffffff", borderRadius: "20px", padding: "24px", border: "1px solid #e5e5ea", boxShadow: "0 4px 20px rgba(0,0,0,0.03)", display: "flex", flexDirection: "column", gap: "20px" }}>

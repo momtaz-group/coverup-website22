@@ -95,6 +95,7 @@ function ProductDetailContent() {
   const [quantity, setQuantity] = useState(1);
   const [activeColor, setActiveColor] = useState(null);
   const [activeVersionId, setActiveVersionId] = useState("");
+  const [selectedModels, setSelectedModels] = useState([]);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
   const [colorError, setColorError] = useState("");
@@ -241,6 +242,11 @@ function ProductDetailContent() {
           setMainImage(productData.product.image);
           setActiveColor(null);
           setActiveVersionId("");
+          if (Array.isArray(productData.product.compatible_models) && productData.product.compatible_models.length > 0) {
+            setSelectedModels([productData.product.compatible_models[0]]);
+          } else {
+            setSelectedModels([]);
+          }
           if (typeof window !== "undefined") {
             window.scrollTo({ top: 0, behavior: "instant" });
           }
@@ -371,7 +377,40 @@ function ProductDetailContent() {
     ? (activeVersion ? (activeVersion.status !== "inactive" && Number(activeVersion.stock_quantity || 0) > 0) : (product.versions || []).some(v => v && v.status !== "inactive" && Number(v.stock_quantity || 0) > 0))
     : (product.is_in_stock !== false && Number(product.stock_quantity || 0) > 0);
 
+  const toggleModelSelection = (model) => {
+    setColorError("");
+    if (selectedModels.includes(model)) {
+      setSelectedModels(selectedModels.filter(m => m !== model));
+    } else {
+      setSelectedModels([...selectedModels, model]);
+    }
+  };
+
   const handleAddToCart = () => {
+    if (isScreenProtector) {
+      if (selectedModels.length === 0) {
+        setColorError(locale === "ar" ? "الرجاء اختيار موديل هاتف واحد على الأقل للمتابعة" : "Please select at least one phone model to proceed");
+        return;
+      }
+      for (const model of selectedModels) {
+        for (let i = 0; i < quantity; i++) {
+          addToCart({
+            ...product,
+            name: displayName,
+            price: effectivePrice,
+            image: mainImage || product.image,
+            sku: effectiveSku,
+            stock_quantity: effectiveStock,
+            is_in_stock: canAddProduct,
+            selectedModel: model,
+            phone_model: model,
+          });
+        }
+      }
+      router.push("/cart");
+      return;
+    }
+
     if (isVersionedProduct && !activeVersion) {
       setColorError(locale === "ar" ? "الرجاء اختيار موديل الهاتف أولا" : "Please select a phone model first");
       return;
@@ -440,7 +479,7 @@ function ProductDetailContent() {
               <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', lineHeight: 1.2 }}>{effectiveName}</h1>
               <p style={{ fontSize: '15px', color: 'var(--muted)', margin: 0 }}>{displayCategory}</p>
               
-              {/* Beautiful Compatible Devices Card for Screen Protectors */}
+              {/* Interactive Multi-Select Compatible Devices Card for Screen Protectors */}
               {isScreenProtector && Array.isArray(product.compatible_models) && product.compatible_models.length > 0 && (
                 <div style={{
                   marginTop: '20px',
@@ -468,37 +507,58 @@ function ProductDetailContent() {
                     </div>
                     <div>
                       <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: '700', color: 'var(--text)' }}>
-                        {locale === "ar" ? "الأجهزة المتوافقة مع هذه الاسكرينة" : "Compatible Phone Models"}
+                        {locale === "ar" ? "اختر موديل هاتفك (يمكنك اختيار أكثر من موديل)" : "Select Your Phone Model (Select one or multiple)"}
                       </h3>
                       <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
-                        {locale === "ar" ? "تناسب موديلات الهواتف التالية بشكل مثالي:" : "Designed to fit the following phone models:"}
+                        {locale === "ar" ? "انقر على الهواتف المتوافقة التي ترغب في إضافة اسكرينات لها:" : "Click on the phone models you wish to purchase screen protectors for:"}
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-                    {product.compatible_models.map((model, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          padding: '6px 14px',
-                          background: 'var(--panel)',
-                          border: '1.5px solid #0070f3',
-                          borderRadius: '20px',
-                          fontSize: '0.85rem',
-                          color: 'var(--text)',
-                          fontWeight: '600',
-                          boxShadow: '0 2px 6px rgba(0, 112, 243, 0.08)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0070f3' }}></span>
-                        {model}
-                      </span>
-                    ))}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '14px' }}>
+                    {product.compatible_models.map((model, idx) => {
+                      const isSelected = selectedModels.includes(model);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => toggleModelSelection(model)}
+                          style={{
+                            padding: '8px 16px',
+                            background: isSelected ? '#0070f3' : 'var(--panel)',
+                            border: isSelected ? '1.5px solid #0070f3' : '1.5px solid var(--line)',
+                            borderRadius: '24px',
+                            fontSize: '0.88rem',
+                            color: isSelected ? '#ffffff' : 'var(--text)',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isSelected ? '0 4px 14px rgba(0, 112, 243, 0.3)' : '0 2px 6px rgba(0,0,0,0.03)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: isSelected ? '#ffffff' : '#0070f3'
+                          }} />
+                          {model}
+                          {isSelected && <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {selectedModels.length > 0 && (
+                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px dashed rgba(0,112,243,0.2)', fontSize: '0.82rem', color: '#0070f3', fontWeight: '600' }}>
+                      {locale === "ar"
+                        ? `تم تحديد ${selectedModels.length} جهاز: ${selectedModels.join("، ")}`
+                        : `Selected ${selectedModels.length} model(s): ${selectedModels.join(", ")}`}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
