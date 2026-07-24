@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import IOSMediaUnlocker from "@/components/IOSMediaUnlocker";
 import GlobalLoader from "@/components/GlobalLoader";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: "Cover Up",
@@ -38,6 +39,7 @@ export default function RootLayout({ children }) {
                 <Header />
                 {children}
                 <Footer />
+                <Analytics />
               </CartProvider>
             </LoadingProvider>
           </LanguageProvider>
