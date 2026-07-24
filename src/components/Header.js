@@ -5,16 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "../context/LanguageContext";
 import { useCart } from "../context/CartContext";
-import { useTheme } from "../context/ThemeContext";
 import { supabase } from "../utils/supabase";
 
 export default function Header() {
   const { t, locale, toggleLanguage } = useLanguage();
   const { cartCount } = useCart();
-  const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const [sideDrawerOpen, setSideDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -189,7 +186,7 @@ export default function Header() {
         {/* Brand Logo */}
         <Link href="/" className="brand" aria-label="Cover Up home">
           <img
-            src={theme === "dark" ? "/assets/brand/Coverup(white).png" : "/assets/brand/Coverup(black).png"}
+            src="/assets/brand/Coverup(black).png"
             alt="Cover Up"
             style={{ height: "40px", width: "auto", display: "block", objectFit: "contain" }}
           />
@@ -297,29 +294,87 @@ export default function Header() {
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </Link>
 
-          <button
-            className="icon-action-btn settings-btn"
-            type="button"
-            aria-label={locale === "ar" ? "الإعدادات واللغة" : "Settings & Language"}
-            title={locale === "ar" ? "الإعدادات واللغة" : "Settings & Language"}
-            onClick={() => setSideDrawerOpen(true)}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="4" y1="21" x2="4" y2="14"></line>
-              <line x1="4" y1="10" x2="4" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12" y2="3"></line>
-              <line x1="20" y1="21" x2="20" y2="16"></line>
-              <line x1="20" y1="12" x2="20" y2="3"></line>
-              <line x1="1" y1="14" x2="7" y2="14"></line>
-              <line x1="9" y1="8" x2="15" y2="8"></line>
-              <line x1="17" y1="16" x2="23" y2="16"></line>
-            </svg>
-          </button>
+          <div className="lang-segmented-control" style={{ display: "inline-flex", gap: "2px", background: "var(--line)", padding: "2px", borderRadius: "20px" }}>
+            <button
+              className="lang-segment-btn"
+              type="button"
+              onClick={() => locale !== "ar" && toggleLanguage()}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "18px",
+                fontSize: "0.8rem",
+                fontWeight: "800",
+                border: "none",
+                cursor: "pointer",
+                background: locale === "ar" ? "var(--text)" : "transparent",
+                color: locale === "ar" ? "var(--bg)" : "var(--muted)",
+                transition: "all 0.2s"
+              }}
+            >
+              العربية
+            </button>
+            <button
+              className="lang-segment-btn"
+              type="button"
+              onClick={() => locale !== "en" && toggleLanguage()}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "18px",
+                fontSize: "0.8rem",
+                fontWeight: "800",
+                border: "none",
+                cursor: "pointer",
+                background: locale === "en" ? "var(--text)" : "transparent",
+                color: locale === "en" ? "var(--bg)" : "var(--muted)",
+                transition: "all 0.2s"
+              }}
+            >
+              EN
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Right Tools (Account & Cart) */}
+        {/* Mobile Right Tools (Account, Cart, Language) */}
         <div className="mobile-header-tools mobile-header-right">
+          <div className="lang-segmented-control" style={{ display: "inline-flex", gap: "2px", background: "var(--line)", padding: "2px", borderRadius: "16px", marginInlineEnd: "8px" }}>
+            <button
+              className="lang-segment-btn"
+              type="button"
+              onClick={() => locale !== "ar" && toggleLanguage()}
+              style={{
+                padding: "4px 8px",
+                borderRadius: "14px",
+                fontSize: "0.75rem",
+                fontWeight: "800",
+                border: "none",
+                cursor: "pointer",
+                background: locale === "ar" ? "var(--text)" : "transparent",
+                color: locale === "ar" ? "var(--bg)" : "var(--muted)",
+                transition: "all 0.2s"
+              }}
+            >
+              العربية
+            </button>
+            <button
+              className="lang-segment-btn"
+              type="button"
+              onClick={() => locale !== "en" && toggleLanguage()}
+              style={{
+                padding: "4px 8px",
+                borderRadius: "14px",
+                fontSize: "0.75rem",
+                fontWeight: "800",
+                border: "none",
+                cursor: "pointer",
+                background: locale === "en" ? "var(--text)" : "transparent",
+                color: locale === "en" ? "var(--bg)" : "var(--muted)",
+                transition: "all 0.2s"
+              }}
+            >
+              EN
+            </button>
+          </div>
+
           <Link
             href="/account"
             className="icon-action-btn account-btn"
@@ -380,73 +435,6 @@ export default function Header() {
         </nav>
       )}
 
-      <div className={`side-drawer-backdrop ${sideDrawerOpen ? "is-open" : ""}`} onClick={() => setSideDrawerOpen(false)}></div>
-
-      <aside className={`side-drawer ${sideDrawerOpen ? "is-open" : ""}`}>
-        <div className="side-drawer-header">
-          <h2>{locale === "ar" ? "القائمة والإعدادات" : "Menu & Settings"}</h2>
-          <button
-            type="button"
-            className="drawer-close-btn"
-            aria-label={locale === "ar" ? "إغلاق" : "Close"}
-            onClick={() => setSideDrawerOpen(false)}
-          >
-            &times;
-          </button>
-        </div>
-
-        <div className="side-drawer-section">
-          <h3>{locale === "ar" ? "اللغة" : "Language"}</h3>
-          <div className="segmented-control">
-            <button className={`segmented-option ${locale === "ar" ? "active" : ""}`} type="button" onClick={() => locale !== "ar" && toggleLanguage()}>
-              العربية
-            </button>
-            <button className={`segmented-option ${locale === "en" ? "active" : ""}`} type="button" onClick={() => locale !== "en" && toggleLanguage()}>
-              English
-            </button>
-          </div>
-        </div>
-
-        <div className="side-drawer-section">
-          <h3>{locale === "ar" ? "المظهر" : "Appearance"}</h3>
-          <div className="segmented-control">
-            <button
-              className={`segmented-option ${theme === "light" ? "active" : ""}`}
-              type="button"
-              onClick={() => setTheme("light")}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-              {locale === "ar" ? "فاتح" : "Light"}
-            </button>
-            <button
-              className={`segmented-option ${theme === "dark" ? "active" : ""}`}
-              type="button"
-              onClick={() => setTheme("dark")}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-              {locale === "ar" ? "داكن" : "Dark"}
-            </button>
-          </div>
-        </div>
-
-        <div style={{ marginTop: "auto", borderTop: "1px solid var(--line)", paddingTop: "20px", opacity: 0.6, fontSize: "12px" }}>
-          <span>© Cover Up {new Date().getFullYear()}</span>
-        </div>
-      </aside>
     </>
   );
 }

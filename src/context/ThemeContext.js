@@ -5,24 +5,20 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState("light");
+  const [theme] = useState("light");
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("coverup-theme") || "light";
-    setTheme(savedTheme);
+    try {
+      localStorage.setItem("coverup-theme", "light");
+      document.documentElement.setAttribute("data-theme", "light");
+    } catch {}
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("coverup-theme", theme);
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  const toggleTheme = () => {};
+  const setTheme = () => {};
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: "light", toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

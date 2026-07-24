@@ -34,38 +34,8 @@ function ShopContent() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // Category Strip Auto-scroll & Ref
+  // Category Strip Ref
   const categoryStripRef = React.useRef(null);
-  const [isStripUserInteracting, setIsStripUserInteracting] = useState(false);
-  const stripScrollTimeoutRef = React.useRef(null);
-
-  useEffect(() => {
-    const el = categoryStripRef.current;
-    if (!el) return;
-
-    const autoScrollInterval = setInterval(() => {
-      if (isStripUserInteracting) return;
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (maxScroll <= 0) return;
-
-      const isRTL = typeof document !== "undefined" && (document.dir === "rtl" || document.documentElement.dir === "rtl");
-      if (isRTL) {
-        if (Math.abs(el.scrollLeft) >= maxScroll - 4) {
-          el.scrollLeft = 0;
-        } else {
-          el.scrollLeft -= 1.2;
-        }
-      } else {
-        if (el.scrollLeft >= maxScroll - 4) {
-          el.scrollLeft = 0;
-        } else {
-          el.scrollLeft += 1.2;
-        }
-      }
-    }, 28);
-
-    return () => clearInterval(autoScrollInterval);
-  }, [isStripUserInteracting, loadingCategories]);
 
   // Sync state with url changes
   useEffect(() => {
@@ -402,18 +372,6 @@ function ShopContent() {
         ref={categoryStripRef}
         className="store-category-strip"
         aria-label={locale === "ar" ? "تصنيفات المتجر" : "Store categories"}
-        onMouseEnter={() => setIsStripUserInteracting(true)}
-        onMouseLeave={() => setIsStripUserInteracting(false)}
-        onTouchStart={() => setIsStripUserInteracting(true)}
-        onTouchEnd={() => {
-          if (stripScrollTimeoutRef.current) clearTimeout(stripScrollTimeoutRef.current);
-          stripScrollTimeoutRef.current = setTimeout(() => setIsStripUserInteracting(false), 3000);
-        }}
-        onScroll={() => {
-          setIsStripUserInteracting(true);
-          if (stripScrollTimeoutRef.current) clearTimeout(stripScrollTimeoutRef.current);
-          stripScrollTimeoutRef.current = setTimeout(() => setIsStripUserInteracting(false), 3500);
-        }}
       >
         {loadingCategories ? (
           Array.from({ length: 6 }).map((_, idx) => (
