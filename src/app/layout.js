@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import IOSMediaUnlocker from "@/components/IOSMediaUnlocker";
 import GlobalLoader from "@/components/GlobalLoader";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata = {
   title: "Cover Up",
@@ -42,6 +43,7 @@ export default function RootLayout({ children }) {
             </LoadingProvider>
           </LanguageProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
